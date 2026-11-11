@@ -43,3 +43,6 @@ yarn-error.*
 # variáveis de ambiente
 .env
 .env.local
+
+# controle do iniciar.bat
+.deps-hash

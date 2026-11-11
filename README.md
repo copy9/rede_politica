@@ -38,9 +38,13 @@ Para ver no navegador, aperte `w` no terminal.
 
 ## Atualização automática (Windows)
 
-Dê dois cliques em **`atualizar.bat`** e deixe a janela aberta: a cada 30 segundos ela baixa
-do GitHub as alterações novas. Se o `npx expo start` estiver rodando em outra janela, o app no
-celular recarrega sozinho com as mudanças.
+Dê dois cliques em **`iniciar.bat`**. Ele faz tudo sozinho:
+
+- baixa as alterações do GitHub a cada 30 segundos;
+- roda o `npm install` quando entra biblioteca nova;
+- abre o app (janela do QR Code) e reinicia quando necessário.
+
+Deixe a janela "sincronizando" aberta enquanto usa. (O `atualizar.bat` antigo só baixa as alterações.)
 
 ## Supabase
 
