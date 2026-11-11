@@ -1,7 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useOverlay } from '@/components/Overlay';
 import { ProfileView } from '@/components/ProfileView';
 import { UserName } from '@/components/UserName';
 import { useSettings } from '@/lib/settings';
@@ -12,6 +13,7 @@ export default function UserScreen() {
   const { username } = useLocalSearchParams<{ username: string }>();
   const { getUserByUsername, me } = useApp();
   const { settings, toggleIn } = useSettings();
+  const { showSheet, confirm, showBanner } = useOverlay();
   const user = getUserByUsername(username);
 
   if (!user) {
@@ -28,26 +30,41 @@ export default function UserScreen() {
   const isMe = me?.id === user.id;
 
   const openMenu = () =>
-    Alert.alert(user.username, undefined, [
-      ...(!isMe
-        ? [
-            {
-              text: isBlocked ? 'Desbloquear' : 'Bloquear',
-              style: 'destructive' as const,
-              onPress: () =>
-                isBlocked
-                  ? toggleIn('blockedIds', user.id)
-                  : Alert.alert(`Bloquear ${user.username}?`, 'A pessoa não verá seu perfil e não será avisada.', [
-                      { text: 'Cancelar', style: 'cancel' },
-                      { text: 'Bloquear', style: 'destructive', onPress: () => toggleIn('blockedIds', user.id) },
-                    ]),
-            },
-            { text: isMuted ? 'Reativar no feed' : 'Silenciar', onPress: () => toggleIn('mutedIds', user.id) },
-          ]
-        : []),
-      { text: 'Denunciar perfil', style: 'destructive', onPress: () => Alert.alert('Obrigado', 'Sua denúncia foi registrada.') },
-      { text: 'Cancelar', style: 'cancel' },
-    ]);
+    showSheet({
+      title: user.username,
+      options: [
+        ...(!isMe
+          ? [
+              {
+                label: isBlocked ? 'Desbloquear' : 'Bloquear',
+                icon: 'remove-circle-outline' as const,
+                destructive: !isBlocked,
+                onPress: () =>
+                  isBlocked
+                    ? toggleIn('blockedIds', user.id)
+                    : confirm(`Bloquear ${user.username}?`, 'A pessoa não verá seu perfil e não será avisada.', 'Bloquear', () => {
+                        toggleIn('blockedIds', user.id);
+                        showBanner(`${user.username} foi bloqueado(a).`, { icon: 'remove-circle-outline' });
+                      }, true),
+              },
+              {
+                label: isMuted ? 'Reativar no feed' : 'Silenciar',
+                icon: 'volume-mute-outline' as const,
+                onPress: () => {
+                  toggleIn('mutedIds', user.id);
+                  showBanner(isMuted ? `${user.username} voltou para o seu feed.` : `Você silenciou ${user.username}.`, { icon: 'volume-mute-outline' });
+                },
+              },
+            ]
+          : []),
+        {
+          label: 'Denunciar perfil',
+          icon: 'flag-outline' as const,
+          destructive: true,
+          onPress: () => showBanner('Obrigado. Sua denúncia foi registrada.', { icon: 'flag-outline', tone: 'success' }),
+        },
+      ],
+    });
 
   return (
     <>

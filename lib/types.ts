@@ -53,6 +53,8 @@ export type Story = {
   uri: string;
   createdAt: number;
   seenBy: string[];
+  /** só para Melhores amigos */
+  closeFriends?: boolean;
 };
 
 export type Follow = {
@@ -60,7 +62,7 @@ export type Follow = {
   followingId: string;
 };
 
-export type NotificationType = 'like' | 'comment' | 'follow' | 'mention';
+export type NotificationType = 'like' | 'comment' | 'follow' | 'mention' | 'security' | 'request';
 
 export type AppNotification = {
   id: string;
@@ -148,3 +150,6 @@ export type Supporter = {
   createdAt: number;
   demo?: boolean;
 };
+
+/** Pedido para seguir uma conta privada */
+export type FollowRequest = { fromId: string; toId: string; createdAt: number };

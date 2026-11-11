@@ -1,0 +1,182 @@
+// Traduções. A chave é o próprio texto em português: t('Salvos') devolve 'Saved' em inglês.
+// Texto sem tradução cadastrada aparece em português (nunca quebra a tela).
+// Para traduzir mais telas: troque o texto fixo por t('...') e adicione a linha aqui.
+import { useCallback } from 'react';
+
+import { useSettings, type Language } from './settings';
+
+type Dict = Record<string, string>;
+
+const en: Dict = {
+  // Configurações (página principal)
+  Configurações: 'Settings',
+  'Pesquisar nas configurações': 'Search settings',
+  'Sua conta': 'Your account',
+  'Editar perfil': 'Edit profile',
+  'Informações pessoais': 'Personal information',
+  'Senha e segurança': 'Password and security',
+  'Verificação de conta oficial': 'Official account verification',
+  'Conta política (ativa)': 'Political account (active)',
+  'Sou político ou candidato': "I'm a politician or candidate",
+  'Painel do político': 'Politician dashboard',
+  'Como você usa a Rede Política': 'How you use Rede Política',
+  Salvos: 'Saved',
+  'Sua atividade': 'Your activity',
+  Notificações: 'Notifications',
+  'Tempo de uso': 'Time spent',
+  'Quem pode ver seu conteúdo': 'Who can see your content',
+  'Privacidade da conta': 'Account privacy',
+  'Melhores amigos': 'Close friends',
+  'Bloqueados e silenciados': 'Blocked and muted',
+  'Minhas autorizações a políticos': 'My permissions to politicians',
+  'Como outras pessoas podem interagir com você': 'How others can interact with you',
+  Mensagens: 'Messages',
+  Menções: 'Mentions',
+  'Comentários e palavras ocultas': 'Comments and hidden words',
+  'Desafios para batalhas': 'Battle challenges',
+  'Seu app e mídia': 'Your app and media',
+  'Aparência (modo escuro)': 'Appearance (dark mode)',
+  'Uso de dados e mídia': 'Data usage and media',
+  Idioma: 'Language',
+  'Mais informações e suporte': 'More info and support',
+  Ajuda: 'Help',
+  'Termos de uso e privacidade': 'Terms and privacy',
+  Sobre: 'About',
+  Entrar: 'Log in',
+  Sair: 'Log out',
+  'Rede Política • versão de demonstração': 'Rede Política • demo version',
+  Automático: 'Automatic',
+  Claro: 'Light',
+  Escuro: 'Dark',
+  Pública: 'Public',
+  Privada: 'Private',
+  Pausadas: 'Paused',
+  'Economia ligada': 'Data saver on',
+  'Em análise': 'Under review',
+  Todos: 'Everyone',
+  'Pessoas que você segue': 'People you follow',
+  Ninguém: 'No one',
+  'min/dia': 'min/day',
+  // Títulos das telas
+  Publicação: 'Post',
+  Comentários: 'Comments',
+  Curtidas: 'Likes',
+  'Editar perfil ': 'Edit profile',
+  'Receber novidades': 'Get updates',
+  'Minhas autorizações': 'My permissions',
+  'Nova batalha': 'New battle',
+  Aparência: 'Appearance',
+  Verificação: 'Verification',
+  'Página não encontrada': 'Page not found',
+  // Login
+  'Participe, debata, fiscalize.': 'Take part, debate, hold power to account.',
+  'Nome de usuário ou e-mail': 'Username or email',
+  Senha: 'Password',
+  'Entrar com a conta de demonstração': 'Log in with the demo account',
+  'Entrar como político (demonstração)': 'Log in as a politician (demo)',
+  'Não tem uma conta?': "Don't have an account?",
+  'Cadastre-se': 'Sign up',
+  // Aparência e idioma
+  Tema: 'Theme',
+  'Igual ao celular': 'Same as your phone',
+  'No automático, o app segue o modo claro/escuro configurado no seu celular.':
+    "On automatic, the app follows your phone's light/dark setting.",
+  'Economia de dados': 'Data saver',
+  'Carrega fotos em qualidade menor e não toca vídeos sozinho no feed.': "Loads lower-quality photos and doesn't autoplay videos in the feed.",
+  'Reproduzir vídeos automaticamente no feed': 'Autoplay videos in the feed',
+  'As preferências ficam salvas neste celular.': 'Preferences are saved on this phone.',
+  'Idioma do app': 'App language',
+  'Tradução parcial: a página de Configurações, os títulos das telas, o login e esta página já estão traduzidos. As demais telas ainda aparecem em português.':
+    'Partial translation: the Settings page, screen titles, login and this page are translated. Other screens still show in Portuguese.',
+};
+
+const es: Dict = {
+  Configurações: 'Configuración',
+  'Pesquisar nas configurações': 'Buscar en la configuración',
+  'Sua conta': 'Tu cuenta',
+  'Editar perfil': 'Editar perfil',
+  'Informações pessoais': 'Información personal',
+  'Senha e segurança': 'Contraseña y seguridad',
+  'Verificação de conta oficial': 'Verificación de cuenta oficial',
+  'Conta política (ativa)': 'Cuenta política (activa)',
+  'Sou político ou candidato': 'Soy político o candidato',
+  'Painel do político': 'Panel del político',
+  'Como você usa a Rede Política': 'Cómo usas Rede Política',
+  Salvos: 'Guardados',
+  'Sua atividade': 'Tu actividad',
+  Notificações: 'Notificaciones',
+  'Tempo de uso': 'Tiempo de uso',
+  'Quem pode ver seu conteúdo': 'Quién puede ver tu contenido',
+  'Privacidade da conta': 'Privacidad de la cuenta',
+  'Melhores amigos': 'Mejores amigos',
+  'Bloqueados e silenciados': 'Bloqueados y silenciados',
+  'Minhas autorizações a políticos': 'Mis autorizaciones a políticos',
+  'Como outras pessoas podem interagir com você': 'Cómo pueden interactuar contigo',
+  Mensagens: 'Mensajes',
+  Menções: 'Menciones',
+  'Comentários e palavras ocultas': 'Comentarios y palabras ocultas',
+  'Desafios para batalhas': 'Desafíos para batallas',
+  'Seu app e mídia': 'Tu app y contenido multimedia',
+  'Aparência (modo escuro)': 'Apariencia (modo oscuro)',
+  'Uso de dados e mídia': 'Uso de datos y multimedia',
+  Idioma: 'Idioma',
+  'Mais informações e suporte': 'Más información y ayuda',
+  Ajuda: 'Ayuda',
+  'Termos de uso e privacidade': 'Términos y privacidad',
+  Sobre: 'Acerca de',
+  Entrar: 'Iniciar sesión',
+  Sair: 'Cerrar sesión',
+  'Rede Política • versão de demonstração': 'Rede Política • versión de demostración',
+  Automático: 'Automático',
+  Claro: 'Claro',
+  Escuro: 'Oscuro',
+  Pública: 'Pública',
+  Privada: 'Privada',
+  Pausadas: 'En pausa',
+  'Economia ligada': 'Ahorro activado',
+  'Em análise': 'En revisión',
+  Todos: 'Todos',
+  'Pessoas que você segue': 'Personas que sigues',
+  Ninguém: 'Nadie',
+  'min/dia': 'min/día',
+  Publicação: 'Publicación',
+  Comentários: 'Comentarios',
+  Curtidas: 'Me gusta',
+  'Receber novidades': 'Recibir novedades',
+  'Minhas autorizações': 'Mis autorizaciones',
+  'Nova batalha': 'Nueva batalla',
+  Aparência: 'Apariencia',
+  Verificação: 'Verificación',
+  'Página não encontrada': 'Página no encontrada',
+  'Participe, debata, fiscalize.': 'Participa, debate, fiscaliza.',
+  'Nome de usuário ou e-mail': 'Usuario o correo',
+  Senha: 'Contraseña',
+  'Entrar com a conta de demonstração': 'Entrar con la cuenta de demostración',
+  'Entrar como político (demonstração)': 'Entrar como político (demostración)',
+  'Não tem uma conta?': '¿No tienes cuenta?',
+  'Cadastre-se': 'Regístrate',
+  Tema: 'Tema',
+  'Igual ao celular': 'Igual que el teléfono',
+  'No automático, o app segue o modo claro/escuro configurado no seu celular.':
+    'En automático, la app sigue el modo claro/oscuro de tu teléfono.',
+  'Economia de dados': 'Ahorro de datos',
+  'Carrega fotos em qualidade menor e não toca vídeos sozinho no feed.':
+    'Carga fotos con menor calidad y no reproduce videos solos en el feed.',
+  'Reproduzir vídeos automaticamente no feed': 'Reproducir videos automáticamente en el feed',
+  'As preferências ficam salvas neste celular.': 'Las preferencias se guardan en este teléfono.',
+  'Idioma do app': 'Idioma de la app',
+  'Tradução parcial: a página de Configurações, os títulos das telas, o login e esta página já estão traduzidos. As demais telas ainda aparecem em português.':
+    'Traducción parcial: la página de Configuración, los títulos de las pantallas, el inicio de sesión y esta página están traducidos. Las demás pantallas siguen en portugués.',
+};
+
+const DICTS: Record<Language, Dict> = { 'pt-BR': {}, en, es };
+
+export function translate(text: string, lang: Language) {
+  return DICTS[lang][text] ?? text;
+}
+
+/** const t = useT();  t('Salvos') */
+export function useT() {
+  const lang = useSettings().settings.language;
+  return useCallback((text: string) => translate(text, lang), [lang]);
+}

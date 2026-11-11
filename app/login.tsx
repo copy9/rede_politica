@@ -5,47 +5,102 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Field } from '@/components/Field';
 import { Logo } from '@/components/Logo';
+import { useT } from '@/lib/i18n';
 import { useApp } from '@/lib/store';
 import { colors, spacing, themed } from '@/lib/theme';
 
 export default function LoginScreen() {
-  const { signIn } = useApp();
+  const { signIn, verifyLoginCode, cancelLoginCode } = useApp();
+  const t = useT();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  // Etapa do código (autenticação em dois fatores)
+  const [codeStep, setCodeStep] = useState<{ sentTo: string; demoCode: string } | null>(null);
+  const [code, setCode] = useState('');
 
-  const submit = () => setError(signIn(username, password));
-  const demo = () => setError(signIn('voce.demo', 'demo'));
-  const demoPolitician = () => setError(signIn('ana.ribeiro.ver', 'demo'));
+  const attempt = (u: string, p: string) => {
+    const r = signIn(u, p);
+    if (r.ok) return setError(null);
+    if ('needsCode' in r) {
+      setError(null);
+      setCode('');
+      setCodeStep({ sentTo: r.sentTo, demoCode: r.demoCode });
+      return;
+    }
+    setError(r.error);
+  };
+  const submit = () => attempt(username, password);
+  const demo = () => attempt('voce.demo', password || 'demo');
+  const demoPolitician = () => attempt('ana.ribeiro.ver', password || 'demo');
+  const confirmCode = () => setError(verifyLoginCode(code));
+
+  if (codeStep) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.container}>
+          <View style={styles.logo}>
+            <Logo size={26} />
+            <Text style={styles.codeTitle}>Confirme que é você</Text>
+            <Text style={styles.tagline}>Enviamos um código de 6 dígitos para o {codeStep.sentTo}.</Text>
+          </View>
+          <View style={styles.form}>
+            <Field
+              placeholder="Código de 6 dígitos"
+              value={code}
+              onChangeText={setCode}
+              keyboardType="number-pad"
+              maxLength={6}
+              onSubmitEditing={confirmCode}
+              style={styles.codeInput}
+            />
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+            <Pressable style={styles.button} onPress={confirmCode}>
+              <Text style={styles.buttonText}>Confirmar</Text>
+            </Pressable>
+            <Text style={styles.demoCode}>Demonstração (sem SMS de verdade): o código é {codeStep.demoCode}</Text>
+            <Pressable
+              onPress={() => {
+                cancelLoginCode();
+                setCodeStep(null);
+                setError(null);
+              }}>
+              <Text style={styles.demo}>Voltar</Text>
+            </Pressable>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.container}>
         <View style={styles.logo}>
           <Logo size={30} />
-          <Text style={styles.tagline}>Participe, debata, fiscalize.</Text>
+          <Text style={styles.tagline}>{t('Participe, debata, fiscalize.')}</Text>
         </View>
 
         <View style={styles.form}>
-          <Field placeholder="Nome de usuário ou e-mail" value={username} onChangeText={setUsername} autoCorrect={false} />
-          <Field placeholder="Senha" value={password} onChangeText={setPassword} secureTextEntry onSubmitEditing={submit} />
+          <Field placeholder={t('Nome de usuário ou e-mail')} value={username} onChangeText={setUsername} autoCorrect={false} />
+          <Field placeholder={t('Senha')} value={password} onChangeText={setPassword} secureTextEntry onSubmitEditing={submit} />
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <Pressable style={styles.button} onPress={submit}>
-            <Text style={styles.buttonText}>Entrar</Text>
+            <Text style={styles.buttonText}>{t('Entrar')}</Text>
           </Pressable>
           <Pressable onPress={demo}>
-            <Text style={styles.demo}>Entrar com a conta de demonstração</Text>
+            <Text style={styles.demo}>{t('Entrar com a conta de demonstração')}</Text>
           </Pressable>
           <Pressable onPress={demoPolitician}>
-            <Text style={styles.demo}>Entrar como político (demonstração)</Text>
+            <Text style={styles.demo}>{t('Entrar como político (demonstração)')}</Text>
           </Pressable>
         </View>
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            Não tem uma conta?{' '}
+            {t('Não tem uma conta?')}{' '}
             <Link href="/signup" style={styles.footerLink}>
-              Cadastre-se
+              {t('Cadastre-se')}
             </Link>
           </Text>
         </View>
@@ -64,6 +119,9 @@ const styles = themed(() => StyleSheet.create({
   button: { backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
   buttonText: { color: colors.white, fontWeight: '700', fontSize: 15 },
   demo: { color: colors.primary, textAlign: 'center', fontWeight: '600', marginTop: 8 },
+  codeTitle: { fontSize: 20, fontWeight: '800', color: colors.text, marginTop: 8 },
+  codeInput: { textAlign: 'center', fontSize: 22, letterSpacing: 8 },
+  demoCode: { color: colors.textMuted, textAlign: 'center', fontSize: 12 },
   footer: { position: 'absolute', bottom: 24, left: 0, right: 0, alignItems: 'center' },
   footerText: { color: colors.textMuted },
   footerLink: { color: colors.primary, fontWeight: '700' },

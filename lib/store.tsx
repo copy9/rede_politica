@@ -1,16 +1,20 @@
 // Estado do app (modo demonstração, em memória).
 // As funções aqui têm a mesma "forma" que terão com o Supabase,
 // então as telas não precisam mudar quando o backend for ligado.
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { Platform } from 'react-native';
 
-import { newId } from './format';
+import { newId, timeAgo } from './format';
+import { hashPassword } from './hash';
 import {
   DEMO_USER_ID,
   mockBattleMessages,
   mockBattles,
   mockComments,
   mockConversations,
+  mockFollowRequests,
   mockFollows,
+  mockLastActive,
   mockConsents,
   mockMessages,
   mockNotifications,
@@ -25,6 +29,7 @@ import type {
   Comment,
   Conversation,
   Follow,
+  FollowRequest,
   LiveBattle,
   MediaType,
   Message,
@@ -49,6 +54,8 @@ type SignUpInput = {
   city?: string;
   state?: string;
 };
+export type SignInResult = { ok: true } | { ok: false; error: string } | { ok: false; needsCode: true; sentTo: string; demoCode: string };
+export type InteractionKind = 'comment' | 'message' | 'mention' | 'challenge';
 type ConsentInput = { fields: ShareField[]; email?: string; whatsapp?: string; interests: string[] };
 type ProfileUpdate = Partial<
   Pick<
@@ -83,7 +90,15 @@ type AppState = {
   battleMessages: BattleMessage[];
 
   // autenticação
-  signIn: (username: string, password: string) => string | null;
+  /** entra; com dois fatores ligado, pede o código antes */
+  signIn: (username: string, password: string) => SignInResult;
+  verifyLoginCode: (code: string) => string | null;
+  cancelLoginCode: () => void;
+  changePassword: (current: string, next: string) => string | null;
+  /** apaga a conta logada e tudo dela (neste aparelho) */
+  deleteAccount: () => void;
+  /** cópia dos dados da conta logada (JSON) */
+  exportMyData: () => string;
   signUp: (input: SignUpInput) => string | null;
   signOut: () => void;
   updateProfile: (changes: ProfileUpdate) => string | null;
@@ -98,17 +113,31 @@ type AppState = {
   followingOf: (userId: string) => User[];
   isFollowing: (userId: string) => boolean;
   feed: () => Post[];
-  storyUsers: () => { user: User; stories: Story[]; seen: boolean }[];
+  storyUsers: () => { user: User; stories: Story[]; seen: boolean; closeFriends: boolean }[];
   conversationMessages: (conversationId: string) => Message[];
+
+  // privacidade
+  /** a conta permite esse tipo de interação comigo? */
+  canInteract: (userId: string, kind: InteractionKind) => boolean;
+  /** posso ver publicações dessa conta? (contas privadas: só seguidores) */
+  canSeeContent: (userId: string) => boolean;
+  /** "Ativo agora", "Ativo há 5 min" ou null se o status estiver oculto */
+  activityText: (userId: string) => string | null;
+  /** texto de erro se o texto menciona alguém que não permite, senão null */
+  mentionError: (text: string) => string | null;
+  followRequests: FollowRequest[];
+  hasRequested: (userId: string) => boolean;
+  respondFollowRequest: (fromId: string, accept: boolean) => void;
 
   // ações
   toggleLike: (postId: string) => void;
   toggleSave: (postId: string) => void;
   toggleCommentLike: (commentId: string) => void;
-  addComment: (postId: string, text: string) => void;
-  createPost: (input: { type: MediaType; uri: string; caption: string; location?: string }) => Post | null;
+  /** devolve um erro (ex.: menção não permitida) ou null */
+  addComment: (postId: string, text: string) => string | null;
+  createPost: (input: { type: MediaType; uri: string; caption: string; location?: string }) => Post | string | null;
   deletePost: (postId: string) => void;
-  addStory: (uri: string) => void;
+  addStory: (uri: string, closeFriends?: boolean) => void;
   markStorySeen: (storyId: string) => void;
   toggleFollow: (userId: string) => void;
   openConversationWith: (userId: string) => string | null;
@@ -138,7 +167,13 @@ const AppContext = createContext<AppState | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [meId, setMeId] = useState<string | null>(null);
-  const { settings } = useSettings();
+  const { settings, accountSettings, updateAccount, removeAccount, setActiveAccount } = useSettings();
+  const [pendingLogin, setPendingLogin] = useState<{ userId: string; code: string } | null>(null);
+  const [followRequests, setFollowRequests] = useState<FollowRequest[]>(mockFollowRequests);
+  const [lastActive] = useState<Record<string, number>>(mockLastActive);
+
+  // As configurações "da conta" passam a ser as da pessoa logada
+  useEffect(() => setActiveAccount(meId), [meId, setActiveAccount]);
   const blocked = useMemo(() => new Set(settings.blockedIds), [settings.blockedIds]);
   const hiddenFromFeed = useMemo(() => new Set([...settings.blockedIds, ...settings.mutedIds]), [settings.blockedIds, settings.mutedIds]);
   const [users, setUsers] = useState<User[]>(mockUsers);
@@ -163,18 +198,67 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [meId],
   );
 
+  /** Conclui o login: registra este aparelho e, se ligado, avisa sobre o novo acesso. */
+  const completeLogin = useCallback(
+    (userId: string) => {
+      const acct = accountSettings(userId);
+      const name = Platform.OS === 'web' ? 'Navegador' : Platform.OS === 'ios' ? 'iPhone' : 'Celular Android';
+      const icon = Platform.OS === 'web' ? ('globe-outline' as const) : ('phone-portrait-outline' as const);
+      const device = { id: settings.deviceId, name, where: 'Este aparelho', lastActiveAt: Date.now(), icon };
+      updateAccount(userId, { devices: [device, ...acct.devices.filter((d) => d.id !== settings.deviceId)] });
+      if (acct.loginAlerts) {
+        setNotifications((prev) => [
+          {
+            id: newId('n'),
+            type: 'security',
+            toUserId: userId,
+            fromUserId: userId,
+            text: `Novo acesso à sua conta: ${name}. Se não foi você, troque a senha.`,
+            createdAt: Date.now(),
+          },
+          ...prev,
+        ]);
+      }
+      setPendingLogin(null);
+      setMeId(userId);
+    },
+    [accountSettings, updateAccount, settings.deviceId],
+  );
+
   const signIn = useCallback(
-    (username: string, password: string) => {
+    (username: string, password: string): SignInResult => {
       const clean = username.trim().replace(/^@/, '').toLowerCase();
-      if (!clean || !password) return 'Preencha usuário e senha.';
-      // Modo demonstração: qualquer senha é aceita para contas existentes.
+      if (!clean || !password) return { ok: false, error: 'Preencha usuário e senha.' };
       const user = users.find((u) => u.username.toLowerCase() === clean);
-      if (!user) return 'Usuário não encontrado. Use "voce.demo" ou crie uma conta.';
-      setMeId(user.id);
+      if (!user) return { ok: false, error: 'Usuário não encontrado. Use "voce.demo" ou crie uma conta.' };
+      const acct = accountSettings(user.id);
+      // Contas de demonstração sem senha definida aceitam qualquer senha.
+      if (acct.passwordHash && acct.passwordHash !== hashPassword(user.id, password)) {
+        return { ok: false, error: 'Senha incorreta.' };
+      }
+      if (acct.twoFactor) {
+        const code = String(Math.floor(100000 + Math.random() * 900000));
+        setPendingLogin({ userId: user.id, code });
+        const sentTo = acct.phone ? `celular terminado em ${acct.phone.replace(/\D/g, '').slice(-4)}` : acct.email || 'seu contato';
+        return { ok: false, needsCode: true, sentTo, demoCode: code };
+      }
+      completeLogin(user.id);
+      return { ok: true };
+    },
+    [users, accountSettings, completeLogin],
+  );
+
+  const verifyLoginCode = useCallback(
+    (code: string) => {
+      if (!pendingLogin) return 'Comece o login de novo.';
+      if (code.replace(/\D/g, '') !== pendingLogin.code) return 'Código incorreto.';
+      completeLogin(pendingLogin.userId);
       return null;
     },
-    [users],
+    [pendingLogin, completeLogin],
   );
+
+  const cancelLoginCode = useCallback(() => setPendingLogin(null), []);
 
   const signUp = useCallback(
     ({ name, username, email, password, accountType = 'cidadao', role, party, city, state }: SignUpInput) => {
@@ -198,13 +282,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         state: state?.trim().toUpperCase() || undefined,
       };
       setUsers((prev) => [...prev, user]);
-      setMeId(user.id);
+      updateAccount(user.id, { passwordHash: hashPassword(user.id, password), email: email.trim() });
+      completeLogin(user.id);
       return null;
     },
-    [users],
+    [users, updateAccount, completeLogin],
   );
 
   const signOut = useCallback(() => setMeId(null), []);
+
+  const changePassword = useCallback(
+    (current: string, next: string) => {
+      if (!meId) return 'Não autenticado.';
+      const acct = accountSettings(meId);
+      if (!next || (acct.passwordHash && !current)) return 'Preencha as senhas.';
+      if (acct.passwordHash && acct.passwordHash !== hashPassword(meId, current)) return 'A senha atual está errada.';
+      if (next.length < 8) return 'A nova senha precisa de pelo menos 8 caracteres.';
+      if (!/[a-zA-Z]/.test(next) || !/\d/.test(next)) return 'Use letras e números na nova senha.';
+      updateAccount(meId, { passwordHash: hashPassword(meId, next) });
+      return null;
+    },
+    [meId, accountSettings, updateAccount],
+  );
 
   const updateProfile = useCallback(
     (changes: ProfileUpdate) => {
@@ -257,20 +356,92 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [follows, meId],
   );
 
+  const canInteract = useCallback(
+    (userId: string, kind: InteractionKind) => {
+      if (!meId || userId === meId) return true;
+      if (settings.blockedIds.includes(userId) || accountSettings(userId).blockedIds.includes(meId)) return false;
+      const a = accountSettings(userId);
+      const rule =
+        kind === 'comment' ? a.whoCanComment : kind === 'message' ? a.whoCanMessage : kind === 'mention' ? a.whoCanMention : a.whoCanChallenge;
+      if (rule === 'todos') return true;
+      if (rule === 'ninguem') return false;
+      // "seguidores" = pessoas que essa conta segue
+      return follows.some((f) => f.followerId === userId && f.followingId === meId);
+    },
+    [meId, settings.blockedIds, accountSettings, follows],
+  );
+
+  const canSeeContent = useCallback(
+    (userId: string) =>
+      !meId ||
+      userId === meId ||
+      !accountSettings(userId).privateAccount ||
+      follows.some((f) => f.followerId === meId && f.followingId === userId),
+    [meId, accountSettings, follows],
+  );
+
+  const activityText = useCallback(
+    (userId: string) => {
+      // Como nas grandes redes: quem esconde o próprio status também não vê o dos outros.
+      if (!settings.showActivityStatus || !accountSettings(userId).showActivityStatus) return null;
+      const ts = lastActive[userId];
+      if (!ts) return null;
+      return Date.now() - ts < 2 * 60 * 1000 ? 'Ativo agora' : `Ativo há ${timeAgo(ts)}`;
+    },
+    [settings.showActivityStatus, accountSettings, lastActive],
+  );
+
+  const mentioned = useCallback(
+    (text: string) =>
+      [...new Set([...text.matchAll(/@([a-z0-9._]+)/gi)].map((m) => m[1].toLowerCase()))]
+        .map((u) => users.find((x) => x.username === u))
+        .filter((u): u is User => !!u && u.id !== meId),
+    [users, meId],
+  );
+
+  const mentionError = useCallback(
+    (text: string) => {
+      const blockedMention = mentioned(text).find((u) => !canInteract(u.id, 'mention'));
+      return blockedMention ? `@${blockedMention.username} não permite ser mencionado(a) por você.` : null;
+    },
+    [mentioned, canInteract],
+  );
+
+  const hasRequested = useCallback(
+    (userId: string) => followRequests.some((r) => r.fromId === meId && r.toId === userId),
+    [followRequests, meId],
+  );
+
+  const respondFollowRequest = useCallback(
+    (fromId: string, accept: boolean) => {
+      if (!meId) return;
+      setFollowRequests((prev) => prev.filter((r) => !(r.fromId === fromId && r.toId === meId)));
+      if (accept) setFollows((prev) => [...prev, { followerId: fromId, followingId: meId }]);
+    },
+    [meId],
+  );
+
   const feed = useCallback(() => {
     const following = new Set(follows.filter((f) => f.followerId === meId).map((f) => f.followingId));
     if (meId) following.add(meId);
-    const visible = posts.filter((p) => !hiddenFromFeed.has(p.userId));
+    const visible = posts.filter((p) => !hiddenFromFeed.has(p.userId) && canSeeContent(p.userId));
     const mine = visible.filter((p) => following.has(p.userId));
     const list = mine.length ? mine : visible;
     return [...list].sort((a, b) => b.createdAt - a.createdAt);
-  }, [follows, posts, meId, hiddenFromFeed]);
+  }, [follows, posts, meId, hiddenFromFeed, canSeeContent]);
 
   const storyUsers = useCallback(() => {
     const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
     const byUser = new Map<string, Story[]>();
     stories
-      .filter((s) => s.createdAt > dayAgo && !hiddenFromFeed.has(s.userId))
+      .filter(
+        (s) =>
+          s.createdAt > dayAgo &&
+          !hiddenFromFeed.has(s.userId) &&
+          canSeeContent(s.userId) &&
+          // stories de "Melhores amigos": só para quem está na lista da pessoa
+          (!s.closeFriends || s.userId === meId || (!!meId && accountSettings(s.userId).closeFriendIds.includes(meId))),
+      )
       .sort((a, b) => a.createdAt - b.createdAt)
       .forEach((s) => byUser.set(s.userId, [...(byUser.get(s.userId) ?? []), s]));
     const list = [...byUser.entries()]
@@ -278,6 +449,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         user: users.find((u) => u.id === userId)!,
         stories: list,
         seen: !!meId && list.every((s) => s.seenBy.includes(meId)),
+        closeFriends: list.some((s) => s.closeFriends),
       }))
       .filter((x) => !!x.user);
     // Meu story primeiro, depois não vistos, depois vistos.
@@ -286,7 +458,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (b.user.id === meId) return 1;
       return Number(a.seen) - Number(b.seen);
     });
-  }, [stories, users, meId, hiddenFromFeed]);
+  }, [stories, users, meId, hiddenFromFeed, canSeeContent, accountSettings]);
 
   const conversationMessages = useCallback(
     (conversationId: string) =>
@@ -341,17 +513,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const addComment = useCallback(
     (postId: string, text: string) => {
       const body = text.trim();
-      if (!meId || !body) return;
-      setComments((prev) => [...prev, { id: newId('c'), postId, userId: meId, text: body, createdAt: Date.now(), likes: [] }]);
+      if (!meId || !body) return null;
       const post = posts.find((p) => p.id === postId);
+      if (post && !canInteract(post.userId, 'comment')) return 'Essa conta limitou quem pode comentar.';
+      const err = mentionError(body);
+      if (err) return err;
+      setComments((prev) => [...prev, { id: newId('c'), postId, userId: meId, text: body, createdAt: Date.now(), likes: [] }]);
       if (post) notify({ type: 'comment', toUserId: post.userId, postId, text: body });
+      mentioned(body).forEach((u) => notify({ type: 'mention', toUserId: u.id, postId, text: body }));
+      return null;
     },
-    [meId, posts, notify],
+    [meId, posts, notify, canInteract, mentionError, mentioned],
   );
 
   const createPost = useCallback(
     ({ type, uri, caption, location }: { type: MediaType; uri: string; caption: string; location?: string }) => {
       if (!meId) return null;
+      const err = mentionError(caption);
+      if (err) return err;
       const post: Post = {
         id: newId('p'),
         userId: meId,
@@ -364,9 +543,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         savedBy: [],
       };
       setPosts((prev) => [post, ...prev]);
+      mentioned(caption).forEach((u) => notify({ type: 'mention', toUserId: u.id, postId: post.id, text: post.caption }));
       return post;
     },
-    [meId],
+    [meId, mentionError, mentioned, notify],
   );
 
   const deletePost = useCallback(
@@ -378,9 +558,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const addStory = useCallback(
-    (uri: string) => {
+    (uri: string, closeFriends = false) => {
       if (!meId) return;
-      setStories((prev) => [...prev, { id: newId('s'), userId: meId, uri, createdAt: Date.now(), seenBy: [meId] }]);
+      setStories((prev) => [
+        ...prev,
+        { id: newId('s'), userId: meId, uri, createdAt: Date.now(), seenBy: [meId], closeFriends: closeFriends || undefined },
+      ]);
     },
     [meId],
   );
@@ -399,6 +582,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     (userId: string) => {
       if (!meId || userId === meId) return;
       const already = follows.some((f) => f.followerId === meId && f.followingId === userId);
+      // Conta privada: em vez de seguir direto, envia (ou cancela) um pedido
+      if (!already && accountSettings(userId).privateAccount) {
+        const requested = followRequests.some((r) => r.fromId === meId && r.toId === userId);
+        setFollowRequests((prev) =>
+          requested
+            ? prev.filter((r) => !(r.fromId === meId && r.toId === userId))
+            : [...prev, { fromId: meId, toId: userId, createdAt: Date.now() }],
+        );
+        if (!requested) notify({ type: 'request', toUserId: userId });
+        return;
+      }
       setFollows((prev) =>
         already
           ? prev.filter((f) => !(f.followerId === meId && f.followingId === userId))
@@ -406,7 +600,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       );
       if (!already) notify({ type: 'follow', toUserId: userId });
     },
-    [meId, follows, notify],
+    [meId, follows, notify, accountSettings, followRequests],
   );
 
   const openConversationWith = useCallback(
@@ -416,11 +610,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         (c) => c.participantIds.length === 2 && c.participantIds.includes(meId) && c.participantIds.includes(userId),
       );
       if (existing) return existing.id;
+      if (!canInteract(userId, 'message')) return null;
       const conv: Conversation = { id: newId('cv'), participantIds: [meId, userId] };
       setConversations((prev) => [...prev, conv]);
       return conv.id;
     },
-    [meId, conversations],
+    [meId, conversations, canInteract],
   );
 
   const sendMessage = useCallback(
@@ -570,6 +765,42 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [consents, users],
   );
 
+  const exportMyData = useCallback(() => {
+    if (!me) return '{}';
+    const { passwordHash: _hidden, ...acct } = accountSettings(me.id);
+    const data = {
+      geradoEm: new Date().toISOString(),
+      perfil: me,
+      configuracoes: acct,
+      publicacoes: posts.filter((p) => p.userId === me.id),
+      comentarios: comments.filter((c) => c.userId === me.id),
+      seguindo: follows.filter((f) => f.followerId === me.id).map((f) => users.find((u) => u.id === f.followingId)?.username),
+      seguidores: follows.filter((f) => f.followingId === me.id).map((f) => users.find((u) => u.id === f.followerId)?.username),
+      mensagens: messages.filter((m) => m.senderId === me.id),
+      autorizacoesAPoliticos: consents.filter((c) => c.userId === me.id),
+    };
+    return JSON.stringify(data, null, 2);
+  }, [me, accountSettings, posts, comments, follows, users, messages, consents]);
+
+  const deleteAccount = useCallback(() => {
+    if (!meId) return;
+    const id = meId;
+    const myPosts = new Set(posts.filter((p) => p.userId === id).map((p) => p.id));
+    const myConvs = new Set(conversations.filter((c) => c.participantIds.includes(id)).map((c) => c.id));
+    setPosts((prev) => prev.filter((p) => p.userId !== id).map((p) => ({ ...p, likes: p.likes.filter((x) => x !== id), savedBy: p.savedBy.filter((x) => x !== id) })));
+    setComments((prev) => prev.filter((c) => c.userId !== id && !myPosts.has(c.postId)));
+    setStories((prev) => prev.filter((st) => st.userId !== id));
+    setFollows((prev) => prev.filter((f) => f.followerId !== id && f.followingId !== id));
+    setFollowRequests((prev) => prev.filter((r) => r.fromId !== id && r.toId !== id));
+    setNotifications((prev) => prev.filter((n) => n.toUserId !== id && n.fromUserId !== id));
+    setConversations((prev) => prev.filter((c) => !myConvs.has(c.id)));
+    setMessages((prev) => prev.filter((m) => !myConvs.has(m.conversationId)));
+    setConsents((prev) => prev.filter((c) => c.userId !== id && c.politicianId !== id));
+    setUsers((prev) => prev.filter((u) => u.id !== id));
+    removeAccount(id);
+    setMeId(null);
+  }, [meId, posts, conversations, removeAccount]);
+
   const value: AppState = {
     me,
     users,
@@ -583,6 +814,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     battles,
     battleMessages,
     signIn,
+    verifyLoginCode,
+    cancelLoginCode,
+    changePassword,
+    deleteAccount,
+    exportMyData,
     signUp,
     signOut,
     updateProfile,
@@ -597,6 +833,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     feed,
     storyUsers,
     conversationMessages,
+    canInteract,
+    canSeeContent,
+    activityText,
+    mentionError,
+    followRequests,
+    hasRequested,
+    respondFollowRequest,
     toggleLike,
     toggleSave,
     toggleCommentLike,

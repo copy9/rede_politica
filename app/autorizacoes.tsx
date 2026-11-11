@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
+import { useOverlay } from '@/components/Overlay';
 import { UserName } from '@/components/UserName';
 import { useApp, useMe } from '@/lib/store';
 import { colors, spacing, themed } from '@/lib/theme';
@@ -20,6 +21,7 @@ const LABELS: Record<ShareField, string> = {
 export default function MyConsentsScreen() {
   const me = useMe();
   const { consents, getUser, revokeConsent } = useApp();
+  const { confirm } = useOverlay();
   const mine = consents.filter((c) => c.userId === me.id).sort((a, b) => b.createdAt - a.createdAt);
 
   return (
@@ -50,10 +52,7 @@ export default function MyConsentsScreen() {
                 </Pressable>
                 <Pressable
                   onPress={() =>
-                    Alert.alert('Cancelar autorização?', `${p.name} deixará de ver seus dados.`, [
-                      { text: 'Voltar', style: 'cancel' },
-                      { text: 'Cancelar autorização', style: 'destructive', onPress: () => revokeConsent(item.id) },
-                    ])
+                    confirm('Cancelar autorização?', `${p.name} deixará de ver seus dados.`, 'Cancelar autorização', () => revokeConsent(item.id), true)
                   }>
                   <Text style={[styles.link, { color: colors.like }]}>Cancelar</Text>
                 </Pressable>

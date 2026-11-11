@@ -7,6 +7,7 @@ import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleShee
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MediaVideo } from '@/components/MediaVideo';
+import { useOverlay } from '@/components/Overlay';
 import { useApp, useMe } from '@/lib/store';
 import { colors, spacing, themed } from '@/lib/theme';
 import type { MediaType } from '@/lib/types';
@@ -16,6 +17,7 @@ type Picked = { uri: string; type: MediaType };
 export default function CreateScreen() {
   const me = useMe();
   const { createPost } = useApp();
+  const { showBanner } = useOverlay();
   const [media, setMedia] = useState<Picked | null>(null);
   const [caption, setCaption] = useState('');
   const [location, setLocation] = useState('');
@@ -51,6 +53,7 @@ export default function CreateScreen() {
   const share = () => {
     if (!media) return;
     const post = createPost({ ...media, caption, location });
+    if (typeof post === 'string') return showBanner(post, { icon: 'alert-circle-outline', tone: 'warning' });
     reset();
     if (post) router.navigate('/');
   };

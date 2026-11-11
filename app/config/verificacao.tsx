@@ -2,7 +2,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { InfoText, PrimaryButton, Section, SettingsScreen } from '@/components/SettingsUI';
+import { useOverlay } from '@/components/Overlay';
+import { InfoText, NavRow, PrimaryButton, Section, SettingsScreen } from '@/components/SettingsUI';
 import { useSettings } from '@/lib/settings';
 import { useMe } from '@/lib/store';
 import { colors, spacing, themed } from '@/lib/theme';
@@ -13,6 +14,7 @@ export default function VerificationScreen() {
   const [office, setOffice] = useState(me.role ?? '');
   const [doc, setDoc] = useState('');
   const pending = settings.verification.status === 'em_analise';
+  const { showBanner } = useOverlay();
 
   if (me.verified) {
     return (
@@ -40,11 +42,12 @@ export default function VerificationScreen() {
         <Section>
           <InfoText>
             Pedido enviado em {new Date(settings.verification.requestedAt ?? Date.now()).toLocaleDateString('pt-BR')} ({settings.verification.office}).
-            Está em análise. Você será avisado nas notificações.
+            Está em análise pela equipe. Você será avisado nas notificações.
           </InfoText>
+          <NavRow label="Cancelar pedido" danger onPress={() => update({ verification: { status: 'nenhuma' } })} />
         </Section>
       ) : (
-        <Section title="Pedir verificação" footer="Na versão com servidor, você poderá enviar foto do documento e comprovante do cargo ou da candidatura (TSE).">
+        <Section title="Pedir verificação" footer="O número do documento não fica salvo no aparelho: só o pedido. Na análise, a equipe confere o cargo ou a candidatura nos dados públicos do TSE.">
           <View style={styles.form}>
             <TextInput placeholder="Cargo ou candidatura" placeholderTextColor={colors.textMuted} value={office} onChangeText={setOffice} style={styles.input} />
             <TextInput placeholder="CPF ou número da candidatura" placeholderTextColor={colors.textMuted} value={doc} onChangeText={setDoc} keyboardType="number-pad" style={styles.input} />
@@ -52,7 +55,11 @@ export default function VerificationScreen() {
           <PrimaryButton
             label="Enviar pedido"
             disabled={!office.trim() || doc.replace(/\D/g, '').length < 5}
-            onPress={() => update({ verification: { status: 'em_analise', requestedAt: Date.now(), office: office.trim() } })}
+            onPress={() => {
+              update({ verification: { status: 'em_analise', requestedAt: Date.now(), office: office.trim() } });
+              setDoc('');
+              showBanner('Pedido de verificação enviado.', { icon: 'shield-checkmark', tone: 'success' });
+            }}
           />
         </Section>
       )}

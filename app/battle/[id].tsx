@@ -2,7 +2,6 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -18,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Avatar } from '@/components/Avatar';
 import { BattleScoreBar } from '@/components/BattleScoreBar';
 import { LiveCamera } from '@/components/LiveCamera';
+import { useOverlay } from '@/components/Overlay';
 import { MediaVideo } from '@/components/MediaVideo';
 import { compactNumber } from '@/lib/format';
 import { useApp, useMe } from '@/lib/store';
@@ -57,6 +57,7 @@ export default function BattleRoomScreen() {
   const app = useApp();
   const { getBattle, getUser, messagesForBattle, supportBattle, sendBattleMessage, setBattleViewers, startBattle, endBattle, users } = app;
   const { width } = useWindowDimensions();
+  const { confirm, showBanner } = useOverlay();
   const [now, setNow] = useState(Date.now());
   const [side, setSide] = useState<BattleSide | null>(null);
   const [text, setText] = useState('');
@@ -117,16 +118,7 @@ export default function BattleRoomScreen() {
 
   const onClose = () => {
     if (isHost && live) {
-      Alert.alert('Encerrar batalha?', 'A batalha termina agora e o placar atual define o resultado.', [
-        { text: 'Continuar', style: 'cancel' },
-        {
-          text: 'Encerrar',
-          style: 'destructive',
-          onPress: () => {
-            endBattle(battle.id);
-          },
-        },
-      ]);
+      confirm('Encerrar batalha?', 'A batalha termina agora e o placar atual define o resultado.', 'Encerrar', () => endBattle(battle.id), true);
     } else router.back();
   };
 
@@ -203,7 +195,7 @@ export default function BattleRoomScreen() {
                 <Text style={styles.startText}>Começar agora</Text>
               </Pressable>
             ) : (
-              <Pressable style={styles.startButton} onPress={() => Alert.alert('Lembrete criado', 'Avisaremos quando a batalha começar.')}>
+              <Pressable style={styles.startButton} onPress={() => showBanner('Lembrete criado: avisaremos quando a batalha começar.', { icon: 'alarm-outline', tone: 'success' })}>
                 <Text style={styles.startText}>Lembrar-me</Text>
               </Pressable>
             )}

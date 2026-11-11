@@ -21,6 +21,16 @@ Visualizador de stories · Editar perfil · Configurações ·
 comentários e palavras ocultas, senha e segurança, informações pessoais, melhores amigos, salvos, sua atividade,
 tempo de uso, idioma, verificação de conta, ajuda, sobre/termos)
 
+### Configurações (todas funcionam dentro do app)
+
+Ficam salvas no aparelho: o tema, o idioma e a economia de dados valem para o aparelho, e o resto vale para cada conta.
+Senha (guardada como hash), dois fatores com código na tela, alertas de login, aparelhos conectados,
+conta privada com pedidos para seguir, status de atividade, quem pode comentar, mandar mensagem,
+mencionar ou desafiar, bloquear e silenciar, palavras ocultas, Melhores amigos nos stories,
+notificações por tipo e pausa, tempo de uso real com limite diário e lembrete de pausa, baixar meus dados (JSON),
+excluir conta, pedido de verificação, relatos de problema e idioma (tradução parcial para inglês e espanhol).
+Sem servidor ainda: o código de dois fatores aparece na tela em vez de ir por SMS, e tudo fica só neste aparelho.
+
 ### Dados e LGPD
 
 - **Estatísticas do público** (gênero, idade, cidades, bairros, temas, horários) são sempre **agregadas e anônimas**,

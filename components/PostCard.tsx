@@ -2,21 +2,24 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Alert, Animated, Pressable, Share, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Animated, Pressable, Share, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { compactNumber, pluralize, timeAgo } from '@/lib/format';
+import { mediaUri } from '@/lib/media';
 import { useSettings } from '@/lib/settings';
 import { useApp } from '@/lib/store';
 import { colors, spacing, themed } from '@/lib/theme';
 import type { Post } from '@/lib/types';
 import { Avatar } from './Avatar';
 import { MediaVideo } from './MediaVideo';
+import { useOverlay } from './Overlay';
 import { UserName } from './UserName';
 
 export function PostCard({ post, active = false }: { post: Post; active?: boolean }) {
   const { me, getUser, commentsFor, toggleLike, toggleSave, deletePost, storyUsers } = useApp();
   const { width } = useWindowDimensions();
   const { settings } = useSettings();
+  const { showSheet, confirm, showBanner } = useOverlay();
   const autoplay = settings.autoplayVideos && !settings.dataSaver;
   const [expanded, setExpanded] = useState(false);
   const heart = useRef(new Animated.Value(0)).current;
@@ -54,16 +57,30 @@ export function PostCard({ post, active = false }: { post: Post; active?: boolea
 
   const onMore = () => {
     if (author.id === me.id) {
-      Alert.alert('Publicação', undefined, [
-        { text: 'Excluir', style: 'destructive', onPress: () => deletePost(post.id) },
-        { text: 'Cancelar', style: 'cancel' },
-      ]);
+      showSheet({
+        title: 'Publicação',
+        options: [
+          {
+            label: 'Excluir',
+            icon: 'trash-outline',
+            destructive: true,
+            onPress: () => confirm('Excluir publicação?', 'Ela some do seu perfil e do feed.', 'Excluir', () => deletePost(post.id), true),
+          },
+        ],
+      });
     } else {
-      Alert.alert('Publicação', undefined, [
-        { text: 'Denunciar', style: 'destructive', onPress: () => Alert.alert('Obrigado', 'Sua denúncia foi registrada.') },
-        { text: 'Ver perfil', onPress: openProfile },
-        { text: 'Cancelar', style: 'cancel' },
-      ]);
+      showSheet({
+        title: 'Publicação',
+        options: [
+          { label: 'Ver perfil', icon: 'person-outline', onPress: openProfile },
+          {
+            label: 'Denunciar',
+            icon: 'flag-outline',
+            destructive: true,
+            onPress: () => showBanner('Obrigado. Sua denúncia foi registrada.', { icon: 'flag-outline', tone: 'success' }),
+          },
+        ],
+      });
     }
   };
 
@@ -77,7 +94,7 @@ export function PostCard({ post, active = false }: { post: Post; active?: boolea
         <Pressable
           onPress={() => (hasStory ? router.push(`/story/${author.id}`) : openProfile())}
           style={styles.headerLeft}>
-          <Avatar uri={author.avatar} size={32} ring={hasStory ? (hasStory.seen ? 'seen' : 'unseen') : 'none'} />
+          <Avatar uri={author.avatar} size={32} ring={hasStory ? (hasStory.seen ? 'seen' : hasStory.closeFriends ? 'close' : 'unseen') : 'none'} />
         </Pressable>
         <Pressable onPress={openProfile} style={styles.headerInfo}>
           <UserName user={author} />
@@ -102,7 +119,7 @@ export function PostCard({ post, active = false }: { post: Post; active?: boolea
           <MediaVideo uri={post.uri} active={active && autoplay} style={StyleSheet.absoluteFill} onPress={onMediaPress} />
         ) : (
           <Pressable style={StyleSheet.absoluteFill} onPress={onMediaPress}>
-            <Image source={{ uri: post.uri }} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} />
+            <Image source={{ uri: mediaUri(post.uri, settings.dataSaver) }} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} />
           </Pressable>
         )}
         <Animated.View

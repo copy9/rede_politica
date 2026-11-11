@@ -4,7 +4,9 @@ import { useState } from 'react';
 import { Linking, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 
 import { compactNumber } from '@/lib/format';
+import { useSettings } from '@/lib/settings';
 import { useApp, useMe } from '@/lib/store';
+import { useOverlay } from './Overlay';
 import { colors, spacing, themed } from '@/lib/theme';
 import type { User } from '@/lib/types';
 import { Avatar } from './Avatar';
@@ -15,7 +17,9 @@ type Tab = 'posts' | 'videos' | 'saved';
 
 export function ProfileView({ user }: { user: User }) {
   const me = useMe();
-  const { postsBy, posts, followersOf, followingOf, storyUsers, openConversationWith, consentFor, supportersFor } = useApp();
+  const { postsBy, posts, followersOf, followingOf, storyUsers, openConversationWith, consentFor, supportersFor, canSeeContent, canInteract, activityText } = useApp();
+  const { accountSettings } = useSettings();
+  const { showBanner } = useOverlay();
   const [tab, setTab] = useState<Tab>('posts');
   const isMe = user.id === me.id;
 
@@ -28,9 +32,15 @@ export function ProfileView({ user }: { user: User }) {
         : posts.filter((p) => p.savedBy.includes(me.id));
   const story = storyUsers().find((s) => s.user.id === user.id);
 
+  const visible = canSeeContent(user.id);
+  const isPrivate = accountSettings(user.id).privateAccount;
+  const activity = isMe ? null : activityText(user.id);
+
   const onMessage = () => {
     const id = openConversationWith(user.id);
     if (id) router.push(`/messages/${id}`);
+    else if (!canInteract(user.id, 'message'))
+      showBanner(`@${user.username} não recebe mensagens de você.`, { icon: 'chatbubbles-outline', tone: 'warning' });
   };
 
   const onShare = () => {
@@ -41,7 +51,7 @@ export function ProfileView({ user }: { user: User }) {
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
       <View style={styles.top}>
         <Pressable onPress={() => story && router.push(`/story/${user.id}`)}>
-          <Avatar uri={user.avatar} size={84} ring={story ? (story.seen ? 'seen' : 'unseen') : 'none'} />
+          <Avatar uri={user.avatar} size={84} ring={story ? (story.seen ? 'seen' : story.closeFriends ? 'close' : 'unseen') : 'none'} />
         </Pressable>
         <View style={styles.stats}>
           <Stat value={userPosts.length} label="publicações" />
@@ -59,7 +69,11 @@ export function ProfileView({ user }: { user: User }) {
       </View>
 
       <View style={styles.bio}>
-        <Text style={styles.name}>{user.name}</Text>
+        <Text style={styles.name}>
+          {user.name}
+          {isPrivate ? <Text style={styles.role}>  🔒 conta privada</Text> : null}
+        </Text>
+        {activity ? <Text style={styles.activity}>● {activity}</Text> : null}
         {user.role || user.party ? (
           <Text style={styles.role}>{[user.role, user.party].filter(Boolean).join(' • ')}</Text>
         ) : null}
@@ -128,10 +142,17 @@ export function ProfileView({ user }: { user: User }) {
         {isMe ? <TabIcon icon="bookmark" active={tab === 'saved'} onPress={() => setTab('saved')} /> : null}
       </View>
 
-      <PostGrid
+      {!visible ? (
+        <View style={styles.privateBox}>
+          <Ionicons name="lock-closed-outline" size={40} color={colors.text} />
+          <Text style={styles.privateTitle}>Esta conta é privada</Text>
+          <Text style={styles.privateText}>Siga para ver as fotos e vídeos. A pessoa precisa aprovar o seu pedido.</Text>
+        </View>
+      ) : null}
+      {visible ? <PostGrid
         posts={shown}
         emptyText={tab === 'saved' ? 'Nada salvo ainda' : tab === 'videos' ? 'Nenhum vídeo ainda' : 'Nenhuma publicação ainda'}
-      />
+      /> : null}
     </ScrollView>
   );
 }
@@ -174,6 +195,10 @@ const styles = themed(() => StyleSheet.create({
   bioText: { color: colors.text, lineHeight: 19 },
   link: { color: colors.infoText, fontWeight: '600' },
   buttons: { flexDirection: 'row', gap: spacing.sm, padding: spacing.lg },
+  activity: { color: colors.good, fontSize: 12, fontWeight: '600' },
+  privateBox: { alignItems: 'center', gap: 8, paddingVertical: 40, paddingHorizontal: 32 },
+  privateTitle: { fontWeight: '700', fontSize: 16, color: colors.text },
+  privateText: { color: colors.textMuted, textAlign: 'center' },
   politicalBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', backgroundColor: colors.infoBg, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginVertical: 2 },
   politicalText: { color: colors.infoText, fontSize: 12, fontWeight: '600' },
   panelCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginHorizontal: spacing.lg, marginTop: spacing.md, padding: spacing.md, borderRadius: 12, backgroundColor: colors.surface },

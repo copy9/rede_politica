@@ -12,7 +12,7 @@ import { colors, spacing, themed } from '@/lib/theme';
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const me = useMe();
-  const { conversations, conversationMessages, getUser, sendMessage } = useApp();
+  const { conversations, conversationMessages, getUser, sendMessage, canInteract, activityText } = useApp();
   const insets = useSafeAreaInsets();
   const [text, setText] = useState('');
 
@@ -40,7 +40,7 @@ export default function ChatScreen() {
               <Avatar uri={other.avatar} size={30} />
               <View>
                 <UserName user={other} />
-                <Text style={styles.subtitle}>{other.name}</Text>
+                <Text style={styles.subtitle}>{activityText(other.id) ?? other.name}</Text>
               </View>
             </Pressable>
           ),
@@ -70,6 +70,11 @@ export default function ChatScreen() {
           </View>
         }
       />
+      {!canInteract(other.id, 'message') ? (
+        <Text style={[styles.limited, { marginBottom: Math.max(insets.bottom, spacing.md) }]}>
+          @{other.username} não está recebendo mensagens de você.
+        </Text>
+      ) : (
       <View style={[styles.composer, { marginBottom: Math.max(insets.bottom, spacing.sm) }]}>
         <TextInput
           placeholder="Mensagem..."
@@ -85,6 +90,7 @@ export default function ChatScreen() {
           </Pressable>
         ) : null}
       </View>
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -93,6 +99,7 @@ const styles = themed(() => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   title: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   subtitle: { color: colors.textMuted, fontSize: 12 },
+  limited: { color: colors.textMuted, textAlign: 'center', paddingHorizontal: spacing.lg },
   bubble: { maxWidth: '78%', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20 },
   mine: { alignSelf: 'flex-end', backgroundColor: colors.primary },
   theirs: { alignSelf: 'flex-start', backgroundColor: colors.surface },

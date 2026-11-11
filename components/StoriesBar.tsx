@@ -3,7 +3,9 @@ import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useSettings } from '@/lib/settings';
 import { useApp, useMe } from '@/lib/store';
+import { useOverlay } from './Overlay';
 import { colors, spacing, themed } from '@/lib/theme';
 import { Avatar } from './Avatar';
 
@@ -16,9 +18,28 @@ export function StoriesBar() {
   const mine = list.find((s) => s.user.id === me.id);
   const others = list.filter((s) => s.user.id !== me.id);
 
+  const { showSheet, showBanner } = useOverlay();
+  const { settings } = useSettings();
+
   const pickStory = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
-    if (!result.canceled && result.assets[0]) addStory(result.assets[0].uri);
+    const uri = !result.canceled ? result.assets[0]?.uri : undefined;
+    if (!uri) return;
+    const friends = settings.closeFriendIds.length;
+    showSheet({
+      title: 'Compartilhar story com',
+      options: [
+        { label: 'Todos', icon: 'people-outline', onPress: () => addStory(uri) },
+        {
+          label: friends ? `Melhores amigos (${friends})` : 'Melhores amigos (lista vazia)',
+          icon: 'star-outline',
+          onPress: () => {
+            if (!friends) return showBanner('Adicione pessoas em Configurações › Melhores amigos.', { icon: 'star-outline' });
+            addStory(uri, true);
+          },
+        },
+      ],
+    });
   };
 
   return (
@@ -32,7 +53,7 @@ export function StoriesBar() {
         ListHeaderComponent={
           <Pressable style={styles.item} onPress={() => (mine ? router.push(`/story/${me.id}`) : pickStory())}>
             <View>
-              <Avatar uri={me.avatar} size={SIZE} ring={mine ? 'seen' : 'none'} />
+              <Avatar uri={me.avatar} size={SIZE} ring={mine ? (mine.closeFriends ? 'close' : 'seen') : 'none'} />
               <Pressable onPress={pickStory} style={styles.plus} hitSlop={6}>
                 <Ionicons name="add" size={16} color="#fff" />
               </Pressable>
@@ -44,7 +65,7 @@ export function StoriesBar() {
         }
         renderItem={({ item }) => (
           <Pressable style={styles.item} onPress={() => router.push(`/story/${item.user.id}`)}>
-            <Avatar uri={item.user.avatar} size={SIZE} ring={item.seen ? 'seen' : 'unseen'} />
+            <Avatar uri={item.user.avatar} size={SIZE} ring={item.seen ? 'seen' : item.closeFriends ? 'close' : 'unseen'} />
             <Text style={[styles.label, item.seen && { color: colors.textMuted }]} numberOfLines={1}>
               {item.user.username}
             </Text>

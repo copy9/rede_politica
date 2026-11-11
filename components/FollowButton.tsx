@@ -4,15 +4,16 @@ import { useApp } from '@/lib/store';
 import { colors, themed } from '@/lib/theme';
 
 export function FollowButton({ userId, compact }: { userId: string; compact?: boolean }) {
-  const { me, isFollowing, toggleFollow } = useApp();
+  const { me, isFollowing, toggleFollow, hasRequested } = useApp();
   if (!me || me.id === userId) return null;
   const following = isFollowing(userId);
+  const requested = !following && hasRequested(userId);
   return (
     <Pressable
       onPress={() => toggleFollow(userId)}
-      style={[styles.btn, compact && styles.compact, following ? styles.secondary : styles.primary]}>
-      <Text style={[styles.text, following ? styles.textSecondary : styles.textPrimary]}>
-        {following ? 'Seguindo' : 'Seguir'}
+      style={[styles.btn, compact && styles.compact, following || requested ? styles.secondary : styles.primary]}>
+      <Text style={[styles.text, following || requested ? styles.textSecondary : styles.textPrimary]}>
+        {following ? 'Seguindo' : requested ? 'Solicitado' : 'Seguir'}
       </Text>
     </Pressable>
   );

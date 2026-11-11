@@ -1,11 +1,13 @@
 import { InfoText, RadioGroup, Section, SettingsScreen } from '@/components/SettingsUI';
+import { useT } from '@/lib/i18n';
 import { useSettings } from '@/lib/settings';
 
 export default function LanguageScreen() {
   const { settings, update } = useSettings();
+  const t = useT();
   return (
     <SettingsScreen>
-      <Section title="Idioma do app">
+      <Section title={t('Idioma do app')}>
         <RadioGroup
           value={settings.language}
           onChange={(language) => update({ language })}
@@ -16,7 +18,11 @@ export default function LanguageScreen() {
           ]}
         />
       </Section>
-      <InfoText>Por enquanto o app está todo em português. A tradução para inglês e espanhol vem numa próxima versão.</InfoText>
+      <InfoText>
+        {t(
+          'Tradução parcial: a página de Configurações, os títulos das telas, o login e esta página já estão traduzidos. As demais telas ainda aparecem em português.',
+        )}
+      </InfoText>
     </SettingsScreen>
   );
 }

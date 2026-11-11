@@ -7,6 +7,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
 import { timeAgo } from '@/lib/format';
+import { mediaUri } from '@/lib/media';
+import { useSettings } from '@/lib/settings';
 import { useApp, useMe } from '@/lib/store';
 
 import { themed } from '@/lib/theme';
@@ -17,6 +19,7 @@ export default function StoryScreen() {
   const { userId } = useLocalSearchParams<{ userId: string }>();
   const me = useMe();
   const { storyUsers, markStorySeen, openConversationWith, sendMessage } = useApp();
+  const dataSaver = useSettings().settings.dataSaver;
 
   // Lista fixa ao abrir (para não reordenar enquanto assiste)
   const [groups] = useState(() => storyUsers());
@@ -78,7 +81,7 @@ export default function StoryScreen() {
 
   return (
     <View style={styles.container}>
-      <Image source={{ uri: story.uri }} style={StyleSheet.absoluteFill} contentFit="cover" />
+      <Image source={{ uri: mediaUri(story.uri, dataSaver) }} style={StyleSheet.absoluteFill} contentFit="cover" />
 
       <SafeAreaView style={styles.overlay} edges={['top', 'bottom']}>
         <View style={styles.bars}>
@@ -102,6 +105,12 @@ export default function StoryScreen() {
             <Avatar uri={group.user.avatar} size={32} />
             <Text style={styles.username}>{group.user.username}</Text>
             <Text style={styles.time}>{timeAgo(story.createdAt)}</Text>
+            {story.closeFriends ? (
+              <View style={styles.closeBadge}>
+                <Ionicons name="star" size={11} color="#fff" />
+                <Text style={styles.closeText}>Melhores amigos</Text>
+              </View>
+            ) : null}
           </Pressable>
           <Pressable onPress={() => router.back()} hitSlop={12}>
             <Ionicons name="close" size={30} color="#fff" />
@@ -153,6 +162,8 @@ const styles = themed(() => StyleSheet.create({
   username: { color: '#fff', fontWeight: '700', textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 4 },
   time: { color: 'rgba(255,255,255,0.8)', textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 4 },
   touch: { flex: 1, flexDirection: 'row' },
+  closeBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#16A34A', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 },
+  closeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
   footer: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12, paddingBottom: 8 },
   footerMine: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingBottom: 12 },
   reply: { flex: 1, borderWidth: 1, borderColor: 'rgba(255,255,255,0.7)', borderRadius: 24, paddingHorizontal: 16, paddingVertical: 10, color: '#fff' },

@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Logo } from '@/components/Logo';
 import { PostCard } from '@/components/PostCard';
 import { StoriesBar } from '@/components/StoriesBar';
+import { useSettings } from '@/lib/settings';
 import { useApp } from '@/lib/store';
 import { colors, spacing, themed } from '@/lib/theme';
 import type { Post } from '@/lib/types';
@@ -16,7 +17,8 @@ export default function FeedScreen() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const posts = feed();
-  const hasNotifications = notifications.some((n) => n.toUserId === me?.id);
+  const { settings } = useSettings();
+  const hasNotifications = !settings.notifications.pauseAll && notifications.some((n) => n.toUserId === me?.id);
 
   // Só o vídeo que está visível toca
   const onViewable = useRef(({ viewableItems }: { viewableItems: { item: Post; isViewable: boolean }[] }) => {

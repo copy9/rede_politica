@@ -1,8 +1,11 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { PrimaryButton, Section, SettingsScreen } from '@/components/SettingsUI';
+import { useOverlay } from '@/components/Overlay';
+import { InfoText, PrimaryButton, Section, SettingsScreen } from '@/components/SettingsUI';
+import { newId, timeAgo } from '@/lib/format';
+import { useSettings } from '@/lib/settings';
 import { colors, spacing, themed } from '@/lib/theme';
 
 const FAQ = [
@@ -31,6 +34,8 @@ const FAQ = [
 export default function HelpScreen() {
   const [open, setOpen] = useState<number | null>(0);
   const [report, setReport] = useState('');
+  const { settings, update } = useSettings();
+  const { showBanner } = useOverlay();
 
   return (
     <SettingsScreen>
@@ -58,11 +63,23 @@ export default function HelpScreen() {
           label="Enviar"
           disabled={report.trim().length < 10}
           onPress={() => {
+            update({ reports: [{ id: newId('r'), text: report.trim(), createdAt: Date.now() }, ...settings.reports] });
             setReport('');
-            Alert.alert('Obrigado!', 'Recebemos seu relato.');
+            showBanner('Obrigado! Seu relato foi registrado.', { icon: 'checkmark-circle', tone: 'success' });
           }}
         />
       </Section>
+      {settings.reports.length ? (
+        <Section title="Seus relatos">
+          {settings.reports.map((r) => (
+            <View key={r.id} style={styles.item}>
+              <Text style={styles.a}>{r.text}</Text>
+              <Text style={styles.reportMeta}>Enviado há {timeAgo(r.createdAt)} · aguardando resposta</Text>
+            </View>
+          ))}
+          <InfoText>Com o servidor ligado, os relatos chegam para a equipe e a resposta aparece aqui.</InfoText>
+        </Section>
+      ) : null}
     </SettingsScreen>
   );
 }
@@ -73,6 +90,7 @@ const styles = themed(() =>
     qRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
     q: { flex: 1, color: colors.text, fontWeight: '600', fontSize: 15 },
     a: { color: colors.textMuted, marginTop: 6, lineHeight: 19 },
+  reportMeta: { color: colors.textMuted, fontSize: 12, marginTop: 4 },
     input: { backgroundColor: colors.surface, borderRadius: 10, padding: 12, minHeight: 100, color: colors.text, fontSize: 15, marginHorizontal: spacing.lg, marginVertical: spacing.sm, textAlignVertical: 'top' },
   }),
 );

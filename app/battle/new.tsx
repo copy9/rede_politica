@@ -17,7 +17,7 @@ const WHEN = [
 
 export default function NewBattleScreen() {
   const me = useMe();
-  const { users, followingOf, createBattle } = useApp();
+  const { users, followingOf, createBattle, canInteract } = useApp();
   const [opponentId, setOpponentId] = useState<string | null>(null);
   const [topic, setTopic] = useState('');
   const [minutes, setMinutes] = useState(5);
@@ -93,13 +93,18 @@ export default function NewBattleScreen() {
         }
         renderItem={({ item }) => {
           const selected = item.id === opponentId;
+          // respeita "Quem pode desafiar você para batalhas" de cada conta
+          const allowed = canInteract(item.id, 'challenge');
           return (
-            <Pressable style={[styles.person, selected && styles.personSelected]} onPress={() => setOpponentId(item.id)}>
+            <Pressable
+              style={[styles.person, selected && styles.personSelected, !allowed && { opacity: 0.45 }]}
+              disabled={!allowed}
+              onPress={() => setOpponentId(item.id)}>
               <Avatar uri={item.avatar} size={44} />
               <View style={{ flex: 1 }}>
                 <UserName user={item} />
                 <Text style={styles.muted} numberOfLines={1}>
-                  {[item.name, item.role].filter(Boolean).join(' • ')}
+                  {allowed ? [item.name, item.role].filter(Boolean).join(' • ') : 'Não aceita desafios de você'}
                 </Text>
               </View>
               <Ionicons

@@ -5,6 +5,7 @@ import type {
   Comment,
   Conversation,
   Follow,
+  FollowRequest,
   LiveBattle,
   Message,
   Post,
@@ -243,6 +244,7 @@ export const mockStories: Story[] = [
   { id: 's4', userId: 'u_julia', uri: story('st-julia'), createdAt: now - 5 * h, seenBy: [] },
   { id: 's5', userId: 'u_marta', uri: story('st-marta'), createdAt: now - 7 * h, seenBy: [DEMO_USER_ID] },
   { id: 's6', userId: 'u_rafa', uri: story('st-rafa'), createdAt: now - 10 * h, seenBy: [] },
+  { id: 's7', userId: 'u_rafa', uri: story('st-rafa-amigos'), createdAt: now - 2 * h, seenBy: [], closeFriends: true },
 ];
 
 export const mockFollows: Follow[] = [
@@ -348,3 +350,16 @@ export const mockConsents: SupporterConsent[] = [
     createdAt: now - 9 * d,
   },
 ];
+
+/** Pedidos para seguir (aparecem quando a sua conta é privada) */
+export const mockFollowRequests: FollowRequest[] = [{ fromId: 'u_carlos', toId: DEMO_USER_ID, createdAt: now - 5 * h }];
+
+/** Último acesso das contas fictícias (para o "status de atividade") */
+export const mockLastActive: Record<string, number> = {
+  u_ana: now - 5 * min,
+  u_carlos: now - 30 * 1000,
+  u_julia: now - 2 * h,
+  u_rafa: now - 1 * d,
+  u_marta: now - 20 * min,
+  u_obs: now - 3 * h,
+};

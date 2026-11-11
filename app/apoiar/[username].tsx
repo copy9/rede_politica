@@ -5,6 +5,7 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Swit
 
 import { Avatar } from '@/components/Avatar';
 import { INTERESTS } from '@/lib/analytics';
+import { useSettings } from '@/lib/settings';
 import { useApp, useMe } from '@/lib/store';
 import { colors, spacing, themed } from '@/lib/theme';
 import type { ShareField } from '@/lib/types';
@@ -24,12 +25,13 @@ export default function SupportScreen() {
   const me = useMe();
   const { getUserByUsername, consentFor, giveConsent, revokeConsent } = useApp();
   const politician = getUserByUsername(username);
+  const { settings } = useSettings();
   const existing = politician ? consentFor(politician.id) : undefined;
 
   const [fields, setFields] = useState<ShareField[]>(existing?.fields ?? ['nome', 'cidade', 'interesses']);
   const [interests, setInterests] = useState<string[]>(existing?.interests ?? me.interests ?? []);
-  const [whatsapp, setWhatsapp] = useState(existing?.whatsapp ?? '');
-  const [email, setEmail] = useState(existing?.email ?? '');
+  const [whatsapp, setWhatsapp] = useState(existing?.whatsapp ?? settings.phone);
+  const [email, setEmail] = useState(existing?.email ?? settings.email);
   const [agree, setAgree] = useState(!!existing);
   const [error, setError] = useState<string | null>(null);
 

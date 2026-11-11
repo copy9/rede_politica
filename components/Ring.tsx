@@ -9,13 +9,16 @@ import { colors } from '@/lib/theme';
 export function LinearGradientRing({
   size,
   seen,
+  close,
   children,
 }: {
   size: number;
   seen: boolean;
+  /** story só para Melhores amigos (anel verde) */
+  close?: boolean;
   children: React.ReactNode;
 }) {
-  const [a, b, c] = colors.storyRing;
+  const [a, b, c] = close ? ['#16A34A', '#16A34A', '#16A34A'] : colors.storyRing;
   const width = Math.max(2, Math.round(size * 0.035));
   return (
     <View

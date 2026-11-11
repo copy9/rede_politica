@@ -5,15 +5,13 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { PostGrid } from '@/components/PostGrid';
 import { RadioGroup, Section, SettingsScreen } from '@/components/SettingsUI';
 import { timeAgo } from '@/lib/format';
-import { useSettings } from '@/lib/settings';
+import { dayKey, useSettings } from '@/lib/settings';
 import { useApp, useMe } from '@/lib/store';
 import { colors, spacing, themed } from '@/lib/theme';
 
 type Tab = 'curtidas' | 'comentarios' | 'tempo';
 
-// Tempo de uso de demonstração (minutos por dia, últimos 7 dias)
-const USAGE = [34, 52, 41, 18, 63, 47, 29];
-const DAYS = ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'];
+const WEEKDAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 
 export default function ActivityScreen() {
   const params = useLocalSearchParams<{ tab?: Tab }>();
@@ -24,8 +22,15 @@ export default function ActivityScreen() {
 
   const liked = posts.filter((p) => p.likes.includes(me.id));
   const myComments = comments.filter((c) => c.userId === me.id).sort((a, b) => b.createdAt - a.createdAt);
-  const avg = Math.round(USAGE.reduce((a, b) => a + b, 0) / USAGE.length);
-  const max = Math.max(...USAGE);
+  // Minutos reais com o app aberto (contados a cada minuto), últimos 7 dias
+  const week = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    return { label: i === 6 ? 'hoje' : WEEKDAYS[d.getDay()], minutes: settings.usage[dayKey(d)] ?? 0 };
+  });
+  const today = week[6].minutes;
+  const avg = Math.round(week.reduce((a, b) => a + b.minutes, 0) / 7);
+  const max = Math.max(1, ...week.map((w) => w.minutes));
 
   return (
     <View style={styles.container}>
@@ -69,17 +74,21 @@ export default function ActivityScreen() {
       {tab === 'tempo' ? (
         <SettingsScreen>
           <View style={styles.usage}>
-            <Text style={styles.big}>{avg} min</Text>
-            <Text style={styles.muted}>média por dia nos últimos 7 dias</Text>
+            <Text style={styles.big}>{today} min</Text>
+            <Text style={styles.muted}>
+              hoje · média de {avg} min por dia nos últimos 7 dias
+              {settings.dailyLimitMin ? ` · limite ${settings.dailyLimitMin} min` : ''}
+            </Text>
             <View style={styles.bars}>
-              {USAGE.map((m, i) => (
+              {week.map((w, i) => (
                 <View key={i} style={styles.barCol}>
-                  <Text style={styles.barValue}>{m}</Text>
-                  <View style={[styles.bar, { height: (m / max) * 110 }]} />
-                  <Text style={styles.muted}>{DAYS[i]}</Text>
+                  <Text style={styles.barValue}>{w.minutes}</Text>
+                  <View style={[styles.bar, { height: Math.max(2, (w.minutes / max) * 110) }, i === 6 && { opacity: 1 }, i !== 6 && { opacity: 0.6 }]} />
+                  <Text style={styles.muted}>{w.label}</Text>
                 </View>
               ))}
             </View>
+            <Text style={styles.muted}>Conta só o tempo com o app aberto neste aparelho.</Text>
           </View>
           <Section title="Limite diário" footer="Quando passar do limite, o app mostra um aviso.">
             <RadioGroup

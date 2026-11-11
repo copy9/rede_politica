@@ -8,7 +8,7 @@ type Props = {
   uri: string;
   size?: number;
   /** 'none' = sem anel; 'unseen' = anel colorido (story novo); 'seen' = anel cinza */
-  ring?: 'none' | 'unseen' | 'seen';
+  ring?: 'none' | 'unseen' | 'seen' | 'close';
 };
 
 export function Avatar({ uri, size = 32, ring = 'none' }: Props) {
@@ -24,7 +24,7 @@ export function Avatar({ uri, size = 32, ring = 'none' }: Props) {
 
   const pad = Math.max(2, Math.round(size * 0.05));
   return (
-    <LinearGradientRing size={size + pad * 4} seen={ring === 'seen'}>
+    <LinearGradientRing size={size + pad * 4} seen={ring === 'seen'} close={ring === 'close'}>
       <View style={{ padding: pad, backgroundColor: colors.background, borderRadius: size }}>{image}</View>
     </LinearGradientRing>
   );

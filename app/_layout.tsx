@@ -6,6 +6,9 @@ import { useColorScheme } from 'react-native';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { OverlayProvider } from '@/components/Overlay';
+import { UsageTracker } from '@/components/UsageTracker';
+import { useT } from '@/lib/i18n';
 import { SettingsProvider, useSettings } from '@/lib/settings';
 import { AppProvider, useApp } from '@/lib/store';
 import { colors, schemeFrom, setScheme } from '@/lib/theme';
@@ -68,12 +71,15 @@ function ThemedApp() {
   };
 
   return (
+    <OverlayProvider key={`overlay-${scheme}`}>
     <ThemeProvider value={navTheme}>
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+      <UsageTracker />
       {/* key: troca de tema redesenha tudo; RestorePath volta para a tela onde a pessoa estava */}
       <RootNavigator key={scheme} />
       {changes.current > 0 ? <RestorePath key={`restore-${changes.current}`} path={pathAtChange.current} /> : null}
     </ThemeProvider>
+    </OverlayProvider>
   );
 }
 
@@ -96,6 +102,7 @@ function RestorePath({ path }: { path: string }) {
 function RootNavigator() {
   const { me } = useApp();
   const loggedIn = !!me;
+  const t = useT();
 
   return (
     <Stack screenOptions={{ headerBackButtonDisplayMode: 'minimal', headerShadowVisible: false }}>
@@ -108,41 +115,41 @@ function RootNavigator() {
       {/* Telas visíveis só com login */}
       <Stack.Protected guard={loggedIn}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="post/[id]" options={{ title: 'Publicação' }} />
-        <Stack.Screen name="comments/[id]" options={{ title: 'Comentários', presentation: 'modal' }} />
-        <Stack.Screen name="likes/[id]" options={{ title: 'Curtidas' }} />
+        <Stack.Screen name="post/[id]" options={{ title: t('Publicação') }} />
+        <Stack.Screen name="comments/[id]" options={{ title: t('Comentários'), presentation: 'modal' }} />
+        <Stack.Screen name="likes/[id]" options={{ title: t('Curtidas') }} />
         <Stack.Screen name="user/[username]" options={{ title: '' }} />
         <Stack.Screen name="follows/[username]" options={{ title: '' }} />
-        <Stack.Screen name="edit-profile" options={{ title: 'Editar perfil', presentation: 'modal' }} />
-        <Stack.Screen name="notifications" options={{ title: 'Notificações' }} />
-        <Stack.Screen name="messages/index" options={{ title: 'Mensagens' }} />
+        <Stack.Screen name="edit-profile" options={{ title: t('Editar perfil'), presentation: 'modal' }} />
+        <Stack.Screen name="notifications" options={{ title: t('Notificações') }} />
+        <Stack.Screen name="messages/index" options={{ title: t('Mensagens') }} />
         <Stack.Screen name="messages/[id]" options={{ title: '' }} />
         <Stack.Screen
           name="story/[userId]"
           options={{ headerShown: false, presentation: 'fullScreenModal', animation: 'fade' }}
         />
-        <Stack.Screen name="settings" options={{ title: 'Configurações' }} />
-        <Stack.Screen name="painel" options={{ title: 'Painel do político' }} />
-        <Stack.Screen name="apoiar/[username]" options={{ title: 'Receber novidades', presentation: 'modal' }} />
-        <Stack.Screen name="autorizacoes" options={{ title: 'Minhas autorizações' }} />
-        <Stack.Screen name="salvos" options={{ title: 'Salvos' }} />
-        <Stack.Screen name="atividade" options={{ title: 'Sua atividade' }} />
-        <Stack.Screen name="config/aparencia" options={{ title: 'Aparência' }} />
-        <Stack.Screen name="config/notificacoes" options={{ title: 'Notificações' }} />
-        <Stack.Screen name="config/privacidade" options={{ title: 'Privacidade da conta' }} />
-        <Stack.Screen name="config/bloqueados" options={{ title: 'Bloqueados e silenciados' }} />
-        <Stack.Screen name="config/comentarios" options={{ title: 'Comentários' }} />
-        <Stack.Screen name="config/seguranca" options={{ title: 'Senha e segurança' }} />
-        <Stack.Screen name="config/dados-pessoais" options={{ title: 'Informações pessoais' }} />
-        <Stack.Screen name="config/melhores-amigos" options={{ title: 'Melhores amigos' }} />
-        <Stack.Screen name="config/idioma" options={{ title: 'Idioma' }} />
-        <Stack.Screen name="config/verificacao" options={{ title: 'Verificação' }} />
-        <Stack.Screen name="config/ajuda" options={{ title: 'Ajuda' }} />
-        <Stack.Screen name="config/sobre" options={{ title: 'Sobre' }} />
-        <Stack.Screen name="battle/new" options={{ title: 'Nova batalha', presentation: 'modal' }} />
+        <Stack.Screen name="settings" options={{ title: t('Configurações') }} />
+        <Stack.Screen name="painel" options={{ title: t('Painel do político') }} />
+        <Stack.Screen name="apoiar/[username]" options={{ title: t('Receber novidades'), presentation: 'modal' }} />
+        <Stack.Screen name="autorizacoes" options={{ title: t('Minhas autorizações') }} />
+        <Stack.Screen name="salvos" options={{ title: t('Salvos') }} />
+        <Stack.Screen name="atividade" options={{ title: t('Sua atividade') }} />
+        <Stack.Screen name="config/aparencia" options={{ title: t('Aparência') }} />
+        <Stack.Screen name="config/notificacoes" options={{ title: t('Notificações') }} />
+        <Stack.Screen name="config/privacidade" options={{ title: t('Privacidade da conta') }} />
+        <Stack.Screen name="config/bloqueados" options={{ title: t('Bloqueados e silenciados') }} />
+        <Stack.Screen name="config/comentarios" options={{ title: t('Comentários') }} />
+        <Stack.Screen name="config/seguranca" options={{ title: t('Senha e segurança') }} />
+        <Stack.Screen name="config/dados-pessoais" options={{ title: t('Informações pessoais') }} />
+        <Stack.Screen name="config/melhores-amigos" options={{ title: t('Melhores amigos') }} />
+        <Stack.Screen name="config/idioma" options={{ title: t('Idioma') }} />
+        <Stack.Screen name="config/verificacao" options={{ title: t('Verificação') }} />
+        <Stack.Screen name="config/ajuda" options={{ title: t('Ajuda') }} />
+        <Stack.Screen name="config/sobre" options={{ title: t('Sobre') }} />
+        <Stack.Screen name="battle/new" options={{ title: t('Nova batalha'), presentation: 'modal' }} />
         <Stack.Screen name="battle/[id]" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
       </Stack.Protected>
-      <Stack.Screen name="+not-found" options={{ title: 'Página não encontrada' }} />
+      <Stack.Screen name="+not-found" options={{ title: t('Página não encontrada') }} />
     </Stack>
   );
 }

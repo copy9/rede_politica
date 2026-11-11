@@ -3,6 +3,8 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
+import { mediaUri } from '@/lib/media';
+import { useSettings } from '@/lib/settings';
 import { colors, themed } from '@/lib/theme';
 import type { Post } from '@/lib/types';
 
@@ -10,6 +12,7 @@ import type { Post } from '@/lib/types';
 export function PostGrid({ posts, emptyText = 'Nenhuma publicação ainda' }: { posts: Post[]; emptyText?: string }) {
   const { width } = useWindowDimensions();
   const size = (Math.min(width, 640) - 4) / 3;
+  const { settings } = useSettings();
 
   if (posts.length === 0) {
     return (
@@ -28,7 +31,7 @@ export function PostGrid({ posts, emptyText = 'Nenhuma publicação ainda' }: { 
             <View style={[StyleSheet.absoluteFill, { backgroundColor: '#111' }]} />
           ) : (
             <Image
-              source={{ uri: p.type === 'video' ? p.thumbnail : p.uri }}
+              source={{ uri: mediaUri(p.type === 'video' ? p.thumbnail : p.uri, settings.dataSaver) }}
               style={StyleSheet.absoluteFill}
               contentFit="cover"
               transition={150}

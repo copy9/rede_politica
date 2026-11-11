@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
+import { useOverlay } from '@/components/Overlay';
 import { UserName } from '@/components/UserName';
 import { timeAgo } from '@/lib/format';
 import { useApp, useMe } from '@/lib/store';
@@ -11,7 +12,8 @@ import { colors, spacing, themed } from '@/lib/theme';
 
 export default function InboxScreen() {
   const me = useMe();
-  const { conversations, conversationMessages, getUser, users, openConversationWith } = useApp();
+  const { conversations, conversationMessages, getUser, users, openConversationWith, activityText } = useApp();
+  const { showBanner } = useOverlay();
   const [query, setQuery] = useState('');
   const q = query.trim().toLowerCase();
 
@@ -34,6 +36,7 @@ export default function InboxScreen() {
   const start = (userId: string) => {
     const id = openConversationWith(userId);
     if (id) router.push(`/messages/${id}`);
+    else showBanner('Essa conta não está recebendo mensagens de você.', { icon: 'chatbubbles-outline', tone: 'warning' });
   };
 
   return (
@@ -63,6 +66,7 @@ export default function InboxScreen() {
                 {item.last!.senderId === me.id ? 'Você: ' : ''}
                 {item.last!.text} · {timeAgo(item.last!.createdAt)}
               </Text>
+              {activityText(item.other!.id) ? <Text style={styles.active}>● {activityText(item.other!.id)}</Text> : null}
             </View>
           </Pressable>
         )}
@@ -106,5 +110,6 @@ const styles = themed(() => StyleSheet.create({
   heading: { fontWeight: '700', fontSize: 16, color: colors.text, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
   preview: { color: colors.textMuted, marginTop: 2 },
+  active: { color: colors.good, fontSize: 12, marginTop: 2 },
   empty: { textAlign: 'center', marginTop: 40, color: colors.textMuted, paddingHorizontal: spacing.xl },
 }));

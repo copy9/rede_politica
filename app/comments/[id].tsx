@@ -5,6 +5,7 @@ import { FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
+import { useOverlay } from '@/components/Overlay';
 import { timeAgo } from '@/lib/format';
 import { isHiddenText, useSettings } from '@/lib/settings';
 import { useApp, useMe } from '@/lib/store';
@@ -16,15 +17,19 @@ const QUICK = ['👏', '👍', '🇧🇷', '🤔', '❤️', '🔥'];
 export default function CommentsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const me = useMe();
-  const { getPost, getUser, commentsFor, addComment } = useApp();
+  const { getPost, getUser, commentsFor, addComment, canInteract } = useApp();
+  const { showBanner } = useOverlay();
   const insets = useSafeAreaInsets();
   const [text, setText] = useState('');
   const post = getPost(id);
   const author = post ? getUser(post.userId) : undefined;
 
+  const allowed = !post || canInteract(post.userId, 'comment');
+
   const send = () => {
     if (!text.trim()) return;
-    addComment(id, text);
+    const err = addComment(id, text);
+    if (err) return showBanner(err, { icon: 'alert-circle-outline', tone: 'warning' });
     setText('');
   };
 
@@ -60,6 +65,13 @@ export default function CommentsScreen() {
         keyboardShouldPersistTaps="handled"
       />
 
+      {!allowed ? (
+        <View style={[styles.composer, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
+          <Text style={styles.limited}>
+            {author ? `@${author.username} limitou quem pode comentar nesta publicação.` : 'Comentários limitados.'}
+          </Text>
+        </View>
+      ) : (
       <View style={[styles.composer, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
         <View style={styles.quick}>
           {QUICK.map((e) => (
@@ -84,6 +96,7 @@ export default function CommentsScreen() {
           </Pressable>
         </View>
       </View>
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -152,4 +165,5 @@ const styles = themed(() => StyleSheet.create({
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   input: { flex: 1, color: colors.text, fontSize: 15, maxHeight: 100, paddingVertical: 8 },
   post: { color: colors.primary, fontWeight: '700' },
+  limited: { color: colors.textMuted, textAlign: 'center', paddingVertical: spacing.sm },
 }));
