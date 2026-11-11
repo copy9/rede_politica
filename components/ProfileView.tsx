@@ -36,8 +36,8 @@ export function ProfileView({ user }: { user: User }) {
   const isPrivate = accountSettings(user.id).privateAccount;
   const activity = isMe ? null : activityText(user.id);
 
-  const onMessage = () => {
-    const id = openConversationWith(user.id);
+  const onMessage = async () => {
+    const id = await openConversationWith(user.id);
     if (id) router.push(`/messages/${id}`);
     else if (!canInteract(user.id, 'message'))
       showBanner(`@${user.username} não recebe mensagens de você.`, { icon: 'chatbubbles-outline', tone: 'warning' });
@@ -99,7 +99,7 @@ export function ProfileView({ user }: { user: User }) {
           <View style={{ flex: 1 }}>
             <Text style={styles.panelTitle}>Painel do político</Text>
             <Text style={styles.panelSub}>
-              Público, desempenho e {supportersFor(user.id).length + 40} apoiadores cadastrados
+              Público, desempenho e {supportersFor(user.id).length} apoiadores cadastrados
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />

@@ -85,7 +85,7 @@ export default function ChatScreen() {
           multiline
         />
         {text.trim() ? (
-          <Pressable onPress={send} hitSlop={8} style={styles.send}>
+          <Pressable onPress={send} hitSlop={8} style={styles.send} accessibilityLabel="Enviar">
             <Ionicons name="send" size={18} color={colors.white} />
           </Pressable>
         ) : null}

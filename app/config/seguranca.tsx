@@ -19,9 +19,9 @@ export default function SecurityScreen() {
   const [error, setError] = useState<string | null>(null);
   const hasPassword = !!settings.passwordHash;
 
-  const submit = () => {
+  const submit = async () => {
     if (next !== again) return setError('As senhas novas não conferem.');
-    const err = changePassword(current, next);
+    const err = await changePassword(current, next);
     if (err) return setError(err);
     setError(null);
     setCurrent('');

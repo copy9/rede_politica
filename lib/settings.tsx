@@ -122,20 +122,8 @@ export const DEFAULT_ACCOUNT: AccountSettings = {
   reports: [],
 };
 
-// Regras de privacidade de algumas contas fictícias, para dar para ver as opções funcionando.
-const MOCK_ACCOUNTS: Record<string, Partial<AccountSettings>> = {
-  u_carlos: { whoCanMessage: 'ninguem', whoCanChallenge: 'ninguem' },
-  u_marta: { whoCanComment: 'seguidores' },
-  u_obs: { privateAccount: true, showActivityStatus: false },
-  u_rafa: { whoCanMention: 'seguidores', closeFriendIds: ['u_demo'], whoCanChallenge: 'todos' },
-  u_julia: { whoCanChallenge: 'todos', whoCanMention: 'seguidores' },
-  u_demo: {
-    phone: '(81) 99999-0000',
-    devices: [
-      { id: 'mock-web', name: 'Chrome no Windows', where: 'Recife, PE', lastActiveAt: Date.now() - 2 * 86400000, icon: 'desktop-outline' },
-    ],
-  },
-};
+// Contas de exemplo não existem mais: as regras das outras contas vêm do banco.
+const MOCK_ACCOUNTS: Record<string, Partial<AccountSettings>> = {};
 
 const STORAGE_KEY = 'rede-politica:settings:v2';
 const OLD_KEY = 'rede-politica:settings:v1';

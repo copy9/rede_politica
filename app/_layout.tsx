@@ -6,7 +6,7 @@ import { useColorScheme } from 'react-native';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { OverlayProvider } from '@/components/Overlay';
+import { OverlayProvider, useOverlay } from '@/components/Overlay';
 import { UsageTracker } from '@/components/UsageTracker';
 import { useT } from '@/lib/i18n';
 import { SettingsProvider, useSettings } from '@/lib/settings';
@@ -31,7 +31,10 @@ export default function RootLayout() {
 
 /** Aplica o tema (claro/escuro/automático) e redesenha o app quando ele muda. */
 function ThemedApp() {
-  const { settings, loaded } = useSettings();
+  const { settings, loaded: settingsLoaded } = useSettings();
+  // também espera conferir se já havia login salvo (para não mostrar a tela de login à toa)
+  const { ready } = useApp();
+  const loaded = settingsLoaded && ready;
   const system = useColorScheme();
   const scheme = schemeFrom(settings.themeMode, system);
   // Precisa acontecer antes de desenhar as telas, para os estilos pegarem as cores certas.
@@ -75,12 +78,25 @@ function ThemedApp() {
     <ThemeProvider value={navTheme}>
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
       <UsageTracker />
+      <SyncErrorBanner />
       {/* key: troca de tema redesenha tudo; RestorePath volta para a tela onde a pessoa estava */}
       <RootNavigator key={scheme} />
       {changes.current > 0 ? <RestorePath key={`restore-${changes.current}`} path={pathAtChange.current} /> : null}
     </ThemeProvider>
     </OverlayProvider>
   );
+}
+
+/** Mostra um aviso quando o banco recusa ou não consegue gravar algo. */
+function SyncErrorBanner() {
+  const { syncError, clearSyncError } = useApp();
+  const { showBanner } = useOverlay();
+  useEffect(() => {
+    if (!syncError) return;
+    showBanner(syncError, { icon: 'cloud-offline-outline', tone: 'warning', durationMs: 5000 });
+    clearSyncError();
+  }, [syncError, clearSyncError, showBanner]);
+  return null;
 }
 
 function RestorePath({ path }: { path: string }) {

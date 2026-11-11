@@ -19,8 +19,12 @@ export default function LoginScreen() {
   const [codeStep, setCodeStep] = useState<{ sentTo: string; demoCode: string } | null>(null);
   const [code, setCode] = useState('');
 
-  const attempt = (u: string, p: string) => {
-    const r = signIn(u, p);
+  const [busy, setBusy] = useState(false);
+  const attempt = async (u: string, p: string) => {
+    if (busy) return;
+    setBusy(true);
+    const r = await signIn(u, p);
+    setBusy(false);
     if (r.ok) return setError(null);
     if ('needsCode' in r) {
       setError(null);
@@ -31,8 +35,6 @@ export default function LoginScreen() {
     setError(r.error);
   };
   const submit = () => attempt(username, password);
-  const demo = () => attempt('voce.demo', password || 'demo');
-  const demoPolitician = () => attempt('ana.ribeiro.ver', password || 'demo');
   const confirmCode = () => setError(verifyLoginCode(code));
 
   if (codeStep) {
@@ -82,17 +84,11 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.form}>
-          <Field placeholder={t('Nome de usuário ou e-mail')} value={username} onChangeText={setUsername} autoCorrect={false} />
+          <Field placeholder={t('E-mail')} value={username} onChangeText={setUsername} autoCorrect={false} autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
           <Field placeholder={t('Senha')} value={password} onChangeText={setPassword} secureTextEntry onSubmitEditing={submit} />
           {error ? <Text style={styles.error}>{error}</Text> : null}
-          <Pressable style={styles.button} onPress={submit}>
-            <Text style={styles.buttonText}>{t('Entrar')}</Text>
-          </Pressable>
-          <Pressable onPress={demo}>
-            <Text style={styles.demo}>{t('Entrar com a conta de demonstração')}</Text>
-          </Pressable>
-          <Pressable onPress={demoPolitician}>
-            <Text style={styles.demo}>{t('Entrar como político (demonstração)')}</Text>
+          <Pressable style={[styles.button, busy && { opacity: 0.6 }]} onPress={submit} disabled={busy}>
+            <Text style={styles.buttonText}>{busy ? '…' : t('Entrar')}</Text>
           </Pressable>
         </View>
 

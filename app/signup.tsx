@@ -31,9 +31,12 @@ export default function SignUpScreen() {
     setBirthDate([d.slice(0, 2), d.slice(2, 4), d.slice(4, 8)].filter(Boolean).join('/'));
   };
 
-  const submit = () =>
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    if (busy) return;
+    setBusy(true);
     setError(
-      signUp({
+      await signUp({
         email,
         name,
         username,
@@ -47,6 +50,8 @@ export default function SignUpScreen() {
         acceptedTerms,
       }),
     );
+    setBusy(false);
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -104,8 +109,8 @@ export default function SignUpScreen() {
             </Pressable>
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
-            <Pressable style={styles.button} onPress={submit}>
-              <Text style={styles.buttonText}>Cadastrar</Text>
+            <Pressable style={[styles.button, busy && { opacity: 0.6 }]} onPress={submit} disabled={busy}>
+              <Text style={styles.buttonText}>{busy ? 'Criando conta…' : 'Cadastrar'}</Text>
             </Pressable>
           </View>
 

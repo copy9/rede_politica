@@ -72,8 +72,8 @@ export default function StoryScreen() {
   if (!group || !story) return null;
   const isMine = group.user.id === me.id;
 
-  const sendReply = () => {
-    const conv = openConversationWith(group.user.id);
+  const sendReply = async () => {
+    const conv = await openConversationWith(group.user.id);
     if (conv && reply.trim()) sendMessage(conv, `Respondeu ao seu story: ${reply.trim()}`);
     setReply('');
     setPaused(false);

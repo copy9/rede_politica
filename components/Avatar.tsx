@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { LinearGradientRing } from './Ring';
 import { View } from 'react-native';
@@ -12,13 +13,18 @@ type Props = {
 };
 
 export function Avatar({ uri, size = 32, ring = 'none' }: Props) {
-  const image = (
+  // sem foto: mostra o ícone de pessoa
+  const image = uri ? (
     <Image
       source={{ uri }}
       style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.surface }}
       contentFit="cover"
       transition={150}
     />
+  ) : (
+    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+      <Ionicons name="person" size={size * 0.62} color={colors.textMuted} style={{ marginTop: size * 0.12 }} />
+    </View>
   );
   if (ring === 'none') return image;
 

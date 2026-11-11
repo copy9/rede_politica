@@ -111,10 +111,10 @@ export type Dashboard = {
   topPosts: { post: Post; views: number; engagement: number }[];
 };
 
-export function buildDashboard(politician: User, posts: Post[], supporters: number, period: Period): Dashboard {
+export function buildDashboard(politician: User, posts: Post[], supporters: number, period: Period, realFollowers?: number): Dashboard {
   const r = rng(`${politician.id}:${period}`);
   const base = rng(politician.id); // números que não dependem do período
-  const followers = Math.round(18000 + base() * 60000);
+  const followers = realFollowers ?? Math.round(18000 + base() * 60000);
   const dayMs = 24 * 60 * 60 * 1000;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -243,6 +243,64 @@ export function buildDashboard(politician: User, posts: Post[], supporters: numb
     interests,
     hours,
     sentiment,
+    topPosts,
+  };
+}
+
+// ---------- dados reais do público (seguidores de verdade, vindos do banco) ----------
+const pct = (n: number, total: number) => (total ? Math.round((n / total) * 1000) / 10 : 0);
+function shares(values: (string | undefined)[], empty = 'Não informado', limit = 6): Share[] {
+  const total = values.length;
+  const counts = new Map<string, number>();
+  values.forEach((v) => counts.set(v || empty, (counts.get(v || empty) ?? 0) + 1));
+  const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+  const top = sorted.slice(0, limit).map(([label, n]) => ({ label, pct: pct(n, total) }));
+  const rest = sorted.slice(limit).reduce((acc, [, n]) => acc + n, 0);
+  return rest ? [...top, { label: 'Outros', pct: pct(rest, total) }] : top;
+}
+
+/**
+ * Troca as partes do painel que já dá para medir de verdade:
+ * seguidores, gênero, idade, cidades, estados, interesses, curtidas, comentários e salvos.
+ * Visualizações, alcance, horários e sentimento continuam estimados (o app ainda não mede).
+ */
+export function applyRealAudience(d: Dashboard, politician: User, followers: User[], posts: Post[], commentsOnPost: (postId: string) => number): Dashboard {
+  const n = followers.length;
+  const g = { F: 0, M: 0, O: 0 };
+  followers.forEach((u) => (g[u.gender ?? 'O'] += 1));
+  const age = AGE_RANGES.map((range) => {
+    const inRange = followers.filter((u) => u.birthYear && ageRangeOf(u.birthYear) === range);
+    return { range, F: pct(inRange.filter((u) => u.gender === 'F').length, n), M: pct(inRange.filter((u) => u.gender !== 'F').length, n) };
+  });
+  const interestCounts = new Map<string, number>();
+  followers.forEach((u) => (u.interests ?? []).forEach((i) => interestCounts.set(i, (interestCounts.get(i) ?? 0) + 1)));
+  const interests = [...interestCounts.entries()].map(([label, c]) => ({ label, pct: pct(c, n) })).sort((a, b) => b.pct - a.pct);
+
+  const own = posts.filter((p) => p.userId === politician.id);
+  const likes = own.reduce((a, p) => a + p.likes.length, 0);
+  const saves = own.reduce((a, p) => a + p.savedBy.length, 0);
+  const comments = own.reduce((a, p) => a + commentsOnPost(p.id), 0);
+  const topPosts = own
+    .map((post) => {
+      const eng = post.likes.length + commentsOnPost(post.id) + post.savedBy.length;
+      return { post, views: Math.max(eng, Math.round(eng * 8)), engagement: n ? Math.round((eng / n) * 1000) / 10 : 0 };
+    })
+    .sort((a, b) => b.engagement - a.engagement)
+    .slice(0, 5);
+
+  return {
+    ...d,
+    totals: { ...d.totals, followers: n },
+    deltas: { ...d.deltas, followers: 0 },
+    gender: { F: pct(g.F, n), M: pct(g.M, n), O: pct(g.O, n) },
+    age,
+    cities: shares(followers.map((u) => u.city)),
+    states: shares(followers.map((u) => u.state)),
+    neighborhoods: [],
+    interests,
+    interactions: d.interactions.map((i) =>
+      i.label === 'Curtidas' ? { ...i, value: likes } : i.label === 'Comentários' ? { ...i, value: comments } : i.label === 'Salvos' ? { ...i, value: saves } : i,
+    ),
     topPosts,
   };
 }

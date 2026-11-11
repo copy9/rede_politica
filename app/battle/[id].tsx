@@ -32,19 +32,6 @@ const SUPPORTS = [
   { emoji: '🏆', label: 'Troféu', points: 100 },
 ];
 
-// Frases da plateia simulada (modo demonstração)
-const CROWD_LINES = [
-  'Boa resposta!',
-  'Quero ver os números',
-  'Fonte?',
-  'Concordo 100%',
-  'Isso não responde a pergunta',
-  'Vamos com respeito, pessoal',
-  'Excelente ponto',
-  'E o orçamento?',
-  'Assistindo de Recife 👋',
-  'Mais transparência!',
-];
 
 const fmtTime = (sec: number) => {
   const s = Math.max(0, Math.ceil(sec));
@@ -55,7 +42,7 @@ export default function BattleRoomScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const me = useMe();
   const app = useApp();
-  const { getBattle, getUser, messagesForBattle, supportBattle, sendBattleMessage, setBattleViewers, startBattle, endBattle, users } = app;
+  const { getBattle, getUser, messagesForBattle, supportBattle, sendBattleMessage, joinBattle, startBattle, endBattle } = app;
   const { width } = useWindowDimensions();
   const { confirm, showBanner } = useOverlay();
   const [now, setNow] = useState(Date.now());
@@ -79,26 +66,8 @@ export default function BattleRoomScreen() {
     if (battle?.status === 'live' && remaining <= 0) endBattle(battle.id);
   }, [battle?.status, remaining <= 0]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Plateia simulada: pontos, mensagens e espectadores (só no modo demonstração)
-  const latest = useRef(app);
-  latest.current = app;
-  useEffect(() => {
-    if (battle?.status !== 'live') return;
-    const crowd = users.filter((u) => u.id !== me.id);
-    const t = setInterval(() => {
-      const a = latest.current;
-      const b = a.getBattle(id);
-      if (!b || b.status !== 'live') return;
-      const who = crowd[Math.floor(Math.random() * crowd.length)];
-      const s: BattleSide = Math.random() < 0.5 ? 'host' : 'opponent';
-      const r = Math.random();
-      const pts = r < 0.6 ? 1 + Math.floor(Math.random() * 3) : r < 0.9 ? 5 : r < 0.98 ? 20 : 100;
-      a.supportBattle(id, s, pts, who.id);
-      if (Math.random() < 0.25) a.sendBattleMessage(id, CROWD_LINES[Math.floor(Math.random() * CROWD_LINES.length)], who.id);
-      a.setBattleViewers(id, Math.max(1, b.viewers + Math.round((Math.random() - 0.4) * 12)));
-    }, 1300);
-    return () => clearInterval(t);
-  }, [battle?.status, id]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Conta quem está assistindo (tempo real)
+  useEffect(() => joinBattle(id), [id, joinBattle]);
 
   if (!battle || !host || !opponent) {
     return (

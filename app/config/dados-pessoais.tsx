@@ -33,7 +33,7 @@ export default function PersonalInfoScreen() {
       'Excluir sua conta?',
       'Apaga seu perfil, publicações, comentários, mensagens, seguidores e autorizações. Não dá para desfazer.',
       'Excluir conta definitivamente',
-      deleteAccount,
+      () => void deleteAccount(),
       true,
     );
 

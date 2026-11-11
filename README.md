@@ -37,11 +37,13 @@ Sem servidor ainda: o código de dois fatores aparece na tela em vez de ir por S
   a partir do que cada usuário declarou em *Editar perfil › Sobre você*.
 - O **banco de apoiadores** só mostra quem tocou em **"Quero receber novidades"** no perfil do político e autorizou,
   com apenas os campos que escolheu. O cidadão cancela em *Configurações › Minhas autorizações*.
-- Login de demonstração como político: botão "Entrar como político (demonstração)" (conta `ana.ribeiro.ver`).
 
-> **Modo demonstração:** por enquanto os dados são fictícios e ficam só na memória do app
-> (`lib/mockData.ts` e `lib/store.tsx`). Entre com o botão "Entrar com a conta de demonstração"
-> ou com o usuário `voce.demo` e qualquer senha. O próximo passo é ligar no Supabase.
+> **Banco de dados real (Supabase):** cada pessoa cria a própria conta em "Cadastre-se" e entra com
+> **e-mail e senha**. Posts, fotos, curtidas, comentários, seguidores, mensagens, notificações,
+> autorizações a políticos e batalhas ficam salvos no banco e aparecem para todo mundo.
+> Batalhas (placar, chat, espectadores), mensagens e notificações chegam **em tempo real**.
+> As regras de segurança estão em `supabase/migrations/` e são testadas por `node scripts/testar-banco.mjs`.
+> No painel do político, visualizações, alcance e horários ainda são estimativas; o resto é real.
 
 ## Como rodar no seu computador
 
@@ -89,6 +91,6 @@ Deixe a janela "sincronizando" aberta enquanto usa. (O `atualizar.bat` antigo s�
 app/          telas (cada arquivo é uma rota; (tabs) = barra inferior; config/ = páginas de Configurações)
 components/   componentes reutilizáveis
 constants/    cores e constantes
-lib/          estado do app, configurações salvas, dados de demonstração, tema claro/escuro e cliente do Supabase
+lib/          estado do app (ligado ao Supabase), configurações salvas, tema claro/escuro e cliente do Supabase
 assets/       ícones, imagens e fontes
 ```

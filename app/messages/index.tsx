@@ -33,8 +33,8 @@ export default function InboxScreen() {
     ? users.filter((u) => u.id !== me.id && (u.username.includes(q) || u.name.toLowerCase().includes(q)) && !items.some((i) => i.other?.id === u.id))
     : [];
 
-  const start = (userId: string) => {
-    const id = openConversationWith(userId);
+  const start = async (userId: string) => {
+    const id = await openConversationWith(userId);
     if (id) router.push(`/messages/${id}`);
     else showBanner('Essa conta não está recebendo mensagens de você.', { icon: 'chatbubbles-outline', tone: 'warning' });
   };

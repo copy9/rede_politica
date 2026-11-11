@@ -1,27 +1,21 @@
-// Estado do app (modo demonstração, em memória).
-// As funções aqui têm a mesma "forma" que terão com o Supabase,
-// então as telas não precisam mudar quando o backend for ligado.
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Platform } from 'react-native';
+// Estado do app, ligado ao banco de verdade (Supabase).
+//
+// Como funciona:
+// - Ao entrar, o app baixa do banco tudo o que a pessoa pode ver (perfis, posts, mensagens...).
+// - Cada ação (curtir, comentar, postar...) aparece na tela na hora e é gravada no banco em seguida.
+//   Se o banco recusar (ex.: regra de privacidade), a tela volta ao normal e aparece um aviso.
+// - Batalhas, mensagens e notificações chegam em tempo real; o resto é atualizado a cada 30 s
+//   e sempre que o app volta a ficar aberto.
+// - As regras de segurança ficam NO BANCO (supabase/migrations). As checagens daqui só servem
+//   para mostrar a mensagem certa mais rápido.
+import type { RealtimeChannel } from '@supabase/supabase-js';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState as RNAppState } from 'react-native';
 
-import { newId, timeAgo } from './format';
-import { hashPassword } from './hash';
-import {
-  DEMO_USER_ID,
-  mockBattleMessages,
-  mockBattles,
-  mockComments,
-  mockConversations,
-  mockFollowRequests,
-  mockFollows,
-  mockLastActive,
-  mockConsents,
-  mockMessages,
-  mockNotifications,
-  mockPosts,
-  mockStories,
-  mockUsers,
-} from './mockData';
+import { ageRangeOf } from './analytics';
+import { timeAgo } from './format';
+import { useSettings, type AccountSettings, type Audience, type ShareProfile } from './settings';
+import { supabase } from './supabase';
 import type {
   AppNotification,
   BattleMessage,
@@ -33,6 +27,7 @@ import type {
   LiveBattle,
   MediaType,
   Message,
+  NotificationType,
   Post,
   ShareField,
   Story,
@@ -40,8 +35,6 @@ import type {
   SupporterConsent,
   User,
 } from './types';
-import { ageRangeOf } from './analytics';
-import { useSettings, type ShareProfile } from './settings';
 
 type SignUpInput = {
   name: string;
@@ -57,7 +50,6 @@ type SignUpInput = {
   birthDate: string;
   /** "Tenho 18 anos ou mais e aceito os Termos de uso e a Política de Privacidade" */
   acceptedTerms: boolean;
-  /** opcional: o que compartilhar com políticos ao tocar em "Quero receber novidades" */
   shareProfile?: ShareProfile;
 };
 export type SignInResult = { ok: true } | { ok: false; error: string } | { ok: false; needsCode: true; sentTo: string; demoCode: string };
@@ -84,6 +76,13 @@ type ProfileUpdate = Partial<
 
 type AppState = {
   me: User | null;
+  /** false enquanto verifica se já havia login salvo neste aparelho */
+  ready: boolean;
+  /** último erro ao gravar no banco (a tela mostra um aviso) */
+  syncError: string | null;
+  clearSyncError: () => void;
+  /** baixa tudo de novo do banco */
+  refresh: () => Promise<void>;
   users: User[];
   posts: Post[];
   comments: Comment[];
@@ -96,16 +95,13 @@ type AppState = {
   battleMessages: BattleMessage[];
 
   // autenticação
-  /** entra; com dois fatores ligado, pede o código antes */
-  signIn: (username: string, password: string) => SignInResult;
+  signIn: (email: string, password: string) => Promise<SignInResult>;
   verifyLoginCode: (code: string) => string | null;
   cancelLoginCode: () => void;
-  changePassword: (current: string, next: string) => string | null;
-  /** apaga a conta logada e tudo dela (neste aparelho) */
-  deleteAccount: () => void;
-  /** cópia dos dados da conta logada (JSON) */
+  changePassword: (current: string, next: string) => Promise<string | null>;
+  deleteAccount: () => Promise<void>;
   exportMyData: () => string;
-  signUp: (input: SignUpInput) => string | null;
+  signUp: (input: SignUpInput) => Promise<string | null>;
   signOut: () => void;
   updateProfile: (changes: ProfileUpdate) => string | null;
 
@@ -123,13 +119,9 @@ type AppState = {
   conversationMessages: (conversationId: string) => Message[];
 
   // privacidade
-  /** a conta permite esse tipo de interação comigo? */
   canInteract: (userId: string, kind: InteractionKind) => boolean;
-  /** posso ver publicações dessa conta? (contas privadas: só seguidores) */
   canSeeContent: (userId: string) => boolean;
-  /** "Ativo agora", "Ativo há 5 min" ou null se o status estiver oculto */
   activityText: (userId: string) => string | null;
-  /** texto de erro se o texto menciona alguém que não permite, senão null */
   mentionError: (text: string) => string | null;
   followRequests: FollowRequest[];
   hasRequested: (userId: string) => boolean;
@@ -139,24 +131,24 @@ type AppState = {
   toggleLike: (postId: string) => void;
   toggleSave: (postId: string) => void;
   toggleCommentLike: (commentId: string) => void;
-  /** devolve um erro (ex.: menção não permitida) ou null */
   addComment: (postId: string, text: string) => string | null;
   createPost: (input: { type: MediaType; uri: string; caption: string; location?: string }) => Post | string | null;
   deletePost: (postId: string) => void;
   addStory: (uri: string, closeFriends?: boolean) => void;
   markStorySeen: (storyId: string) => void;
   toggleFollow: (userId: string) => void;
-  openConversationWith: (userId: string) => string | null;
+  /** abre (ou reaproveita) a conversa; null se a pessoa não recebe mensagens de você */
+  openConversationWith: (userId: string) => Promise<string | null>;
   sendMessage: (conversationId: string, text: string) => void;
 
   // batalhas de lives
   getBattle: (id: string) => LiveBattle | undefined;
   messagesForBattle: (battleId: string) => BattleMessage[];
   createBattle: (input: { opponentId: string; topic: string; durationSec: number; scheduleAt?: number }) => LiveBattle | null;
-  /** Apoio da plateia. fromUserId é usado pela simulação de outros espectadores. */
-  supportBattle: (battleId: string, side: BattleSide, points: number, fromUserId?: string) => void;
-  sendBattleMessage: (battleId: string, text: string, fromUserId?: string) => void;
-  setBattleViewers: (battleId: string, viewers: number) => void;
+  supportBattle: (battleId: string, side: BattleSide, points: number) => void;
+  sendBattleMessage: (battleId: string, text: string) => void;
+  /** entra na sala (conta quem está assistindo); devolve a função para sair */
+  joinBattle: (battleId: string) => () => void;
   startBattle: (battleId: string) => void;
   endBattle: (battleId: string) => void;
 
@@ -165,7 +157,6 @@ type AppState = {
   consentFor: (politicianId: string) => SupporterConsent | undefined;
   giveConsent: (politicianId: string, input: ConsentInput) => string | null;
   revokeConsent: (consentId: string) => void;
-  /** Apoiadores do político, mostrando só os campos que cada um autorizou */
   supportersFor: (politicianId: string) => Supporter[];
 };
 
@@ -183,160 +174,624 @@ export function ageFrom(date: string, now = new Date()): number | null {
   return age;
 }
 
+/** id no formato do banco (uuid v4), criado no celular para a tela não precisar esperar o banco */
+export function uuid() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+  });
+}
+
+const ms = (iso: string | null | undefined) => (iso ? new Date(iso).getTime() : 0);
+const SUPPORT_POINTS = [1, 5, 20, 100];
+
+// ---------- conversão linha do banco -> formato das telas ----------
+/* eslint-disable @typescript-eslint/no-explicit-any */
+type Row = Record<string, any>;
+
+function toUser(p: Row): User {
+  return {
+    id: p.id,
+    accountType: p.account_type,
+    username: p.username,
+    name: p.name,
+    avatar: p.avatar_url || '',
+    bio: p.bio ?? '',
+    role: p.role ?? undefined,
+    party: p.party ?? undefined,
+    website: p.website ?? undefined,
+    verified: !!p.verified,
+    city: p.city ?? undefined,
+    state: p.state ?? undefined,
+    gender: p.gender ?? undefined,
+    birthYear: p.birth_year ?? undefined,
+    interests: p.interests ?? [],
+  };
+}
+
+function toBattle(b: Row, viewers = 0): LiveBattle {
+  return {
+    id: b.id,
+    hostId: b.host_id,
+    opponentId: b.opponent_id,
+    topic: b.topic,
+    status: b.status,
+    startsAt: ms(b.starts_at),
+    durationSec: b.duration_sec,
+    viewers,
+    scores: { host: b.score_host, opponent: b.score_opponent },
+    media: {},
+  };
+}
+
+function toBattleMessage(e: Row, users: User[], battles: LiveBattle[]): BattleMessage {
+  if (e.kind === 'support') {
+    const b = battles.find((x) => x.id === e.battle_id);
+    const target = b && users.find((u) => u.id === (e.side === 'host' ? b.hostId : b.opponentId));
+    return {
+      id: e.id,
+      battleId: e.battle_id,
+      userId: e.user_id,
+      text: `apoiou ${target?.name ?? ''}`.trim(),
+      support: { side: e.side, points: e.points },
+      createdAt: ms(e.created_at),
+    };
+  }
+  return { id: e.id, battleId: e.battle_id, userId: e.user_id, text: e.text ?? '', createdAt: ms(e.created_at) };
+}
+
+function toNotification(n: Row): AppNotification {
+  return {
+    id: n.id,
+    type: n.type as NotificationType,
+    toUserId: n.to_user_id,
+    fromUserId: n.from_user_id ?? '',
+    postId: n.post_id ?? undefined,
+    text: n.text ?? undefined,
+    createdAt: ms(n.created_at),
+  };
+}
+
+function toMessage(m: Row): Message {
+  return { id: m.id, conversationId: m.conversation_id, senderId: m.sender_id, text: m.text, createdAt: ms(m.created_at) };
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+/** Envia foto/vídeo do celular para o armazenamento e devolve o link público. */
+async function uploadMedia(userId: string, uri: string, type: MediaType): Promise<string> {
+  if (/^https?:\/\//.test(uri)) return uri;
+  const res = await fetch(uri);
+  const body = await res.arrayBuffer();
+  const header = res.headers.get('content-type') ?? '';
+  const contentType = header && header !== 'application/octet-stream' ? header : type === 'video' ? 'video/mp4' : 'image/jpeg';
+  const ext = contentType.includes('png')
+    ? 'png'
+    : contentType.includes('webp')
+      ? 'webp'
+      : contentType.includes('quicktime')
+        ? 'mov'
+        : type === 'video'
+          ? 'mp4'
+          : 'jpg';
+  const path = `${userId}/${uuid()}.${ext}`;
+  const { error } = await supabase.storage.from('media').upload(path, body, { contentType, upsert: false });
+  if (error) throw error;
+  return supabase.storage.from('media').getPublicUrl(path).data.publicUrl;
+}
+
+function friendlyError(message: string | undefined) {
+  const m = (message ?? '').toLowerCase();
+  if (m.includes('invalid login')) return 'E-mail ou senha incorretos.';
+  if (m.includes('already registered') || m.includes('already been registered')) return 'Esse e-mail já tem conta. Use "Entrar".';
+  if (m.includes('database error saving new user') || m.includes('duplicate key')) return 'Esse nome de usuário já está em uso.';
+  if (m.includes('password should be') || m.includes('weak')) return 'Senha fraca: use pelo menos 6 caracteres.';
+  if (m.includes('rate limit') || m.includes('too many')) return 'Muitas tentativas. Espere um minuto e tente de novo.';
+  if (m.includes('network') || m.includes('fetch')) return 'Sem conexão com a internet.';
+  if (m.includes('row-level security') || m.includes('violates')) return 'Essa ação não é permitida pelas regras de privacidade.';
+  return message || 'Algo deu errado. Tente de novo.';
+}
+
+/** Configurações de privacidade que ficam no banco (para as outras pessoas também respeitarem) */
+type ServerPrivacy = Pick<
+  AccountSettings,
+  'privateAccount' | 'showActivityStatus' | 'whoCanComment' | 'whoCanMessage' | 'whoCanMention' | 'whoCanChallenge' | 'blockedIds' | 'mutedIds' | 'closeFriendIds'
+> & { reportIds: string[] };
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [meId, setMeId] = useState<string | null>(null);
-  const { settings, accountSettings, updateAccount, removeAccount, setActiveAccount } = useSettings();
+  const [ready, setReady] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const { settings, accountSettings, updateAccount, removeAccount, setActiveAccount, activeAccountId } = useSettings();
   const [pendingLogin, setPendingLogin] = useState<{ userId: string; code: string } | null>(null);
-  const [followRequests, setFollowRequests] = useState<FollowRequest[]>(mockFollowRequests);
-  const [lastActive] = useState<Record<string, number>>(mockLastActive);
+  const [followRequests, setFollowRequests] = useState<FollowRequest[]>([]);
+  const [lastActive, setLastActive] = useState<Record<string, number>>({});
 
-  // As configurações "da conta" passam a ser as da pessoa logada
   useEffect(() => setActiveAccount(meId), [meId, setActiveAccount]);
   const blocked = useMemo(() => new Set(settings.blockedIds), [settings.blockedIds]);
   const hiddenFromFeed = useMemo(() => new Set([...settings.blockedIds, ...settings.mutedIds]), [settings.blockedIds, settings.mutedIds]);
-  const [users, setUsers] = useState<User[]>(mockUsers);
-  const [posts, setPosts] = useState<Post[]>(mockPosts);
-  const [comments, setComments] = useState<Comment[]>(mockComments);
-  const [stories, setStories] = useState<Story[]>(mockStories);
-  const [follows, setFollows] = useState<Follow[]>(mockFollows);
-  const [notifications, setNotifications] = useState<AppNotification[]>(mockNotifications);
-  const [conversations, setConversations] = useState<Conversation[]>(mockConversations);
-  const [messages, setMessages] = useState<Message[]>(mockMessages);
-  const [battles, setBattles] = useState<LiveBattle[]>(mockBattles);
-  const [battleMessages, setBattleMessages] = useState<BattleMessage[]>(mockBattleMessages);
-  const [consents, setConsents] = useState<SupporterConsent[]>(mockConsents);
+  const [users, setUsers] = useState<User[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [stories, setStories] = useState<Story[]>([]);
+  const [follows, setFollows] = useState<Follow[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [battles, setBattles] = useState<LiveBattle[]>([]);
+  const [battleMessages, setBattleMessages] = useState<BattleMessage[]>([]);
+  const [consents, setConsents] = useState<SupporterConsent[]>([]);
 
   const me = useMemo(() => users.find((u) => u.id === meId) ?? null, [users, meId]);
 
-  const notify = useCallback(
-    (n: Omit<AppNotification, 'id' | 'createdAt' | 'fromUserId'>) => {
-      if (!meId || n.toUserId === meId) return;
-      setNotifications((prev) => [{ ...n, id: newId('n'), fromUserId: meId, createdAt: Date.now() }, ...prev]);
+  // refs para usar o valor mais novo dentro de funções assíncronas e do tempo real
+  const usersRef = useRef(users);
+  usersRef.current = users;
+  const battlesRef = useRef(battles);
+  battlesRef.current = battles;
+  const meIdRef = useRef(meId);
+  meIdRef.current = meId;
+  const accountSettingsRef = useRef(accountSettings);
+  accountSettingsRef.current = accountSettings;
+  /** quantas pessoas estão em cada sala de batalha (presença em tempo real) */
+  const viewersRef = useRef<Record<string, number>>({});
+  /** o que o banco tem de privacidade da minha conta (para saber o que mudou e precisa ser enviado) */
+  const synced = useRef<ServerPrivacy | null>(null);
+
+  const fail = useCallback((message?: string) => setSyncError(friendlyError(message)), []);
+  const clearSyncError = useCallback(() => setSyncError(null), []);
+
+  // ---------- baixar tudo do banco ----------
+  const loadAll = useCallback(
+    async (uid: string) => {
+      const q = await Promise.all([
+        supabase.from('profiles').select('*'),
+        supabase.from('follows').select('follower_id, following_id'),
+        supabase.from('follow_requests').select('*'),
+        supabase.from('blocks').select('*'),
+        supabase.from('mutes').select('*'),
+        supabase.from('close_friends').select('*'),
+        supabase.from('posts').select('*').order('created_at', { ascending: false }).limit(500),
+        supabase.from('likes').select('post_id, user_id'),
+        supabase.from('saves').select('post_id, user_id'),
+        supabase.from('comments').select('*').order('created_at').limit(3000),
+        supabase.from('comment_likes').select('*'),
+        supabase.from('stories').select('*'),
+        supabase.from('story_views').select('*'),
+        supabase.from('conversation_members').select('*'),
+        supabase.from('messages').select('*').order('created_at').limit(3000),
+        supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(200),
+        supabase.from('battles').select('*').order('created_at', { ascending: false }).limit(100),
+        supabase.from('battle_events').select('*').order('created_at', { ascending: false }).limit(1500),
+        supabase.from('consents').select('*'),
+      ]);
+      const err = q.find((r) => r.error)?.error;
+      if (err) throw err;
+      const [profiles, fo, fr, bl, mu, cf, po, li, sa, co, cl, st, sv, cm, me_, no, ba, be, cs] = q.map((r) => (r.data ?? []) as Row[]);
+
+      const userList = profiles.map(toUser);
+      setUsers(userList);
+      setLastActive(Object.fromEntries(profiles.filter((p) => p.last_active_at).map((p) => [p.id, ms(p.last_active_at)])));
+      setFollows(fo.map((f) => ({ followerId: f.follower_id, followingId: f.following_id })));
+      setFollowRequests(fr.map((r) => ({ fromId: r.from_id, toId: r.to_id, createdAt: ms(r.created_at) })));
+
+      const group = (rows: Row[], key: string, val: string) => {
+        const m = new Map<string, string[]>();
+        rows.forEach((r) => m.set(r[key], [...(m.get(r[key]) ?? []), r[val]]));
+        return m;
+      };
+      const likesBy = group(li, 'post_id', 'user_id');
+      const savesBy = group(sa, 'post_id', 'user_id');
+      setPosts(
+        po.map((p) => ({
+          id: p.id,
+          userId: p.user_id,
+          type: p.type,
+          uri: p.media_url,
+          thumbnail: p.thumbnail_url ?? undefined,
+          caption: p.caption ?? '',
+          location: p.location ?? undefined,
+          createdAt: ms(p.created_at),
+          likes: likesBy.get(p.id) ?? [],
+          savedBy: savesBy.get(p.id) ?? [],
+        })),
+      );
+      const commentLikes = group(cl, 'comment_id', 'user_id');
+      setComments(
+        co.map((c) => ({ id: c.id, postId: c.post_id, userId: c.user_id, text: c.text, createdAt: ms(c.created_at), likes: commentLikes.get(c.id) ?? [] })),
+      );
+      const views = group(sv, 'story_id', 'user_id');
+      setStories(
+        st.map((s) => ({
+          id: s.id,
+          userId: s.user_id,
+          uri: s.media_url,
+          createdAt: ms(s.created_at),
+          seenBy: [...new Set([s.user_id, ...(views.get(s.id) ?? [])])],
+          closeFriends: s.close_friends || undefined,
+        })),
+      );
+      const members = group(cm, 'conversation_id', 'user_id');
+      setConversations([...members.entries()].map(([id, participantIds]) => ({ id, participantIds })));
+      setMessages(me_.map(toMessage));
+      setNotifications(no.map(toNotification));
+
+      const battleList = ba.map((b) => toBattle(b));
+      setBattles(battleList.map((b) => ({ ...b, viewers: viewersRef.current[b.id] ?? 0 })));
+      setBattleMessages(be.reverse().map((e) => toBattleMessage(e, userList, battleList)));
+      setConsents(
+        cs.map((c) => ({
+          id: c.id,
+          politicianId: c.politician_id,
+          userId: c.user_id,
+          fields: c.fields,
+          email: c.email ?? undefined,
+          whatsapp: c.whatsapp ?? undefined,
+          interests: c.interests ?? [],
+          createdAt: ms(c.created_at),
+        })),
+      );
+
+      // Regras de privacidade de cada conta (as telas leem por accountSettings(id))
+      const myBlocks = bl.filter((b) => b.blocker_id === uid).map((b) => b.blocked_id as string);
+      const blockedMe = new Set(bl.filter((b) => b.blocked_id === uid).map((b) => b.blocker_id as string));
+      const myMutes = mu.filter((m) => m.muter_id === uid).map((m) => m.muted_id as string);
+      const myFriends = cf.filter((c) => c.owner_id === uid).map((c) => c.friend_id as string);
+      const listedMe = new Set(cf.filter((c) => c.friend_id === uid).map((c) => c.owner_id as string));
+      profiles.forEach((p) => {
+        const privacy = {
+          privateAccount: !!p.private_account,
+          showActivityStatus: p.show_activity !== false,
+          whoCanComment: p.who_can_comment as Audience,
+          whoCanMessage: p.who_can_message as Audience,
+          whoCanMention: p.who_can_mention as Audience,
+          whoCanChallenge: p.who_can_challenge as Audience,
+        };
+        if (p.id === uid) {
+          const mine = { ...privacy, blockedIds: myBlocks, mutedIds: myMutes, closeFriendIds: myFriends };
+          synced.current = { ...mine, reportIds: accountSettingsRef.current(uid).reports.map((r) => r.id) };
+          updateAccount(uid, mine);
+        } else {
+          updateAccount(p.id, {
+            ...privacy,
+            blockedIds: blockedMe.has(p.id) ? [uid] : [],
+            closeFriendIds: listedMe.has(p.id) ? [uid] : [],
+            mutedIds: [],
+          });
+        }
+      });
     },
-    [meId],
+    [updateAccount],
   );
 
-  /** Conclui o login: registra este aparelho e, se ligado, avisa sobre o novo acesso. */
+  const refresh = useCallback(async () => {
+    const uid = meIdRef.current;
+    if (!uid) return;
+    try {
+      await supabase.rpc('end_expired_battles');
+      await loadAll(uid);
+    } catch (e) {
+      fail((e as Error).message);
+    }
+  }, [loadAll, fail]);
+
+  /** Conclui o login: guarda o e-mail, registra este aparelho e carrega os dados. */
   const completeLogin = useCallback(
-    (userId: string) => {
-      const acct = accountSettings(userId);
-      const name = Platform.OS === 'web' ? 'Navegador' : Platform.OS === 'ios' ? 'iPhone' : 'Celular Android';
-      const icon = Platform.OS === 'web' ? ('globe-outline' as const) : ('phone-portrait-outline' as const);
-      const device = { id: settings.deviceId, name, where: 'Este aparelho', lastActiveAt: Date.now(), icon };
-      updateAccount(userId, { devices: [device, ...acct.devices.filter((d) => d.id !== settings.deviceId)] });
-      if (acct.loginAlerts) {
-        setNotifications((prev) => [
-          {
-            id: newId('n'),
-            type: 'security',
-            toUserId: userId,
-            fromUserId: userId,
-            text: `Novo acesso à sua conta: ${name}. Se não foi você, troque a senha.`,
-            createdAt: Date.now(),
-          },
-          ...prev,
-        ]);
-      }
+    async (userId: string, email?: string) => {
+      await loadAll(userId);
+      const acct = accountSettingsRef.current(userId);
+      updateAccount(userId, {
+        email: acct.email || email || '',
+        // a senha agora é do servidor; isso só faz a tela de segurança mostrar "Alterar senha"
+        passwordHash: 'servidor',
+      });
       setPendingLogin(null);
       setMeId(userId);
     },
-    [accountSettings, updateAccount, settings.deviceId],
+    [loadAll, updateAccount],
   );
 
-  const signIn = useCallback(
-    (username: string, password: string): SignInResult => {
-      const clean = username.trim().replace(/^@/, '').toLowerCase();
-      if (!clean || !password) return { ok: false, error: 'Preencha usuário e senha.' };
-      const user = users.find((u) => u.username.toLowerCase() === clean);
-      if (!user) return { ok: false, error: 'Usuário não encontrado. Use "voce.demo" ou crie uma conta.' };
-      const acct = accountSettings(user.id);
-      // Contas de demonstração sem senha definida aceitam qualquer senha.
-      if (acct.passwordHash && acct.passwordHash !== hashPassword(user.id, password)) {
-        return { ok: false, error: 'Senha incorreta.' };
+  // Login que já estava salvo neste aparelho
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const user = data.session?.user;
+        if (user && alive) await completeLogin(user.id, user.email);
+      } catch {
+        // sem internet ou sessão vencida: mostra a tela de login
+      } finally {
+        if (alive) setReady(true);
       }
+    })();
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') setMeId(null);
+    });
+    return () => {
+      alive = false;
+      sub.subscription.unsubscribe();
+    };
+    // só na abertura do app
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Tempo real (batalhas, mensagens, notificações) + atualização periódica + "visto por último"
+  useEffect(() => {
+    if (!meId) return;
+    const channel = supabase
+      .channel(`app-${meId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'battles' }, (payload) => {
+        const row = payload.new as Row;
+        if (!row?.id) return;
+        setBattles((prev) => {
+          const old = prev.find((b) => b.id === row.id);
+          const next = toBattle(row, old?.viewers ?? 0);
+          return old ? prev.map((b) => (b.id === row.id ? next : b)) : [next, ...prev];
+        });
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'battle_events' }, (payload) => {
+        const row = payload.new as Row;
+        setBattleMessages((prev) =>
+          prev.some((m) => m.id === row.id) ? prev : [...prev, toBattleMessage(row, usersRef.current, battlesRef.current)],
+        );
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+        const row = payload.new as Row;
+        setMessages((prev) => (prev.some((m) => m.id === row.id) ? prev : [...prev, toMessage(row)]));
+        setConversations((prev) => {
+          if (!prev.some((c) => c.id === row.conversation_id)) setTimeout(() => refresh(), 0);
+          return prev;
+        });
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
+        const row = payload.new as Row;
+        setNotifications((prev) => (prev.some((n) => n.id === row.id) ? prev : [toNotification(row), ...prev]));
+        // seguidor novo, pedido, curtida: atualiza o resto também
+        if (row.type === 'follow' || row.type === 'request') setTimeout(() => refresh(), 300);
+      })
+      .subscribe();
+
+    const ping = () => supabase.from('profiles').update({ last_active_at: new Date().toISOString() }).eq('id', meId).then(() => {});
+    ping();
+    const every30 = setInterval(() => refresh(), 30000);
+    const every60 = setInterval(ping, 60000);
+    const appState = RNAppState.addEventListener('change', (s) => {
+      if (s === 'active') {
+        refresh();
+        ping();
+      }
+    });
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(every30);
+      clearInterval(every60);
+      appState.remove();
+    };
+  }, [meId, refresh]);
+
+  // Envia ao banco as mudanças de privacidade/bloqueios que a pessoa fez nas Configurações
+  useEffect(() => {
+    const prev = synced.current;
+    // só depois que as configurações exibidas já são as desta conta
+    if (!meId || !prev || activeAccountId !== meId) return;
+    const now: ServerPrivacy = {
+      privateAccount: settings.privateAccount,
+      showActivityStatus: settings.showActivityStatus,
+      whoCanComment: settings.whoCanComment,
+      whoCanMessage: settings.whoCanMessage,
+      whoCanMention: settings.whoCanMention,
+      whoCanChallenge: settings.whoCanChallenge,
+      blockedIds: settings.blockedIds,
+      mutedIds: settings.mutedIds,
+      closeFriendIds: settings.closeFriendIds,
+      reportIds: settings.reports.map((r) => r.id),
+    };
+    synced.current = now;
+    const jobs: PromiseLike<{ error: { message: string } | null }>[] = [];
+    if (
+      prev.privateAccount !== now.privateAccount ||
+      prev.showActivityStatus !== now.showActivityStatus ||
+      prev.whoCanComment !== now.whoCanComment ||
+      prev.whoCanMessage !== now.whoCanMessage ||
+      prev.whoCanMention !== now.whoCanMention ||
+      prev.whoCanChallenge !== now.whoCanChallenge
+    ) {
+      jobs.push(
+        supabase
+          .from('profiles')
+          .update({
+            private_account: now.privateAccount,
+            show_activity: now.showActivityStatus,
+            who_can_comment: now.whoCanComment,
+            who_can_message: now.whoCanMessage,
+            who_can_mention: now.whoCanMention,
+            who_can_challenge: now.whoCanChallenge,
+          })
+          .eq('id', meId),
+      );
+    }
+    const diff = (table: string, mineCol: string, otherCol: string, before: string[], after: string[]) => {
+      const added = after.filter((x) => !before.includes(x));
+      const removed = before.filter((x) => !after.includes(x));
+      if (added.length) jobs.push(supabase.from(table).upsert(added.map((id) => ({ [mineCol]: meId, [otherCol]: id })), { ignoreDuplicates: true }));
+      if (removed.length) jobs.push(supabase.from(table).delete().eq(mineCol, meId).in(otherCol, removed));
+    };
+    diff('blocks', 'blocker_id', 'blocked_id', prev.blockedIds, now.blockedIds);
+    diff('mutes', 'muter_id', 'muted_id', prev.mutedIds, now.mutedIds);
+    diff('close_friends', 'owner_id', 'friend_id', prev.closeFriendIds, now.closeFriendIds);
+    // Bloquear também desfaz o "seguir" nos dois sentidos (como nas grandes redes)
+    const newlyBlocked = now.blockedIds.filter((x) => !prev.blockedIds.includes(x));
+    newlyBlocked.forEach((id) => {
+      jobs.push(supabase.from('follows').delete().eq('follower_id', meId).eq('following_id', id));
+      jobs.push(supabase.from('follows').delete().eq('follower_id', id).eq('following_id', meId));
+    });
+    if (newlyBlocked.length)
+      setFollows((f) => f.filter((x) => !(newlyBlocked.includes(x.followerId) && x.followingId === meId) && !(x.followerId === meId && newlyBlocked.includes(x.followingId))));
+    // Relatos de problema (Ajuda) viram denúncias no banco
+    settings.reports
+      .filter((r) => !prev.reportIds.includes(r.id))
+      .forEach((r) => jobs.push(supabase.from('reports').insert({ reporter_id: meId, target_type: 'app', reason: r.text.slice(0, 2000) })));
+    if (!jobs.length) return;
+    Promise.all(jobs).then((results) => {
+      const err = results.find((r) => r.error)?.error;
+      if (err) {
+        fail(err.message);
+        refresh();
+      }
+    });
+  }, [
+    meId,
+    activeAccountId,
+    settings.privateAccount,
+    settings.showActivityStatus,
+    settings.whoCanComment,
+    settings.whoCanMessage,
+    settings.whoCanMention,
+    settings.whoCanChallenge,
+    settings.blockedIds,
+    settings.mutedIds,
+    settings.closeFriendIds,
+    settings.reports,
+    fail,
+    refresh,
+  ]);
+
+  /** grava no banco; se der erro, avisa e recarrega (a tela volta ao estado real) */
+  const write = useCallback(
+    (job: PromiseLike<{ error: { message: string } | null }>) => {
+      Promise.resolve(job).then(
+        (r) => {
+          if (r.error) {
+            fail(r.error.message);
+            refresh();
+          }
+        },
+        (e: Error) => {
+          fail(e.message);
+          refresh();
+        },
+      );
+    },
+    [fail, refresh],
+  );
+
+  // ---------- autenticação ----------
+  const signIn = useCallback(
+    async (email: string, password: string): Promise<SignInResult> => {
+      const clean = email.trim().toLowerCase();
+      if (!clean || !password) return { ok: false, error: 'Preencha e-mail e senha.' };
+      if (!clean.includes('@')) return { ok: false, error: 'Entre com o e-mail que você usou no cadastro.' };
+      const { data, error } = await supabase.auth.signInWithPassword({ email: clean, password });
+      if (error || !data.user) return { ok: false, error: friendlyError(error?.message) };
+      const acct = accountSettings(data.user.id);
       if (acct.twoFactor) {
         const code = String(Math.floor(100000 + Math.random() * 900000));
-        setPendingLogin({ userId: user.id, code });
+        setPendingLogin({ userId: data.user.id, code });
         const sentTo = acct.phone ? `celular terminado em ${acct.phone.replace(/\D/g, '').slice(-4)}` : acct.email || 'seu contato';
         return { ok: false, needsCode: true, sentTo, demoCode: code };
       }
-      completeLogin(user.id);
+      try {
+        await completeLogin(data.user.id, data.user.email);
+      } catch (e) {
+        return { ok: false, error: friendlyError((e as Error).message) };
+      }
       return { ok: true };
     },
-    [users, accountSettings, completeLogin],
+    [accountSettings, completeLogin],
   );
 
   const verifyLoginCode = useCallback(
     (code: string) => {
       if (!pendingLogin) return 'Comece o login de novo.';
       if (code.replace(/\D/g, '') !== pendingLogin.code) return 'Código incorreto.';
-      completeLogin(pendingLogin.userId);
+      completeLogin(pendingLogin.userId).catch((e: Error) => fail(e.message));
       return null;
     },
-    [pendingLogin, completeLogin],
+    [pendingLogin, completeLogin, fail],
   );
 
-  const cancelLoginCode = useCallback(() => setPendingLogin(null), []);
+  const cancelLoginCode = useCallback(() => {
+    setPendingLogin(null);
+    supabase.auth.signOut().catch(() => {});
+  }, []);
 
   const signUp = useCallback(
-    ({ name, username, email, password, accountType = 'cidadao', role, party, city, state, birthDate, acceptedTerms, shareProfile }: SignUpInput) => {
+    async ({ name, username, email, password, accountType = 'cidadao', role, party, city, state, birthDate, acceptedTerms }: SignUpInput) => {
       const clean = username.trim().replace(/^@/, '').toLowerCase();
       if (!name.trim() || !clean || !email.trim() || !password) return 'Preencha todos os campos.';
+      if (!/^\S+@\S+\.\S+$/.test(email.trim())) return 'Informe um e-mail válido.';
       if (!/^[a-z0-9._]{3,30}$/.test(clean)) return 'O usuário deve ter 3 a 30 letras, números, ponto ou _.';
       if (password.length < 6) return 'A senha precisa de pelo menos 6 caracteres.';
-      if (users.some((u) => u.username === clean)) return 'Esse nome de usuário já está em uso.';
       const age = ageFrom(birthDate);
       if (age === null) return 'Informe a data de nascimento no formato DD/MM/AAAA.';
       if (age < 18) return 'A Rede Política é só para maiores de 18 anos.';
       if (!acceptedTerms) return 'Para criar a conta, confirme que tem 18 anos ou mais e aceite os Termos.';
-      if (shareProfile?.fields.includes('whatsapp') && (shareProfile.whatsapp ?? '').replace(/\D/g, '').length < 10)
-        return 'Informe o WhatsApp com DDD, ou desmarque essa opção.';
       if (accountType === 'politico' && (!role?.trim() || !city?.trim() || !state?.trim()))
         return 'Para conta política, informe cargo/pretensão, cidade e UF.';
-      const user: User = {
-        id: newId('u'),
-        accountType,
-        username: clean,
-        name: name.trim(),
-        avatar: `https://i.pravatar.cc/300?u=${encodeURIComponent(clean)}`,
-        bio: '',
-        role: accountType === 'politico' ? role!.trim() : 'Cidadão',
-        party: party?.trim() || undefined,
-        city: city?.trim() || undefined,
-        state: state?.trim().toUpperCase() || undefined,
-        // guarda só o ano (o suficiente para a faixa etária)
-        birthYear: Number(birthDate.trim().slice(-4)),
-      };
-      setUsers((prev) => [...prev, user]);
-      updateAccount(user.id, {
-        passwordHash: hashPassword(user.id, password),
-        email: email.trim(),
-        phone: shareProfile?.whatsapp?.trim() ?? '',
-        termsAcceptedAt: Date.now(),
-        shareProfile: shareProfile?.fields.length
-          ? { ...shareProfile, email: shareProfile.fields.includes('email') ? email.trim() : undefined }
-          : undefined,
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim().toLowerCase(),
+        password,
+        options: {
+          data: {
+            username: clean,
+            name: name.trim(),
+            account_type: accountType,
+            role: accountType === 'politico' ? role!.trim() : 'Cidadão',
+            party: party?.trim() || null,
+            city: city?.trim() || null,
+            state: state?.trim().toUpperCase() || null,
+            birth_year: Number(birthDate.trim().slice(-4)),
+            terms_accepted_at: new Date().toISOString(),
+          },
+        },
       });
-      completeLogin(user.id);
+      if (error) return friendlyError(error.message);
+      if (!data.user) return 'Não foi possível criar a conta.';
+      // Sem sessão = o projeto está pedindo confirmação de e-mail
+      if (!data.session) return 'Conta criada! Abra o e-mail de confirmação e depois toque em "Entrar".';
+      updateAccount(data.user.id, { termsAcceptedAt: Date.now(), email: email.trim() });
+      try {
+        await completeLogin(data.user.id, data.user.email);
+      } catch (e) {
+        return friendlyError((e as Error).message);
+      }
       return null;
     },
-    [users, updateAccount, completeLogin],
+    [updateAccount, completeLogin],
   );
 
-  const signOut = useCallback(() => setMeId(null), []);
+  const signOut = useCallback(() => {
+    synced.current = null;
+    setMeId(null);
+    setUsers([]);
+    setPosts([]);
+    setComments([]);
+    setStories([]);
+    setFollows([]);
+    setNotifications([]);
+    setConversations([]);
+    setMessages([]);
+    setBattles([]);
+    setBattleMessages([]);
+    setConsents([]);
+    setFollowRequests([]);
+    supabase.auth.signOut().catch(() => {});
+  }, []);
 
   const changePassword = useCallback(
-    (current: string, next: string) => {
+    async (current: string, next: string) => {
       if (!meId) return 'Não autenticado.';
-      const acct = accountSettings(meId);
-      if (!next || (acct.passwordHash && !current)) return 'Preencha as senhas.';
-      if (acct.passwordHash && acct.passwordHash !== hashPassword(meId, current)) return 'A senha atual está errada.';
+      if (!current || !next) return 'Preencha as senhas.';
       if (next.length < 8) return 'A nova senha precisa de pelo menos 8 caracteres.';
       if (!/[a-zA-Z]/.test(next) || !/\d/.test(next)) return 'Use letras e números na nova senha.';
-      updateAccount(meId, { passwordHash: hashPassword(meId, next) });
-      return null;
+      const { data } = await supabase.auth.getUser();
+      const email = data.user?.email;
+      if (!email) return 'Entre de novo e tente outra vez.';
+      const check = await supabase.auth.signInWithPassword({ email, password: current });
+      if (check.error) return 'A senha atual está errada.';
+      const { error } = await supabase.auth.updateUser({ password: next });
+      return error ? friendlyError(error.message) : null;
     },
-    [meId, accountSettings, updateAccount],
+    [meId],
   );
 
   const updateProfile = useCallback(
@@ -349,16 +804,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         changes = { ...changes, username: clean };
       }
       setUsers((prev) => prev.map((u) => (u.id === meId ? { ...u, ...changes } : u)));
+      const { avatar, accountType, birthYear, ...rest } = changes;
+      const row: Row = { ...rest };
+      if (accountType !== undefined) row.account_type = accountType;
+      if (birthYear !== undefined) row.birth_year = birthYear;
+      ['role', 'party', 'website', 'city', 'state', 'gender'].forEach((k) => {
+        if (k in row && !row[k]) row[k] = null;
+      });
+      write(
+        (async () => {
+          if (avatar !== undefined) row.avatar_url = avatar ? await uploadMedia(meId, avatar, 'image') : null;
+          const r = await supabase.from('profiles').update(row).eq('id', meId);
+          if (!r.error && row.avatar_url) setUsers((prev) => prev.map((u) => (u.id === meId ? { ...u, avatar: row.avatar_url } : u)));
+          return r;
+        })(),
+      );
       return null;
     },
-    [meId, users],
+    [meId, users, write],
   );
 
+  // ---------- consultas ----------
   const getUser = useCallback((id: string) => users.find((u) => u.id === id), [users]);
-  const getUserByUsername = useCallback(
-    (username: string) => users.find((u) => u.username === username),
-    [users],
-  );
+  const getUserByUsername = useCallback((username: string) => users.find((u) => u.username === username), [users]);
   const getPost = useCallback((id: string) => posts.find((p) => p.id === id), [posts]);
   const postsBy = useCallback(
     (userId: string) => posts.filter((p) => p.userId === userId).sort((a, b) => b.createdAt - a.createdAt),
@@ -399,7 +867,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         kind === 'comment' ? a.whoCanComment : kind === 'message' ? a.whoCanMessage : kind === 'mention' ? a.whoCanMention : a.whoCanChallenge;
       if (rule === 'todos') return true;
       if (rule === 'ninguem') return false;
-      // "seguidores" = pessoas que essa conta segue
       return follows.some((f) => f.followerId === userId && f.followingId === meId);
     },
     [meId, settings.blockedIds, accountSettings, follows],
@@ -416,7 +883,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const activityText = useCallback(
     (userId: string) => {
-      // Como nas grandes redes: quem esconde o próprio status também não vê o dos outros.
       if (!settings.showActivityStatus || !accountSettings(userId).showActivityStatus) return null;
       const ts = lastActive[userId];
       if (!ts) return null;
@@ -451,8 +917,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (!meId) return;
       setFollowRequests((prev) => prev.filter((r) => !(r.fromId === fromId && r.toId === meId)));
       if (accept) setFollows((prev) => [...prev, { followerId: fromId, followingId: meId }]);
+      write(
+        (async () => {
+          // aceitar: primeiro cria o "seguir" (o banco confere que o pedido existe), depois apaga o pedido
+          if (accept) {
+            const r = await supabase.from('follows').insert({ follower_id: fromId, following_id: meId });
+            if (r.error) return r;
+          }
+          return supabase.from('follow_requests').delete().eq('from_id', fromId).eq('to_id', meId);
+        })(),
+      );
     },
-    [meId],
+    [meId, write],
   );
 
   const feed = useCallback(() => {
@@ -460,8 +936,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (meId) following.add(meId);
     const visible = posts.filter((p) => !hiddenFromFeed.has(p.userId) && canSeeContent(p.userId));
     const mine = visible.filter((p) => following.has(p.userId));
-    const list = mine.length ? mine : visible;
-    return [...list].sort((a, b) => b.createdAt - a.createdAt);
+    // Com poucas pessoas na rede, mostra todas as publicações (seguindo primeiro)
+    const others = visible.filter((p) => !following.has(p.userId));
+    const byDate = (a: Post, b: Post) => b.createdAt - a.createdAt;
+    return [...mine.sort(byDate), ...others.sort(byDate)];
   }, [follows, posts, meId, hiddenFromFeed, canSeeContent]);
 
   const storyUsers = useCallback(() => {
@@ -473,7 +951,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           s.createdAt > dayAgo &&
           !hiddenFromFeed.has(s.userId) &&
           canSeeContent(s.userId) &&
-          // stories de "Melhores amigos": só para quem está na lista da pessoa
           (!s.closeFriends || s.userId === meId || (!!meId && accountSettings(s.userId).closeFriendIds.includes(meId))),
       )
       .sort((a, b) => a.createdAt - b.createdAt)
@@ -486,7 +963,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         closeFriends: list.some((s) => s.closeFriends),
       }))
       .filter((x) => !!x.user);
-    // Meu story primeiro, depois não vistos, depois vistos.
     return list.sort((a, b) => {
       if (a.user.id === meId) return -1;
       if (b.user.id === meId) return 1;
@@ -500,6 +976,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [messages],
   );
 
+  // ---------- ações ----------
   const toggleLike = useCallback(
     (postId: string) => {
       if (!meId) return;
@@ -507,57 +984,67 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (!post) return;
       const liked = post.likes.includes(meId);
       setPosts((prev) =>
-        prev.map((p) =>
-          p.id === postId ? { ...p, likes: liked ? p.likes.filter((id) => id !== meId) : [...p.likes, meId] } : p,
-        ),
+        prev.map((p) => (p.id === postId ? { ...p, likes: liked ? p.likes.filter((id) => id !== meId) : [...p.likes, meId] } : p)),
       );
-      if (!liked) notify({ type: 'like', toUserId: post.userId, postId });
+      write(
+        liked
+          ? supabase.from('likes').delete().eq('post_id', postId).eq('user_id', meId)
+          : supabase.from('likes').upsert({ post_id: postId, user_id: meId }, { ignoreDuplicates: true }),
+      );
     },
-    [meId, posts, notify],
+    [meId, posts, write],
   );
 
   const toggleSave = useCallback(
     (postId: string) => {
       if (!meId) return;
+      const saved = !!posts.find((p) => p.id === postId)?.savedBy.includes(meId);
       setPosts((prev) =>
         prev.map((p) =>
-          p.id === postId
-            ? { ...p, savedBy: p.savedBy.includes(meId) ? p.savedBy.filter((id) => id !== meId) : [...p.savedBy, meId] }
-            : p,
+          p.id === postId ? { ...p, savedBy: saved ? p.savedBy.filter((id) => id !== meId) : [...p.savedBy, meId] } : p,
         ),
       );
+      write(
+        saved
+          ? supabase.from('saves').delete().eq('post_id', postId).eq('user_id', meId)
+          : supabase.from('saves').upsert({ post_id: postId, user_id: meId }, { ignoreDuplicates: true }),
+      );
     },
-    [meId],
+    [meId, posts, write],
   );
 
   const toggleCommentLike = useCallback(
     (commentId: string) => {
       if (!meId) return;
+      const liked = !!comments.find((c) => c.id === commentId)?.likes.includes(meId);
       setComments((prev) =>
-        prev.map((c) =>
-          c.id === commentId
-            ? { ...c, likes: c.likes.includes(meId) ? c.likes.filter((id) => id !== meId) : [...c.likes, meId] }
-            : c,
-        ),
+        prev.map((c) => (c.id === commentId ? { ...c, likes: liked ? c.likes.filter((id) => id !== meId) : [...c.likes, meId] } : c)),
+      );
+      write(
+        liked
+          ? supabase.from('comment_likes').delete().eq('comment_id', commentId).eq('user_id', meId)
+          : supabase.from('comment_likes').upsert({ comment_id: commentId, user_id: meId }, { ignoreDuplicates: true }),
       );
     },
-    [meId],
+    [meId, comments, write],
   );
 
   const addComment = useCallback(
     (postId: string, text: string) => {
       const body = text.trim();
       if (!meId || !body) return null;
+      if (body.length > 1000) return 'Comentário muito longo (máx. 1000 caracteres).';
       const post = posts.find((p) => p.id === postId);
       if (post && !canInteract(post.userId, 'comment')) return 'Essa conta limitou quem pode comentar.';
       const err = mentionError(body);
       if (err) return err;
-      setComments((prev) => [...prev, { id: newId('c'), postId, userId: meId, text: body, createdAt: Date.now(), likes: [] }]);
-      if (post) notify({ type: 'comment', toUserId: post.userId, postId, text: body });
-      mentioned(body).forEach((u) => notify({ type: 'mention', toUserId: u.id, postId, text: body }));
+      const id = uuid();
+      setComments((prev) => [...prev, { id, postId, userId: meId, text: body, createdAt: Date.now(), likes: [] }]);
+      // as notificações (comentário e menções) são criadas pelo próprio banco
+      write(supabase.from('comments').insert({ id, post_id: postId, user_id: meId, text: body }));
       return null;
     },
-    [meId, posts, notify, canInteract, mentionError, mentioned],
+    [meId, posts, canInteract, mentionError, write],
   );
 
   const createPost = useCallback(
@@ -565,8 +1052,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (!meId) return null;
       const err = mentionError(caption);
       if (err) return err;
+      if (caption.length > 2200) return 'Legenda muito longa (máx. 2200 caracteres).';
       const post: Post = {
-        id: newId('p'),
+        id: uuid(),
         userId: meId,
         type,
         uri,
@@ -577,39 +1065,61 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         savedBy: [],
       };
       setPosts((prev) => [post, ...prev]);
-      mentioned(caption).forEach((u) => notify({ type: 'mention', toUserId: u.id, postId: post.id, text: post.caption }));
+      write(
+        (async () => {
+          const url = await uploadMedia(meId, uri, type);
+          const r = await supabase
+            .from('posts')
+            .insert({ id: post.id, user_id: meId, type, media_url: url, caption: post.caption, location: post.location ?? null });
+          if (!r.error) setPosts((prev) => prev.map((p) => (p.id === post.id ? { ...p, uri: url } : p)));
+          return r;
+        })(),
+      );
       return post;
     },
-    [meId, mentionError, mentioned, notify],
+    [meId, mentionError, write],
   );
 
   const deletePost = useCallback(
     (postId: string) => {
+      if (!meId) return;
       setPosts((prev) => prev.filter((p) => !(p.id === postId && p.userId === meId)));
       setComments((prev) => prev.filter((c) => c.postId !== postId));
+      write(supabase.from('posts').delete().eq('id', postId).eq('user_id', meId));
     },
-    [meId],
+    [meId, write],
   );
 
   const addStory = useCallback(
     (uri: string, closeFriends = false) => {
       if (!meId) return;
-      setStories((prev) => [
-        ...prev,
-        { id: newId('s'), userId: meId, uri, createdAt: Date.now(), seenBy: [meId], closeFriends: closeFriends || undefined },
-      ]);
+      const id = uuid();
+      const type: MediaType = /\.(mp4|mov|m4v|webm)(\?|$)/i.test(uri) ? 'video' : 'image';
+      setStories((prev) => [...prev, { id, userId: meId, uri, createdAt: Date.now(), seenBy: [meId], closeFriends: closeFriends || undefined }]);
+      write(
+        (async () => {
+          const url = await uploadMedia(meId, uri, type);
+          const r = await supabase.from('stories').insert({ id, user_id: meId, media_url: url, close_friends: closeFriends });
+          if (!r.error) setStories((prev) => prev.map((s) => (s.id === id ? { ...s, uri: url } : s)));
+          return r;
+        })(),
+      );
     },
-    [meId],
+    [meId, write],
   );
 
   const markStorySeen = useCallback(
     (storyId: string) => {
       if (!meId) return;
-      setStories((prev) =>
-        prev.map((s) => (s.id === storyId && !s.seenBy.includes(meId) ? { ...s, seenBy: [...s.seenBy, meId] } : s)),
-      );
+      const story = stories.find((s) => s.id === storyId);
+      if (!story || story.seenBy.includes(meId)) return;
+      setStories((prev) => prev.map((s) => (s.id === storyId ? { ...s, seenBy: [...s.seenBy, meId] } : s)));
+      supabase
+        .from('story_views')
+        .upsert({ story_id: storyId, user_id: meId }, { ignoreDuplicates: true })
+        .then(() => {});
     },
-    [meId],
+    [meId, stories],
   );
 
   const toggleFollow = useCallback(
@@ -624,7 +1134,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             ? prev.filter((r) => !(r.fromId === meId && r.toId === userId))
             : [...prev, { fromId: meId, toId: userId, createdAt: Date.now() }],
         );
-        if (!requested) notify({ type: 'request', toUserId: userId });
+        write(
+          requested
+            ? supabase.from('follow_requests').delete().eq('from_id', meId).eq('to_id', userId)
+            : supabase.from('follow_requests').upsert({ from_id: meId, to_id: userId }, { ignoreDuplicates: true }),
+        );
         return;
       }
       setFollows((prev) =>
@@ -632,35 +1146,44 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           ? prev.filter((f) => !(f.followerId === meId && f.followingId === userId))
           : [...prev, { followerId: meId, followingId: userId }],
       );
-      if (!already) notify({ type: 'follow', toUserId: userId });
+      write(
+        already
+          ? supabase.from('follows').delete().eq('follower_id', meId).eq('following_id', userId)
+          : supabase.from('follows').insert({ follower_id: meId, following_id: userId }),
+      );
     },
-    [meId, follows, notify, accountSettings, followRequests],
+    [meId, follows, accountSettings, followRequests, write],
   );
 
   const openConversationWith = useCallback(
-    (userId: string) => {
+    async (userId: string) => {
       if (!meId || userId === meId) return null;
       const existing = conversations.find(
         (c) => c.participantIds.length === 2 && c.participantIds.includes(meId) && c.participantIds.includes(userId),
       );
       if (existing) return existing.id;
       if (!canInteract(userId, 'message')) return null;
-      const conv: Conversation = { id: newId('cv'), participantIds: [meId, userId] };
-      setConversations((prev) => [...prev, conv]);
-      return conv.id;
+      const { data, error } = await supabase.rpc('open_conversation', { other: userId });
+      if (error || !data) return null;
+      const id = data as string;
+      setConversations((prev) => (prev.some((c) => c.id === id) ? prev : [...prev, { id, participantIds: [meId, userId] }]));
+      return id;
     },
     [meId, conversations, canInteract],
   );
 
   const sendMessage = useCallback(
     (conversationId: string, text: string) => {
-      const body = text.trim();
+      const body = text.trim().slice(0, 2000);
       if (!meId || !body) return;
-      setMessages((prev) => [...prev, { id: newId('m'), conversationId, senderId: meId, text: body, createdAt: Date.now() }]);
+      const id = uuid();
+      setMessages((prev) => [...prev, { id, conversationId, senderId: meId, text: body, createdAt: Date.now() }]);
+      write(supabase.from('messages').insert({ id, conversation_id: conversationId, sender_id: meId, text: body }));
     },
-    [meId],
+    [meId, write],
   );
 
+  // ---------- batalhas ----------
   const getBattle = useCallback((id: string) => battles.find((b) => b.id === id), [battles]);
 
   const messagesForBattle = useCallback(
@@ -670,76 +1193,108 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const createBattle = useCallback(
     ({ opponentId, topic, durationSec, scheduleAt }: { opponentId: string; topic: string; durationSec: number; scheduleAt?: number }) => {
-      if (!meId || opponentId === meId || !topic.trim()) return null;
+      if (!meId || opponentId === meId || topic.trim().length < 3) return null;
       const battle: LiveBattle = {
-        id: newId('b'),
+        id: uuid(),
         hostId: meId,
         opponentId,
-        topic: topic.trim(),
+        topic: topic.trim().slice(0, 90),
         status: scheduleAt ? 'scheduled' : 'live',
         startsAt: scheduleAt ?? Date.now(),
-        durationSec,
+        durationSec: Math.min(3600, Math.max(60, durationSec)),
         viewers: 0,
         scores: { host: 0, opponent: 0 },
         media: {},
       };
       setBattles((prev) => [battle, ...prev]);
+      write(
+        supabase.from('battles').insert({
+          id: battle.id,
+          host_id: meId,
+          opponent_id: opponentId,
+          topic: battle.topic,
+          status: battle.status,
+          starts_at: new Date(battle.startsAt).toISOString(),
+          duration_sec: battle.durationSec,
+        }),
+      );
       return battle;
     },
-    [meId],
+    [meId, write],
   );
 
   const supportBattle = useCallback(
-    (battleId: string, side: BattleSide, points: number, fromUserId?: string) => {
-      const from = fromUserId ?? meId;
+    (battleId: string, side: BattleSide, points: number) => {
       const battle = battles.find((b) => b.id === battleId);
-      if (!from || points <= 0 || !battle || battle.status !== 'live') return;
-      setBattles((prev) =>
-        prev.map((b) => (b.id === battleId ? { ...b, scores: { ...b.scores, [side]: b.scores[side] + points } } : b)),
-      );
-      // Aparece no chat: apoios meus e apoios grandes (os pontinhos automáticos da simulação não)
-      if (!fromUserId || points >= 5) {
-        const target = users.find((u) => u.id === (side === 'host' ? battle.hostId : battle.opponentId));
-        setBattleMessages((prev) => [
-          ...prev,
-          {
-            id: newId('bm'),
-            battleId,
-            userId: from,
-            text: `apoiou ${target?.name ?? ''}`.trim(),
-            support: { side, points },
-            createdAt: Date.now(),
-          },
-        ]);
-      }
+      if (!meId || !SUPPORT_POINTS.includes(points) || !battle || battle.status !== 'live') return;
+      if (battle.hostId === meId || battle.opponentId === meId) return;
+      const id = uuid();
+      const target = users.find((u) => u.id === (side === 'host' ? battle.hostId : battle.opponentId));
+      // placar sobe na hora; o valor oficial chega do banco em tempo real
+      setBattles((prev) => prev.map((b) => (b.id === battleId ? { ...b, scores: { ...b.scores, [side]: b.scores[side] + points } } : b)));
+      setBattleMessages((prev) => [
+        ...prev,
+        { id, battleId, userId: meId, text: `apoiou ${target?.name ?? ''}`.trim(), support: { side, points }, createdAt: Date.now() },
+      ]);
+      write(supabase.from('battle_events').insert({ id, battle_id: battleId, user_id: meId, kind: 'support', side, points }));
     },
-    [meId, battles, users],
+    [meId, battles, users, write],
   );
 
   const sendBattleMessage = useCallback(
-    (battleId: string, text: string, fromUserId?: string) => {
-      const from = fromUserId ?? meId;
-      const body = text.trim();
-      if (!from || !body) return;
-      setBattleMessages((prev) => [...prev, { id: newId('bm'), battleId, userId: from, text: body, createdAt: Date.now() }]);
+    (battleId: string, text: string) => {
+      const body = text.trim().slice(0, 300);
+      if (!meId || !body) return;
+      const id = uuid();
+      setBattleMessages((prev) => [...prev, { id, battleId, userId: meId, text: body, createdAt: Date.now() }]);
+      write(supabase.from('battle_events').insert({ id, battle_id: battleId, user_id: meId, kind: 'chat', text: body }));
+    },
+    [meId, write],
+  );
+
+  const joinBattle = useCallback(
+    (battleId: string) => {
+      if (!meId) return () => {};
+      const channel: RealtimeChannel = supabase.channel(`sala-${battleId}`, { config: { presence: { key: meId } } });
+      channel
+        .on('presence', { event: 'sync' }, () => {
+          const count = Object.keys(channel.presenceState()).length;
+          viewersRef.current[battleId] = count;
+          setBattles((prev) => prev.map((b) => (b.id === battleId ? { ...b, viewers: count } : b)));
+        })
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') channel.track({ at: Date.now() });
+        });
+      return () => {
+        supabase.removeChannel(channel);
+      };
     },
     [meId],
   );
 
-  const setBattleViewers = useCallback((battleId: string, viewers: number) => {
-    setBattles((prev) => prev.map((b) => (b.id === battleId ? { ...b, viewers: Math.max(0, Math.round(viewers)) } : b)));
-  }, []);
+  const startBattle = useCallback(
+    (battleId: string) => {
+      setBattles((prev) =>
+        prev.map((b) => (b.id === battleId && b.status === 'scheduled' ? { ...b, status: 'live', startsAt: Date.now() } : b)),
+      );
+      write(supabase.from('battles').update({ status: 'live' }).eq('id', battleId).eq('status', 'scheduled'));
+    },
+    [write],
+  );
 
-  const startBattle = useCallback((battleId: string) => {
-    setBattles((prev) =>
-      prev.map((b) => (b.id === battleId && b.status === 'scheduled' ? { ...b, status: 'live', startsAt: Date.now() } : b)),
-    );
-  }, []);
+  const endBattle = useCallback(
+    (battleId: string) => {
+      const battle = battles.find((b) => b.id === battleId);
+      if (!battle || battle.status !== 'live') return;
+      setBattles((prev) => prev.map((b) => (b.id === battleId ? { ...b, status: 'ended' } : b)));
+      // quem abriu encerra na hora; para os outros o banco encerra quando o tempo acabou
+      if (battle.hostId === meId) write(supabase.from('battles').update({ status: 'ended' }).eq('id', battleId));
+      else supabase.rpc('end_expired_battles').then(() => {});
+    },
+    [battles, meId, write],
+  );
 
-  const endBattle = useCallback((battleId: string) => {
-    setBattles((prev) => prev.map((b) => (b.id === battleId && b.status === 'live' ? { ...b, status: 'ended' } : b)));
-  }, []);
-
+  // ---------- autorizações a políticos ----------
   const consentFor = useCallback(
     (politicianId: string) => consents.find((c) => c.politicianId === politicianId && c.userId === meId),
     [consents, meId],
@@ -752,25 +1307,44 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (fields.includes('email') && !/^\S+@\S+\.\S+$/.test(email ?? '')) return 'Informe um e-mail válido.';
       if (fields.includes('whatsapp') && (whatsapp ?? '').replace(/\D/g, '').length < 10)
         return 'Informe um WhatsApp válido, com DDD.';
+      const old = consents.find((c) => c.politicianId === politicianId && c.userId === meId);
       const consent: SupporterConsent = {
-        id: newId('cs'),
+        id: old?.id ?? uuid(),
         politicianId,
         userId: meId,
         fields,
         email: fields.includes('email') ? email?.trim() : undefined,
         whatsapp: fields.includes('whatsapp') ? whatsapp?.trim() : undefined,
         interests: fields.includes('interesses') ? interests : [],
-        createdAt: Date.now(),
+        createdAt: old?.createdAt ?? Date.now(),
       };
       setConsents((prev) => [...prev.filter((c) => !(c.politicianId === politicianId && c.userId === meId)), consent]);
+      write(
+        supabase.from('consents').upsert(
+          {
+            id: consent.id,
+            politician_id: politicianId,
+            user_id: meId,
+            fields,
+            email: consent.email ?? null,
+            whatsapp: consent.whatsapp ?? null,
+            interests: consent.interests,
+          },
+          { onConflict: 'politician_id,user_id' },
+        ),
+      );
       return null;
     },
-    [meId],
+    [meId, consents, write],
   );
 
   const revokeConsent = useCallback(
-    (consentId: string) => setConsents((prev) => prev.filter((c) => !(c.id === consentId && c.userId === meId))),
-    [meId],
+    (consentId: string) => {
+      if (!meId) return;
+      setConsents((prev) => prev.filter((c) => !(c.id === consentId && c.userId === meId)));
+      write(supabase.from('consents').delete().eq('id', consentId).eq('user_id', meId));
+    },
+    [meId, write],
   );
 
   const supportersFor = useCallback(
@@ -790,8 +1364,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             state: has('cidade') ? u?.state : undefined,
             ageRange: has('faixaEtaria') && u?.birthYear ? ageRangeOf(u.birthYear) : undefined,
             interests: has('interesses') ? c.interests : [],
-            email: c.email,
-            whatsapp: c.whatsapp,
+            email: has('email') ? c.email : undefined,
+            whatsapp: has('whatsapp') ? c.whatsapp : undefined,
             createdAt: c.createdAt,
           };
         })
@@ -799,6 +1373,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [consents, users],
   );
 
+  // ---------- meus dados ----------
   const exportMyData = useCallback(() => {
     if (!me) return '{}';
     const { passwordHash: _hidden, ...acct } = accountSettings(me.id);
@@ -816,27 +1391,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return JSON.stringify(data, null, 2);
   }, [me, accountSettings, posts, comments, follows, users, messages, consents]);
 
-  const deleteAccount = useCallback(() => {
+  const deleteAccount = useCallback(async () => {
     if (!meId) return;
     const id = meId;
-    const myPosts = new Set(posts.filter((p) => p.userId === id).map((p) => p.id));
-    const myConvs = new Set(conversations.filter((c) => c.participantIds.includes(id)).map((c) => c.id));
-    setPosts((prev) => prev.filter((p) => p.userId !== id).map((p) => ({ ...p, likes: p.likes.filter((x) => x !== id), savedBy: p.savedBy.filter((x) => x !== id) })));
-    setComments((prev) => prev.filter((c) => c.userId !== id && !myPosts.has(c.postId)));
-    setStories((prev) => prev.filter((st) => st.userId !== id));
-    setFollows((prev) => prev.filter((f) => f.followerId !== id && f.followingId !== id));
-    setFollowRequests((prev) => prev.filter((r) => r.fromId !== id && r.toId !== id));
-    setNotifications((prev) => prev.filter((n) => n.toUserId !== id && n.fromUserId !== id));
-    setConversations((prev) => prev.filter((c) => !myConvs.has(c.id)));
-    setMessages((prev) => prev.filter((m) => !myConvs.has(m.conversationId)));
-    setConsents((prev) => prev.filter((c) => c.userId !== id && c.politicianId !== id));
-    setUsers((prev) => prev.filter((u) => u.id !== id));
+    const { error } = await supabase.rpc('delete_my_account');
+    if (error) {
+      fail(error.message);
+      return;
+    }
     removeAccount(id);
-    setMeId(null);
-  }, [meId, posts, conversations, removeAccount]);
+    signOut();
+  }, [meId, removeAccount, signOut, fail]);
 
   const value: AppState = {
     me,
+    ready,
+    syncError,
+    clearSyncError,
+    refresh,
     users,
     posts,
     comments,
@@ -890,7 +1462,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     createBattle,
     supportBattle,
     sendBattleMessage,
-    setBattleViewers,
+    joinBattle,
     startBattle,
     endBattle,
     consents,
@@ -915,5 +1487,3 @@ export function useMe() {
   if (!me) throw new Error('Nenhum usuário logado');
   return me;
 }
-
-export { DEMO_USER_ID };

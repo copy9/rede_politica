@@ -31,7 +31,7 @@ export default function AboutScreen() {
         <View style={styles.about}>
           <Logo size={28} />
           <Text style={styles.text}>Rede social para participar, debater e fiscalizar a política da sua cidade.</Text>
-          <Text style={styles.muted}>Versão de demonstração 0.1</Text>
+          <Text style={styles.muted}>Versão de teste (MVP) 0.2</Text>
         </View>
       ) : (
         <View style={styles.list}>

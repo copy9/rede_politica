@@ -16,7 +16,7 @@ import {
   SplitBarList,
   StatTile,
 } from '@/components/charts';
-import { buildDashboard, demoSupporters, type Period } from '@/lib/analytics';
+import { applyRealAudience, buildDashboard, type Period } from '@/lib/analytics';
 import { compactNumber } from '@/lib/format';
 import { useApp, useMe } from '@/lib/store';
 import { colors, spacing, themed } from '@/lib/theme';
@@ -38,13 +38,17 @@ const dayLabel = (ts: number) => new Date(ts).toLocaleDateString('pt-BR', { day:
 /** Painel do político: estatísticas agregadas do público + banco de apoiadores (com consentimento). */
 export default function PainelScreen() {
   const me = useMe();
-  const { posts, supportersFor } = useApp();
+  const { posts, supportersFor, followersOf, commentsFor } = useApp();
   const [tab, setTab] = useState<Tab>('inicio');
   const [period, setPeriod] = useState<Period>(30);
   const [metric, setMetric] = useState<Metric>('views');
 
-  const supporters = useMemo(() => [...supportersFor(me.id), ...demoSupporters(me)], [supportersFor, me]);
-  const d = useMemo(() => buildDashboard(me, posts, supporters.length, period), [me, posts, supporters.length, period]);
+  const supporters = useMemo(() => supportersFor(me.id), [supportersFor, me]);
+  const followers = useMemo(() => followersOf(me.id), [followersOf, me]);
+  const d = useMemo(
+    () => applyRealAudience(buildDashboard(me, posts, supporters.length, period, followers.length), me, followers, posts, (id) => commentsFor(id).length),
+    [me, posts, supporters.length, period, followers, commentsFor],
+  );
 
   if (me.accountType !== 'politico') {
     return (
@@ -271,7 +275,7 @@ export default function PainelScreen() {
             </>
           ) : null}
 
-          <Text style={styles.footnote}>Modo demonstração: números simulados para o layout. Com o Supabase, os dados serão reais.</Text>
+          <Text style={styles.footnote}>Dados reais: seguidores, gênero, idade, cidades, estados, interesses, curtidas, comentários e apoiadores. Visualizações, alcance, horários e sentimento ainda são estimativas.</Text>
         </ScrollView>
       )}
     </View>

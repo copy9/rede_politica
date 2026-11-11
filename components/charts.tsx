@@ -163,7 +163,7 @@ export function BarList({ items, color = SERIES.one, max }: { items: { label: st
             <Text style={styles.rowValue}>{pct(i.pct)}</Text>
           </View>
           <View style={styles.track}>
-            <View style={[styles.fill, { width: `${(i.pct / top) * 100}%`, backgroundColor: color }]} />
+            <View style={[styles.fill, { width: `${(i.pct / (top || 1)) * 100}%`, backgroundColor: color }]} />
           </View>
         </View>
       ))}
@@ -203,9 +203,9 @@ export function SplitBarList({
             </Text>
           </View>
           <View style={[styles.track, { flexDirection: 'row' }]}>
-            <View style={[styles.fill, { width: `${(r.a / top) * 100}%`, backgroundColor: SERIES.one }]} />
+            <View style={[styles.fill, { width: `${(r.a / (top || 1)) * 100}%`, backgroundColor: SERIES.one }]} />
             {r.b > 0 ? <View style={{ width: 2 }} /> : null}
-            <View style={[styles.fill, { width: `${(r.b / top) * 100}%`, backgroundColor: SERIES.two }]} />
+            <View style={[styles.fill, { width: `${(r.b / (top || 1)) * 100}%`, backgroundColor: SERIES.two }]} />
           </View>
         </View>
       ))}

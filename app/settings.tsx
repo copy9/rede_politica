@@ -138,7 +138,7 @@ export default function SettingsHome() {
           <NavRow label={t('Sair')} onPress={logout} danger />
         </Section>
       ) : null}
-      <Text style={styles.version}>{t('Rede Política • versão de demonstração')}</Text>
+      <Text style={styles.version}>{t('Rede Política • versão de teste')}</Text>
     </SettingsScreen>
   );
 }
