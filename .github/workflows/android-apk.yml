@@ -1,0 +1,58 @@
+# Monta o app Android (APK) nos computadores do GitHub, de graça, sem conta no Expo.
+# Para rodar: aba "Actions" > "Gerar APK Android" > "Run workflow".
+# O arquivo pronto fica em "Releases" com o nome rede-politica.apk.
+name: Gerar APK Android
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apk
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Gerar o projeto Android
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Montar o APK
+        working-directory: android
+        env:
+          GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx6g -XX:MaxMetaspaceSize=1g"
+        run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
+
+      - name: Renomear
+        run: cp android/app/build/outputs/apk/release/app-release.apk rede-politica.apk
+
+      - name: Publicar em Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-${{ github.run_number }}
+          name: App Android ${{ github.run_number }}
+          body: |
+            Para instalar: baixe **rede-politica.apk** no celular Android e toque em Instalar
+            (se pedir, permita instalar de fontes desconhecidas).
+          files: rede-politica.apk
