@@ -32,8 +32,9 @@ async function signJwt(payload: Record<string, unknown>, secret: string) {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   try {
-    const apiKey = Deno.env.get('LIVEKIT_API_KEY');
-    const apiSecret = Deno.env.get('LIVEKIT_API_SECRET');
+    // trim: um espaço ou quebra de linha colada junto invalida a assinatura
+    const apiKey = Deno.env.get('LIVEKIT_API_KEY')?.trim();
+    const apiSecret = Deno.env.get('LIVEKIT_API_SECRET')?.trim();
     if (!apiKey || !apiSecret) return json({ error: 'LiveKit não configurado no Supabase (faltam os secrets).' }, 500);
 
     const auth = req.headers.get('Authorization') ?? '';
@@ -44,7 +45,28 @@ Deno.serve(async (req) => {
     const user = userData?.user;
     if (userError || !user) return json({ error: 'Entre na sua conta.' }, 401);
 
-    const { battleId } = await req.json().catch(() => ({ battleId: null }));
+    const { battleId, check } = await req.json().catch(() => ({ battleId: null, check: false }));
+
+    // Diagnóstico: confere com o próprio LiveKit se a chave e o segredo combinam (não revela nenhum dos dois)
+    if (check) {
+      const now = Math.floor(Date.now() / 1000);
+      const admin = await signJwt({ iss: apiKey, sub: 'diagnostico', nbf: now - 10, exp: now + 60, video: { roomList: true } }, apiSecret);
+      const host = (Deno.env.get('LIVEKIT_URL') ?? 'wss://rede-politica-8mzcieqr.livekit.cloud').replace('wss://', 'https://');
+      const r = await fetch(`${host}/twirp/livekit.RoomService/ListRooms`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${admin}`, 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      return json({
+        livekit: r.status,
+        resposta: (await r.text()).slice(0, 200),
+        chaveComeca: apiKey.slice(0, 3),
+        tamanhoChave: apiKey.length,
+        tamanhoSegredo: apiSecret.length,
+        espacosNaChaveOriginal: (Deno.env.get('LIVEKIT_API_KEY') ?? '').length !== apiKey.length,
+        espacosNoSegredoOriginal: (Deno.env.get('LIVEKIT_API_SECRET') ?? '').length !== apiSecret.length,
+      });
+    }
     if (!battleId || typeof battleId !== 'string') return json({ error: 'Batalha não informada.' }, 400);
 
     // lê a batalha com as regras do banco (quem bloqueou o host não enxerga)
