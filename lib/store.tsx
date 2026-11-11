@@ -147,6 +147,8 @@ type AppState = {
   createBattle: (input: { opponentId: string; topic: string; durationSec: number; scheduleAt?: number }) => LiveBattle | null;
   supportBattle: (battleId: string, side: BattleSide, points: number) => void;
   sendBattleMessage: (battleId: string, text: string) => void;
+  /** curtidas da plateia (o app junta vários toques num envio só) */
+  likeBattle: (battleId: string, amount: number) => void;
   /** entra na sala (conta quem está assistindo); devolve a função para sair */
   joinBattle: (battleId: string) => () => void;
   startBattle: (battleId: string) => void;
@@ -220,6 +222,7 @@ function toBattle(b: Row, viewers = 0): LiveBattle {
     durationSec: b.duration_sec,
     viewers,
     scores: { host: b.score_host, opponent: b.score_opponent },
+    likes: b.likes ?? 0,
     media: {},
   };
 }
@@ -417,7 +420,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       const battleList = ba.map((b) => toBattle(b));
       setBattles(battleList.map((b) => ({ ...b, viewers: viewersRef.current[b.id] ?? 0 })));
-      setBattleMessages(be.reverse().map((e) => toBattleMessage(e, userList, battleList)));
+      setBattleMessages(be.filter((e) => e.kind !== 'like').reverse().map((e) => toBattleMessage(e, userList, battleList)));
       setConsents(
         cs.map((c) => ({
           id: c.id,
@@ -530,6 +533,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'battle_events' }, (payload) => {
         const row = payload.new as Row;
+        if (row.kind === 'like') return; // curtidas só mudam o total (chega pela batalha)
         setBattleMessages((prev) =>
           prev.some((m) => m.id === row.id) ? prev : [...prev, toBattleMessage(row, usersRef.current, battlesRef.current)],
         );
@@ -1252,6 +1256,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [meId, write],
   );
 
+  const likeBattle = useCallback(
+    (battleId: string, amount: number) => {
+      const n = Math.max(1, Math.min(50, Math.round(amount)));
+      if (!meId) return;
+      setBattles((prev) => prev.map((b) => (b.id === battleId ? { ...b, likes: (b.likes ?? 0) + n } : b)));
+      write(supabase.from('battle_events').insert({ id: uuid(), battle_id: battleId, user_id: meId, kind: 'like', amount: n }));
+    },
+    [meId, write],
+  );
+
   const joinBattle = useCallback(
     (battleId: string) => {
       if (!meId) return () => {};
@@ -1462,6 +1476,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     createBattle,
     supportBattle,
     sendBattleMessage,
+    likeBattle,
     joinBattle,
     startBattle,
     endBattle,

@@ -102,6 +102,8 @@ export type LiveBattle = {
   durationSec: number;
   viewers: number;
   scores: Record<BattleSide, number>;
+  /** curtidas (coraçõezinhos) da plateia */
+  likes?: number;
   /** Vídeo de cada lado (no modo demonstração, vídeos de exemplo) */
   media: Partial<Record<BattleSide, string>>;
 };

@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
+import { BattleActions } from '@/components/BattleActions';
 import { BattleScoreBar } from '@/components/BattleScoreBar';
 import { LiveCamera } from '@/components/LiveCamera';
 import { useOverlay } from '@/components/Overlay';
@@ -187,14 +188,18 @@ export default function BattleRoomScreen() {
 
         {/* Chat */}
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-          <FlatList
-            style={{ flex: 1 }}
-            inverted
-            data={[...messagesForBattle(battle.id)].reverse().slice(0, 80)}
-            keyExtractor={(m) => m.id}
-            renderItem={({ item }) => <ChatLine message={item} />}
-            contentContainerStyle={{ paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: 6 }}
-          />
+          <View style={{ flex: 1 }}>
+            <FlatList
+              style={{ flex: 1 }}
+              inverted
+              data={[...messagesForBattle(battle.id)].reverse().slice(0, 80)}
+              keyExtractor={(m) => m.id}
+              renderItem={({ item }) => <ChatLine message={item} />}
+              contentContainerStyle={{ paddingLeft: spacing.md, paddingRight: 92, paddingVertical: spacing.sm, gap: 6 }}
+            />
+            {/* Curtir, compartilhar e seguir (para quem está assistindo engajar) */}
+            <BattleActions battle={battle} host={host} opponent={opponent} meId={me.id} />
+          </View>
 
           {live && !isParticipant && side ? (
             <View style={styles.gifts}>
