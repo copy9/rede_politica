@@ -6,9 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Field } from '@/components/Field';
 import { Logo } from '@/components/Logo';
-import { INTERESTS } from '@/lib/analytics';
 import { useApp } from '@/lib/store';
-import type { ShareField } from '@/lib/types';
 import { colors, spacing, themed } from '@/lib/theme';
 
 export default function SignUpScreen() {
@@ -24,15 +22,8 @@ export default function SignUpScreen() {
   const [state, setState] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [acceptedTerms, setAcceptedTerms] = useState(false);
-  // opcional: receber novidades de políticos (escolhido uma vez aqui)
-  const [wantsUpdates, setWantsUpdates] = useState(false);
-  const [shareFields, setShareFields] = useState<ShareField[]>(['nome', 'cidade', 'interesses']);
-  const [whatsapp, setWhatsapp] = useState('');
-  const [interests, setInterests] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const toggleField = (f: ShareField) => setShareFields((prev) => (prev.includes(f) ? prev.filter((x) => x !== f) : [...prev, f]));
-  const toggleInterest = (i: string) => setInterests((prev) => (prev.includes(i) ? prev.filter((x) => x !== i) : [...prev, i]));
 
   // 31121990 -> 31/12/1990 enquanto digita
   const onBirthDate = (v: string) => {
@@ -54,7 +45,6 @@ export default function SignUpScreen() {
         state,
         birthDate,
         acceptedTerms,
-        shareProfile: wantsUpdates && shareFields.length ? { fields: shareFields, whatsapp, interests } : undefined,
       }),
     );
 
@@ -113,54 +103,6 @@ export default function SignUpScreen() {
               </Text>
             </Pressable>
 
-            {/* Opcional e separado: novidades de políticos */}
-            {accountType === 'cidadao' ? (
-              <View style={[styles.optin, wantsUpdates && styles.optinOn]}>
-                <Text style={styles.optinHeader}>Autorizações da plataforma</Text>
-                <Pressable style={styles.check} onPress={() => setWantsUpdates((v) => !v)}>
-                  <Ionicons name={wantsUpdates ? 'checkbox' : 'square-outline'} size={22} color={wantsUpdates ? colors.primary : colors.textMuted} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.checkTitle}>Quero receber novidades de políticos (opcional)</Text>
-                    <Text style={styles.checkHint}>
-                      Escolha uma vez o que compartilhar. Depois, no perfil de cada político, basta um toque em “Quero receber
-                      novidades”. Nada é enviado a ninguém até você tocar nesse botão.
-                    </Text>
-                  </View>
-                </Pressable>
-                {wantsUpdates ? (
-                  <>
-                    <View style={styles.chips}>
-                      {(
-                        [
-                          ['nome', 'Nome'],
-                          ['cidade', 'Cidade'],
-                          ['faixaEtaria', 'Faixa etária'],
-                          ['interesses', 'Interesses'],
-                          ['whatsapp', 'WhatsApp'],
-                          ['email', 'E-mail'],
-                        ] as [ShareField, string][]
-                      ).map(([f, label]) => (
-                        <Pressable key={f} onPress={() => toggleField(f)} style={[styles.chip, shareFields.includes(f) && styles.chipOn]}>
-                          <Text style={[styles.chipText, shareFields.includes(f) && styles.chipTextOn]}>{label}</Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                    {shareFields.includes('whatsapp') ? (
-                      <Field placeholder="WhatsApp com DDD" value={whatsapp} onChangeText={setWhatsapp} keyboardType="phone-pad" />
-                    ) : null}
-                    {shareFields.includes('interesses') ? (
-                      <View style={styles.chips}>
-                        {INTERESTS.map((i) => (
-                          <Pressable key={i} onPress={() => toggleInterest(i)} style={[styles.chip, interests.includes(i) && styles.chipOn]}>
-                            <Text style={[styles.chipText, interests.includes(i) && styles.chipTextOn]}>{i}</Text>
-                          </Pressable>
-                        ))}
-                      </View>
-                    ) : null}
-                  </>
-                ) : null}
-              </View>
-            ) : null}
             {error ? <Text style={styles.error}>{error}</Text> : null}
             <Pressable style={styles.button} onPress={submit}>
               <Text style={styles.buttonText}>Cadastrar</Text>
@@ -204,17 +146,7 @@ function TypeCard({
 const styles = themed(() => StyleSheet.create({
   check: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   checkText: { flex: 1, color: colors.text, fontSize: 13, lineHeight: 19 },
-  checkTitle: { color: colors.text, fontWeight: '700', fontSize: 14 },
-  checkHint: { color: colors.textMuted, fontSize: 12, lineHeight: 17, marginTop: 2 },
   link: { color: colors.primary, fontWeight: '700' },
-  optin: { borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 12, gap: 10 },
-  optinHeader: { color: colors.textMuted, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-  optinOn: { borderColor: colors.primary, backgroundColor: colors.infoBg },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  chip: { borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: colors.background },
-  chipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { color: colors.text, fontSize: 13 },
-  chipTextOn: { color: colors.white, fontWeight: '600' },
   label: { fontWeight: '700', color: colors.text },
   types: { flexDirection: 'row', gap: 8 },
   type: { flex: 1, borderWidth: 1.5, borderColor: colors.border, borderRadius: 12, padding: 12, gap: 4 },

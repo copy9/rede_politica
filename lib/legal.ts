@@ -20,7 +20,7 @@ export const PRIVACY: [string, string][] = [
   ],
   [
     'Autorizações da plataforma',
-    'Seu nome e contato só chegam a um político se você tocar em "Quero receber novidades" no perfil dele. Você escolhe uma vez quais dados compartilhar (no cadastro ou em Configurações), pode mudar quando quiser e pode cancelar cada autorização a qualquer momento.',
+    'Ao tocar em "Quero receber novidades" no perfil de um político, você autoriza aquele político a receber seu nome, cidade, faixa etária, interesses e contato (e-mail e WhatsApp, se cadastrados) para te enviar notícias, convites e comunicados. Nada é compartilhado com políticos em que você não tocou. Você pode alterar ou cancelar cada autorização a qualquer momento em Configurações › Autorizações da plataforma.',
   ],
   ['Seus direitos (LGPD)', 'Você pode baixar uma cópia, corrigir ou excluir seus dados em Configurações › Informações pessoais.'],
 ];

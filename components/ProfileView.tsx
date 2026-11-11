@@ -8,7 +8,7 @@ import { useSettings } from '@/lib/settings';
 import { useApp, useMe } from '@/lib/store';
 import { useOverlay } from './Overlay';
 import { colors, spacing, themed } from '@/lib/theme';
-import type { User } from '@/lib/types';
+import type { ShareField, User } from '@/lib/types';
 import { Avatar } from './Avatar';
 import { FollowButton, SecondaryButton } from './FollowButton';
 import { PostGrid } from './PostGrid';
@@ -127,13 +127,20 @@ export function ProfileView({ user }: { user: User }) {
           onPress={() => {
             // Já autorizado: abre para alterar ou cancelar
             if (consentFor(user.id)) return router.push(`/apoiar/${user.username}`);
-            // Perfil de compartilhamento escolhido antes (cadastro/Configurações): 1 toque
+            // O toque é a autorização para ESTE político (dados explicados nos Termos)
             const sp = settings.shareProfile;
-            if (sp?.fields.length) {
-              const err = giveConsent(user.id, { ...sp, email: sp.email ?? settings.email, whatsapp: sp.whatsapp ?? settings.phone });
-              if (!err) return showBanner(`Pronto! Você vai receber novidades de ${user.name}. Toque de novo para alterar ou cancelar.`, { icon: 'notifications', tone: 'success' });
-            }
-            // Sem perfil definido (ou faltou algum contato): abre o formulário
+            const email = sp?.email ?? settings.email;
+            const whatsapp = sp?.whatsapp ?? settings.phone;
+            const base: ShareField[] = sp?.fields.length ? sp.fields : ['nome', 'cidade', 'faixaEtaria', 'interesses', 'email', 'whatsapp'];
+            // só compartilha contatos que a pessoa tem cadastrados
+            const fields = base.filter((f) => (f === 'email' ? !!email : f === 'whatsapp' ? !!whatsapp : true));
+            const err = giveConsent(user.id, { fields, email, whatsapp, interests: sp?.interests.length ? sp.interests : me.interests ?? [] });
+            if (!err)
+              return showBanner(
+                `Pronto! ${user.name} vai te enviar novidades e recebe seu nome, cidade, faixa etária, interesses e contato. Toque de novo para alterar ou cancelar.`,
+                { icon: 'notifications', tone: 'success', durationMs: 6000 },
+              );
+            // se algo deu errado, abre o formulário para corrigir
             router.push(`/apoiar/${user.username}`);
           }}>
           <Ionicons
