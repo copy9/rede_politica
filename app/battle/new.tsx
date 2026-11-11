@@ -6,7 +6,7 @@ import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-na
 import { Avatar } from '@/components/Avatar';
 import { UserName } from '@/components/UserName';
 import { useApp, useMe } from '@/lib/store';
-import { colors, spacing } from '@/lib/theme';
+import { colors, spacing, themed } from '@/lib/theme';
 
 const DURATIONS = [3, 5, 10, 15];
 const WHEN = [
@@ -134,7 +134,7 @@ function Chip({ label, active, onPress }: { label: string; active: boolean; onPr
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   form: { padding: spacing.lg, gap: spacing.sm },
   label: { fontWeight: '700', color: colors.text, marginTop: spacing.sm },
@@ -145,11 +145,11 @@ const styles = StyleSheet.create({
   chipText: { color: colors.text, fontWeight: '600' },
   search: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.surface, borderRadius: 10, paddingHorizontal: 12, height: 38 },
   person: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
-  personSelected: { backgroundColor: '#FFF1F2' },
+  personSelected: { backgroundColor: colors.dangerBg },
   muted: { color: colors.textMuted, fontSize: 13 },
   footer: { padding: spacing.lg, gap: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
   error: { color: colors.like, textAlign: 'center' },
   note: { color: colors.textMuted, fontSize: 12, textAlign: 'center' },
   button: { flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.like, borderRadius: 12, paddingVertical: 14 },
   buttonText: { color: '#fff', fontWeight: '800', fontSize: 15 },
-});
+}));

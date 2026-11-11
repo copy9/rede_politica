@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { StyleSheet, Text, View, type TextStyle } from 'react-native';
 
 import type { User } from '@/lib/types';
-import { colors } from '@/lib/theme';
+import { colors, themed } from '@/lib/theme';
 
 /** Nome de usuário com selo de verificado (contas oficiais de políticos/órgãos). */
 export function UserName({ user, style, size = 14 }: { user: User; style?: TextStyle; size?: number }) {
@@ -16,8 +16,8 @@ export function UserName({ user, style, size = 14 }: { user: User; style?: TextS
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', flexShrink: 1 },
   name: { fontWeight: '600', color: colors.text, flexShrink: 1 },
   badge: { marginLeft: 3 },
-});
+}));

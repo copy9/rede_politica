@@ -8,7 +8,7 @@ import { Logo } from '@/components/Logo';
 import { PostCard } from '@/components/PostCard';
 import { StoriesBar } from '@/components/StoriesBar';
 import { useApp } from '@/lib/store';
-import { colors, spacing } from '@/lib/theme';
+import { colors, spacing, themed } from '@/lib/theme';
 import type { Post } from '@/lib/types';
 
 export default function FeedScreen() {
@@ -58,7 +58,7 @@ export default function FeedScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   header: {
     flexDirection: 'row',
@@ -69,4 +69,4 @@ const styles = StyleSheet.create({
   },
   headerIcons: { flexDirection: 'row', gap: 20 },
   dot: { position: 'absolute', top: 0, right: 0, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.like },
-});
+}));

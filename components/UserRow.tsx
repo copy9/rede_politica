@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { User } from '@/lib/types';
-import { colors, spacing } from '@/lib/theme';
+import { colors, spacing, themed } from '@/lib/theme';
 import { Avatar } from './Avatar';
 import { FollowButton } from './FollowButton';
 import { UserName } from './UserName';
@@ -22,8 +22,8 @@ export function UserRow({ user, showFollow = true, subtitle }: { user: User; sho
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, gap: spacing.md },
   info: { flex: 1 },
   sub: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
-});
+}));

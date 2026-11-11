@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BattleCard } from '@/components/BattleCard';
 import { useApp } from '@/lib/store';
-import { colors, spacing } from '@/lib/theme';
+import { colors, spacing, themed } from '@/lib/theme';
 
 type Filter = 'all' | 'following';
 
@@ -63,12 +63,12 @@ export default function BattlesScreen() {
 function FilterChip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   return (
     <Pressable onPress={onPress} style={[styles.chip, active && styles.chipActive]}>
-      <Text style={[styles.chipText, active && { color: '#fff' }]}>{label}</Text>
+      <Text style={[styles.chipText, active && { color: colors.background }]}>{label}</Text>
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.surface },
   header: {
     flexDirection: 'row',
@@ -97,4 +97,4 @@ const styles = StyleSheet.create({
   empty: { alignItems: 'center', marginTop: 60, gap: 8 },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: colors.text },
   muted: { color: colors.textMuted },
-});
+}));

@@ -7,7 +7,7 @@ import { Avatar } from '@/components/Avatar';
 import { INTERESTS } from '@/lib/analytics';
 import type { Gender } from '@/lib/types';
 import { useApp, useMe } from '@/lib/store';
-import { colors, spacing } from '@/lib/theme';
+import { colors, spacing, themed } from '@/lib/theme';
 
 export default function EditProfileScreen() {
   const me = useMe();
@@ -159,7 +159,7 @@ function Row({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   cancel: { color: colors.text, fontSize: 16 },
   done: { color: colors.primary, fontSize: 16, fontWeight: '700' },
@@ -175,4 +175,4 @@ const styles = StyleSheet.create({
   chip: { borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 5 },
   chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   chipText: { color: colors.text, fontSize: 13, fontWeight: '500' },
-});
+}));

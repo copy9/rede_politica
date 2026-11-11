@@ -5,7 +5,7 @@ import { Linking, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'r
 
 import { compactNumber } from '@/lib/format';
 import { useApp, useMe } from '@/lib/store';
-import { colors, spacing } from '@/lib/theme';
+import { colors, spacing, themed } from '@/lib/theme';
 import type { User } from '@/lib/types';
 import { Avatar } from './Avatar';
 import { FollowButton, SecondaryButton } from './FollowButton';
@@ -65,7 +65,7 @@ export function ProfileView({ user }: { user: User }) {
         ) : null}
         {user.accountType === 'politico' ? (
           <View style={styles.politicalBadge}>
-            <Ionicons name="business-outline" size={12} color={colors.primaryDark} />
+            <Ionicons name="business-outline" size={12} color={colors.infoText} />
             <Text style={styles.politicalText}>
               Conta política{user.city ? ` · ${user.city}${user.state ? `/${user.state}` : ''}` : ''}
             </Text>
@@ -114,9 +114,9 @@ export function ProfileView({ user }: { user: User }) {
           <Ionicons
             name={consentFor(user.id) ? 'notifications' : 'notifications-outline'}
             size={16}
-            color={consentFor(user.id) ? colors.primaryDark : colors.white}
+            color={consentFor(user.id) ? colors.infoText : colors.white}
           />
-          <Text style={[styles.supportText, consentFor(user.id) && { color: colors.primaryDark }]}>
+          <Text style={[styles.supportText, consentFor(user.id) && { color: colors.infoText }]}>
             {consentFor(user.id) ? 'Você recebe novidades · alterar' : 'Quero receber novidades'}
           </Text>
         </Pressable>
@@ -161,7 +161,7 @@ function TabIcon({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   top: { flexDirection: 'row', alignItems: 'center', padding: spacing.lg, gap: spacing.xl },
   stats: { flex: 1, flexDirection: 'row', justifyContent: 'space-around' },
@@ -172,17 +172,17 @@ const styles = StyleSheet.create({
   name: { fontWeight: '600', color: colors.text },
   role: { color: colors.textMuted, fontSize: 13 },
   bioText: { color: colors.text, lineHeight: 19 },
-  link: { color: colors.primaryDark, fontWeight: '600' },
+  link: { color: colors.infoText, fontWeight: '600' },
   buttons: { flexDirection: 'row', gap: spacing.sm, padding: spacing.lg },
-  politicalBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', backgroundColor: '#EFF6FF', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginVertical: 2 },
-  politicalText: { color: colors.primaryDark, fontSize: 12, fontWeight: '600' },
+  politicalBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', backgroundColor: colors.infoBg, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginVertical: 2 },
+  politicalText: { color: colors.infoText, fontSize: 12, fontWeight: '600' },
   panelCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginHorizontal: spacing.lg, marginTop: spacing.md, padding: spacing.md, borderRadius: 12, backgroundColor: colors.surface },
   panelTitle: { fontWeight: '700', color: colors.text },
   panelSub: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
-  supportBtn: { flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', marginHorizontal: spacing.lg, marginTop: -spacing.sm, marginBottom: spacing.md, paddingVertical: 9, borderRadius: 8, backgroundColor: colors.primaryDark },
-  supportBtnOn: { backgroundColor: '#DBEAFE' },
+  supportBtn: { flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', marginHorizontal: spacing.lg, marginTop: -spacing.sm, marginBottom: spacing.md, paddingVertical: 9, borderRadius: 8, backgroundColor: colors.primary },
+  supportBtnOn: { backgroundColor: colors.selectedBg },
   supportText: { color: colors.white, fontWeight: '700' },
   tabs: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
   tab: { flex: 1, alignItems: 'center', paddingVertical: spacing.md },
   tabActive: { borderBottomWidth: 1.5, borderBottomColor: colors.text },
-});
+}));

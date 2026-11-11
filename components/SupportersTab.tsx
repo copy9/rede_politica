@@ -4,7 +4,7 @@ import { Alert, FlatList, Pressable, ScrollView, Share, StyleSheet, Text, TextIn
 
 import { INTERESTS, supportersToCsv } from '@/lib/analytics';
 import { timeAgo } from '@/lib/format';
-import { colors, spacing } from '@/lib/theme';
+import { colors, spacing, themed } from '@/lib/theme';
 import type { Supporter } from '@/lib/types';
 import { Avatar } from './Avatar';
 
@@ -53,7 +53,7 @@ export function SupportersTab({ supporters }: { supporters: Supporter[] }) {
       ListHeaderComponent={
         <View style={styles.header}>
           <View style={styles.notice}>
-            <Ionicons name="lock-closed-outline" size={18} color={colors.primaryDark} />
+            <Ionicons name="lock-closed-outline" size={18} color={colors.infoText} />
             <Text style={styles.noticeText}>
               Só aparecem aqui pessoas que tocaram em “Quero receber novidades” no seu perfil e autorizaram o contato
               (LGPD). Cada uma escolheu quais dados compartilhar e pode cancelar quando quiser. Não use estes contatos
@@ -178,15 +178,15 @@ function Stat({ value, label }: { value: number; label: string }) {
 function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   return (
     <Pressable onPress={onPress} style={[styles.chip, active && styles.chipActive]}>
-      <Text style={[styles.chipText, active && { color: colors.white }]}>{label}</Text>
+      <Text style={[styles.chipText, active && { color: colors.background }]}>{label}</Text>
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   header: { padding: spacing.lg, gap: spacing.md },
-  notice: { flexDirection: 'row', gap: 8, backgroundColor: '#EFF6FF', borderRadius: 12, padding: spacing.md, alignItems: 'flex-start' },
-  noticeText: { flex: 1, color: colors.primaryDark, fontSize: 12, lineHeight: 17 },
+  notice: { flexDirection: 'row', gap: 8, backgroundColor: colors.infoBg, borderRadius: 12, padding: spacing.md, alignItems: 'flex-start' },
+  noticeText: { flex: 1, color: colors.infoText, fontSize: 12, lineHeight: 17 },
   stats: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   stat: { flexBasis: '45%', flexGrow: 1, backgroundColor: colors.background, borderRadius: 12, padding: spacing.md, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
   statValue: { fontSize: 20, fontWeight: '800', color: colors.text },
@@ -203,8 +203,8 @@ const styles = StyleSheet.create({
   exportText: { color: colors.white, fontWeight: '700', fontSize: 13 },
   row: { flexDirection: 'row', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, backgroundColor: colors.background },
   sep: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
-  initials: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#DBEAFE', alignItems: 'center', justifyContent: 'center' },
-  initialsText: { color: colors.primaryDark, fontWeight: '800' },
+  initials: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.selectedBg, alignItems: 'center', justifyContent: 'center' },
+  initialsText: { color: colors.infoText, fontWeight: '800' },
   name: { fontWeight: '700', color: colors.text },
   demo: { color: colors.textMuted, fontWeight: '400', fontSize: 12 },
   meta: { color: colors.textMuted, fontSize: 12 },
@@ -214,4 +214,4 @@ const styles = StyleSheet.create({
   contact: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 1 },
   contactText: { fontSize: 12, color: colors.text, flexShrink: 1 },
   empty: { textAlign: 'center', color: colors.textMuted, marginTop: 24 },
-});
+}));

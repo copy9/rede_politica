@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '@/components/Avatar';
 import { UserName } from '@/components/UserName';
 import { useApp, useMe } from '@/lib/store';
-import { colors, spacing } from '@/lib/theme';
+import { colors, spacing, themed } from '@/lib/theme';
 
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -89,7 +89,7 @@ export default function ChatScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   title: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   subtitle: { color: colors.textMuted, fontSize: 12 },
@@ -112,4 +112,4 @@ const styles = StyleSheet.create({
   },
   input: { flex: 1, color: colors.text, fontSize: 15, maxHeight: 110, paddingVertical: 10 },
   send: { backgroundColor: colors.primary, borderRadius: 18, width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-});
+}));

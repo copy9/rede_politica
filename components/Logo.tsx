@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '@/lib/theme';
+import { colors, themed } from '@/lib/theme';
 
 /** Logotipo textual da Rede Política. */
 export function Logo({ size = 24 }: { size?: number }) {
@@ -16,9 +16,9 @@ export function Logo({ size = 24 }: { size?: number }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   mark: { backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
   markText: { color: colors.accent, fontWeight: '900' },
   text: { fontWeight: '800', color: colors.text, letterSpacing: -0.5 },
-});
+}));

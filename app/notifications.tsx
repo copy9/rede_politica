@@ -6,7 +6,7 @@ import { Avatar } from '@/components/Avatar';
 import { FollowButton } from '@/components/FollowButton';
 import { timeAgo } from '@/lib/format';
 import { useApp, useMe } from '@/lib/store';
-import { colors, spacing } from '@/lib/theme';
+import { colors, spacing, themed } from '@/lib/theme';
 import type { AppNotification } from '@/lib/types';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -73,7 +73,7 @@ function NotificationRow({ n }: { n: AppNotification }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   section: { fontWeight: '700', fontSize: 16, color: colors.text, paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.sm },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
@@ -82,4 +82,4 @@ const styles = StyleSheet.create({
   time: { color: colors.textMuted },
   thumb: { width: 44, height: 44, backgroundColor: colors.surface },
   empty: { textAlign: 'center', marginTop: 40, color: colors.textMuted },
-});
+}));

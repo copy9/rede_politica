@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ProfileView } from '@/components/ProfileView';
 import { UserName } from '@/components/UserName';
 import { useMe } from '@/lib/store';
-import { colors, spacing } from '@/lib/theme';
+import { colors, spacing, themed } from '@/lib/theme';
 
 export default function MyProfileScreen() {
   const me = useMe();
@@ -28,8 +28,8 @@ export default function MyProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
   icons: { flexDirection: 'row', gap: 20 },
-});
+}));

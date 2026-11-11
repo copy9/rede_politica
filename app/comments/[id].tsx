@@ -6,8 +6,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
 import { timeAgo } from '@/lib/format';
+import { isHiddenText, useSettings } from '@/lib/settings';
 import { useApp, useMe } from '@/lib/store';
-import { colors, spacing } from '@/lib/theme';
+import { colors, spacing, themed } from '@/lib/theme';
 import type { Comment } from '@/lib/types';
 
 const QUICK = ['👏', '👍', '🇧🇷', '🤔', '❤️', '🔥'];
@@ -90,9 +91,12 @@ export default function CommentsScreen() {
 function CommentRow({ comment, onReply }: { comment: Comment; onReply: (username: string) => void }) {
   const me = useMe();
   const { getUser, toggleCommentLike } = useApp();
+  const { settings } = useSettings();
+  const [reveal, setReveal] = useState(false);
   const user = getUser(comment.userId);
   if (!user) return null;
   const liked = comment.likes.includes(me.id);
+  const hidden = !reveal && comment.userId !== me.id && isHiddenText(comment.text, settings);
 
   return (
     <View style={styles.row}>
@@ -102,7 +106,16 @@ function CommentRow({ comment, onReply }: { comment: Comment; onReply: (username
       <View style={{ flex: 1 }}>
         <Text style={styles.text}>
           <Text style={styles.bold}>{user.username} </Text>
-          {comment.text}
+          {hidden ? (
+            <Text style={styles.meta}>
+              Comentário oculto pelos seus filtros ·{' '}
+              <Text style={styles.bold} onPress={() => setReveal(true)}>
+                ver
+              </Text>
+            </Text>
+          ) : (
+            comment.text
+          )}
         </Text>
         <View style={styles.metaRow}>
           <Text style={styles.meta}>{timeAgo(comment.createdAt)}</Text>
@@ -123,7 +136,7 @@ function CommentRow({ comment, onReply }: { comment: Comment; onReply: (username
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   row: { flexDirection: 'row', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, alignItems: 'flex-start' },
   captionRow: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
@@ -139,4 +152,4 @@ const styles = StyleSheet.create({
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   input: { flex: 1, color: colors.text, fontSize: 15, maxHeight: 100, paddingVertical: 8 },
   post: { color: colors.primary, fontWeight: '700' },
-});
+}));

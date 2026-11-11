@@ -21,7 +21,7 @@ import { LiveCamera } from '@/components/LiveCamera';
 import { MediaVideo } from '@/components/MediaVideo';
 import { compactNumber } from '@/lib/format';
 import { useApp, useMe } from '@/lib/store';
-import { colors, spacing } from '@/lib/theme';
+import { colors, spacing, themed } from '@/lib/theme';
 import type { BattleMessage, BattleSide, LiveBattle, User } from '@/lib/types';
 
 /** Tipos de apoio que a plateia pode enviar (pontos para um dos lados). */
@@ -348,7 +348,7 @@ function Result({ battle, host, opponent }: { battle: LiveBattle; host: User; op
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0B1020' },
   center: { alignItems: 'center', justifyContent: 'center' },
   white: { color: '#fff' },
@@ -401,4 +401,4 @@ const styles = StyleSheet.create({
   input: { flex: 1, minWidth: 0, color: '#fff', backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 9 },
   sideButton: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1.5, borderRadius: 18, paddingHorizontal: 8, paddingVertical: 7, maxWidth: 88, flexShrink: 0 },
   sideButtonText: { fontWeight: '700', fontSize: 12, flexShrink: 1 },
-});
+}));

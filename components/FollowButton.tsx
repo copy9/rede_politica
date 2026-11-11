@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
 
 import { useApp } from '@/lib/store';
-import { colors } from '@/lib/theme';
+import { colors, themed } from '@/lib/theme';
 
 export function FollowButton({ userId, compact }: { userId: string; compact?: boolean }) {
   const { me, isFollowing, toggleFollow } = useApp();
@@ -26,7 +26,7 @@ export function SecondaryButton({ label, onPress, flex }: { label: string; onPre
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   btn: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   compact: { paddingVertical: 6, paddingHorizontal: 14 },
   primary: { backgroundColor: colors.primary },
@@ -34,4 +34,4 @@ const styles = StyleSheet.create({
   text: { fontWeight: '600', fontSize: 14 },
   textPrimary: { color: colors.white },
   textSecondary: { color: colors.text },
-});
+}));

@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { compactNumber } from '@/lib/format';
 import { useApp } from '@/lib/store';
-import { colors, spacing } from '@/lib/theme';
+import { colors, spacing, themed } from '@/lib/theme';
 import type { LiveBattle } from '@/lib/types';
 import { Avatar } from './Avatar';
 import { BattleScoreBar } from './BattleScoreBar';
@@ -94,7 +94,7 @@ export function BattleCard({ battle }: { battle: LiveBattle }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   card: {
     backgroundColor: colors.background,
     borderRadius: 16,
@@ -126,4 +126,4 @@ const styles = StyleSheet.create({
   role: { color: colors.textMuted, fontSize: 12 },
   vs: { fontSize: 22, fontWeight: '900', color: colors.like, marginHorizontal: spacing.sm },
   winner: { textAlign: 'center', fontWeight: '700', color: colors.text },
-});
+}));

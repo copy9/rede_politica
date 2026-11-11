@@ -3,6 +3,7 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
 
+import { themed } from '@/lib/theme';
 type Props = {
   uri: string;
   /** Toca só quando estiver visível na tela */
@@ -41,7 +42,7 @@ export function MediaVideo({ uri, active, style, startMuted = true, onPress }: P
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   muteWrap: { ...StyleSheet.absoluteFill, justifyContent: 'flex-end', alignItems: 'flex-end', padding: 12 },
   mute: { backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 14, width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
-});
+}));

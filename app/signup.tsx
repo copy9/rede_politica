@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Field } from '@/components/Field';
 import { Logo } from '@/components/Logo';
 import { useApp } from '@/lib/store';
-import { colors, spacing } from '@/lib/theme';
+import { colors, spacing, themed } from '@/lib/theme';
 
 export default function SignUpScreen() {
   const { signUp } = useApp();
@@ -108,11 +108,11 @@ function TypeCard({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   label: { fontWeight: '700', color: colors.text },
   types: { flexDirection: 'row', gap: 8 },
   type: { flex: 1, borderWidth: 1.5, borderColor: colors.border, borderRadius: 12, padding: 12, gap: 4 },
-  typeActive: { borderColor: colors.primary, backgroundColor: '#EFF6FF' },
+  typeActive: { borderColor: colors.primary, backgroundColor: colors.infoBg },
   typeTitle: { fontWeight: '700', color: colors.text },
   typeText: { fontSize: 12, color: colors.textMuted },
   safe: { flex: 1, backgroundColor: colors.background },
@@ -126,4 +126,4 @@ const styles = StyleSheet.create({
   terms: { color: colors.textMuted, fontSize: 12, textAlign: 'center' },
   footerText: { color: colors.textMuted, textAlign: 'center' },
   footerLink: { color: colors.primary, fontWeight: '700' },
-});
+}));

@@ -16,7 +16,10 @@ Vídeos em tela cheia · Meu perfil (publicações, vídeos, salvos) · Perfil d
 Seguidores/seguindo · Publicação · Comentários · Curtidas · Notificações · Mensagens (lista e conversa) ·
 Visualizador de stories · Editar perfil · Configurações ·
 **Batalhas de lives** (lista, sala ao vivo com placar/apoios/chat, criar ou agendar batalha) ·
-**Contas: cidadão e político** · **Painel do político** (início, desempenho, público, apoiadores)
+**Contas: cidadão e político** · **Painel do político** (início, desempenho, público, apoiadores) ·
+**Modo escuro** · **Configurações completas** (aparência, notificações, privacidade, bloqueados e silenciados,
+comentários e palavras ocultas, senha e segurança, informações pessoais, melhores amigos, salvos, sua atividade,
+tempo de uso, idioma, verificação de conta, ajuda, sobre/termos)
 
 ### Dados e LGPD
 
@@ -73,9 +76,9 @@ Deixe a janela "sincronizando" aberta enquanto usa. (O `atualizar.bat` antigo s�
 ## Estrutura
 
 ```
-app/          telas (cada arquivo é uma rota; (tabs) = barra inferior)
+app/          telas (cada arquivo é uma rota; (tabs) = barra inferior; config/ = páginas de Configurações)
 components/   componentes reutilizáveis
 constants/    cores e constantes
-lib/          estado do app, dados de demonstração, tema e cliente do Supabase
+lib/          estado do app, configurações salvas, dados de demonstração, tema claro/escuro e cliente do Supabase
 assets/       ícones, imagens e fontes
 ```

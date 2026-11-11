@@ -9,6 +9,7 @@ import { Avatar } from '@/components/Avatar';
 import { timeAgo } from '@/lib/format';
 import { useApp, useMe } from '@/lib/store';
 
+import { themed } from '@/lib/theme';
 const DURATION = 5000;
 
 /** Visualizador de stories: avança sozinho, toque à direita/esquerda para navegar. */
@@ -141,7 +142,7 @@ export default function StoryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   overlay: { flex: 1 },
   bars: { flexDirection: 'row', gap: 4, paddingHorizontal: 8, paddingTop: 8 },
@@ -155,4 +156,4 @@ const styles = StyleSheet.create({
   footer: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12, paddingBottom: 8 },
   footerMine: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingBottom: 12 },
   reply: { flex: 1, borderWidth: 1, borderColor: 'rgba(255,255,255,0.7)', borderRadius: 24, paddingHorizontal: 16, paddingVertical: 10, color: '#fff' },
-});
+}));

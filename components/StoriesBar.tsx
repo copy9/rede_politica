@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useApp, useMe } from '@/lib/store';
-import { colors, spacing } from '@/lib/theme';
+import { colors, spacing, themed } from '@/lib/theme';
 import { Avatar } from './Avatar';
 
 const SIZE = 64;
@@ -55,7 +55,7 @@ export function StoriesBar() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   wrap: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, paddingVertical: spacing.sm },
   list: { paddingHorizontal: spacing.sm, gap: spacing.md },
   item: { alignItems: 'center', width: SIZE + 14 },
@@ -73,4 +73,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-});
+}));

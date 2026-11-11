@@ -19,7 +19,7 @@ import {
 import { buildDashboard, demoSupporters, type Period } from '@/lib/analytics';
 import { compactNumber } from '@/lib/format';
 import { useApp, useMe } from '@/lib/store';
-import { colors, spacing } from '@/lib/theme';
+import { colors, spacing, themed } from '@/lib/theme';
 
 type Tab = 'inicio' | 'desempenho' | 'publico' | 'apoiadores';
 type Metric = 'views' | 'reach' | 'followers';
@@ -109,7 +109,7 @@ export default function PainelScreen() {
             <View style={styles.periods}>
               {PERIODS.map((p) => (
                 <Pressable key={p} onPress={() => setPeriod(p)} style={[styles.period, period === p && styles.periodActive]}>
-                  <Text style={[styles.periodText, period === p && { color: colors.white }]}>{p} dias</Text>
+                  <Text style={[styles.periodText, period === p && { color: colors.background }]}>{p} dias</Text>
                 </Pressable>
               ))}
             </View>
@@ -215,7 +215,7 @@ export default function PainelScreen() {
           {tab === 'publico' ? (
             <>
               <View style={styles.notice}>
-                <Ionicons name="shield-checkmark-outline" size={18} color={colors.primaryDark} />
+                <Ionicons name="shield-checkmark-outline" size={18} color={colors.infoText} />
                 <Text style={styles.noticeText}>
                   Dados agregados e anônimos dos seus seguidores, a partir do que cada pessoa declarou no perfil.
                 </Text>
@@ -311,7 +311,7 @@ function Tool({ icon, label, onPress }: { icon: React.ComponentProps<typeof Ioni
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
   tabs: { flexDirection: 'row', backgroundColor: colors.background, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   tab: { flex: 1, alignItems: 'center', paddingVertical: spacing.md },
@@ -335,12 +335,12 @@ const styles = StyleSheet.create({
   topPost: { flexDirection: 'row', gap: spacing.md, alignItems: 'center' },
   topThumb: { width: 54, height: 54, borderRadius: 8, backgroundColor: colors.surface },
   topCaption: { color: colors.text, fontWeight: '600' },
-  notice: { flexDirection: 'row', gap: 8, backgroundColor: '#EFF6FF', borderRadius: 12, padding: spacing.md, alignItems: 'flex-start' },
-  noticeText: { flex: 1, color: colors.primaryDark, fontSize: 13 },
+  notice: { flexDirection: 'row', gap: 8, backgroundColor: colors.infoBg, borderRadius: 12, padding: spacing.md, alignItems: 'flex-start' },
+  noticeText: { flex: 1, color: colors.infoText, fontSize: 13 },
   muted: { color: colors.textMuted, fontSize: 13 },
   footnote: { color: colors.textMuted, fontSize: 11, textAlign: 'center' },
   locked: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.md, backgroundColor: colors.background },
   lockedTitle: { fontSize: 18, fontWeight: '700', color: colors.text, textAlign: 'center' },
   primaryBtn: { backgroundColor: colors.primary, borderRadius: 10, paddingHorizontal: 18, paddingVertical: 12 },
   primaryBtnText: { color: colors.white, fontWeight: '700' },
-});
+}));

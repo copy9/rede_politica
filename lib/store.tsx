@@ -36,6 +36,7 @@ import type {
   User,
 } from './types';
 import { ageRangeOf } from './analytics';
+import { useSettings } from './settings';
 
 type SignUpInput = {
   name: string;
@@ -137,6 +138,9 @@ const AppContext = createContext<AppState | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [meId, setMeId] = useState<string | null>(null);
+  const { settings } = useSettings();
+  const blocked = useMemo(() => new Set(settings.blockedIds), [settings.blockedIds]);
+  const hiddenFromFeed = useMemo(() => new Set([...settings.blockedIds, ...settings.mutedIds]), [settings.blockedIds, settings.mutedIds]);
   const [users, setUsers] = useState<User[]>(mockUsers);
   const [posts, setPosts] = useState<Post[]>(mockPosts);
   const [comments, setComments] = useState<Comment[]>(mockComments);
@@ -228,8 +232,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [posts],
   );
   const commentsFor = useCallback(
-    (postId: string) => comments.filter((c) => c.postId === postId).sort((a, b) => a.createdAt - b.createdAt),
-    [comments],
+    (postId: string) =>
+      comments.filter((c) => c.postId === postId && !blocked.has(c.userId)).sort((a, b) => a.createdAt - b.createdAt),
+    [comments, blocked],
   );
   const followersOf = useCallback(
     (userId: string) =>
@@ -255,16 +260,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const feed = useCallback(() => {
     const following = new Set(follows.filter((f) => f.followerId === meId).map((f) => f.followingId));
     if (meId) following.add(meId);
-    const mine = posts.filter((p) => following.has(p.userId));
-    const list = mine.length ? mine : posts;
+    const visible = posts.filter((p) => !hiddenFromFeed.has(p.userId));
+    const mine = visible.filter((p) => following.has(p.userId));
+    const list = mine.length ? mine : visible;
     return [...list].sort((a, b) => b.createdAt - a.createdAt);
-  }, [follows, posts, meId]);
+  }, [follows, posts, meId, hiddenFromFeed]);
 
   const storyUsers = useCallback(() => {
     const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
     const byUser = new Map<string, Story[]>();
     stories
-      .filter((s) => s.createdAt > dayAgo)
+      .filter((s) => s.createdAt > dayAgo && !hiddenFromFeed.has(s.userId))
       .sort((a, b) => a.createdAt - b.createdAt)
       .forEach((s) => byUser.set(s.userId, [...(byUser.get(s.userId) ?? []), s]));
     const list = [...byUser.entries()]
@@ -280,7 +286,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (b.user.id === meId) return 1;
       return Number(a.seen) - Number(b.seen);
     });
-  }, [stories, users, meId]);
+  }, [stories, users, meId, hiddenFromFeed]);
 
   const conversationMessages = useCallback(
     (conversationId: string) =>

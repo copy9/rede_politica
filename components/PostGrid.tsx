@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
-import { colors } from '@/lib/theme';
+import { colors, themed } from '@/lib/theme';
 import type { Post } from '@/lib/types';
 
 /** Grade de 3 colunas (perfil e explorar). Não rola sozinha: fica dentro de outra lista. */
@@ -43,9 +43,9 @@ export function PostGrid({ posts, emptyText = 'Nenhuma publicação ainda' }: { 
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 2 },
   icon: { position: 'absolute', top: 6, right: 6, textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 4 },
   empty: { alignItems: 'center', paddingVertical: 48, gap: 8 },
   emptyText: { color: colors.textMuted, fontSize: 15 },
-});
+}));

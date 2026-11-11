@@ -1,44 +1,96 @@
-import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider, router, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import { useColorScheme } from 'react-native';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { SettingsProvider, useSettings } from '@/lib/settings';
 import { AppProvider, useApp } from '@/lib/store';
-import { colors } from '@/lib/theme';
+import { colors, schemeFrom, setScheme } from '@/lib/theme';
 
 export { ErrorBoundary } from 'expo-router';
 
 SplashScreen.preventAutoHideAsync();
 
-const theme = {
-  ...DefaultTheme,
-  colors: {
-    ...DefaultTheme.colors,
-    primary: colors.primary,
-    background: colors.background,
-    card: colors.background,
-    text: colors.text,
-    border: colors.border,
-  },
-};
-
 export default function RootLayout() {
-  useEffect(() => {
-    SplashScreen.hideAsync();
-  }, []);
-
   return (
     <SafeAreaProvider>
-      <AppProvider>
-        <ThemeProvider value={theme}>
-          <StatusBar style="dark" />
-          <RootNavigator />
-        </ThemeProvider>
-      </AppProvider>
+      <SettingsProvider>
+        <AppProvider>
+          <ThemedApp />
+        </AppProvider>
+      </SettingsProvider>
     </SafeAreaProvider>
   );
+}
+
+/** Aplica o tema (claro/escuro/automático) e redesenha o app quando ele muda. */
+function ThemedApp() {
+  const { settings, loaded } = useSettings();
+  const system = useColorScheme();
+  const scheme = schemeFrom(settings.themeMode, system);
+  // Precisa acontecer antes de desenhar as telas, para os estilos pegarem as cores certas.
+  setScheme(scheme);
+
+  // Guarda a tela atual para voltar para ela depois que o tema muda
+  const pathname = usePathname();
+  const prevScheme = useRef<string | null>(null);
+  const changes = useRef(0);
+  const pathAtChange = useRef(pathname);
+  // Só conta trocas feitas depois de carregar as configurações salvas
+  if (loaded && prevScheme.current === null) prevScheme.current = scheme;
+  if (loaded && prevScheme.current !== scheme) {
+    prevScheme.current = scheme;
+    changes.current += 1;
+    pathAtChange.current = pathname;
+  }
+
+  useEffect(() => {
+    if (loaded) SplashScreen.hideAsync();
+  }, [loaded]);
+
+  // Espera carregar as configurações salvas para não "piscar" o tema errado.
+  if (!loaded) return null;
+
+  const base = scheme === 'dark' ? DarkTheme : DefaultTheme;
+  const navTheme = {
+    ...base,
+    colors: {
+      ...base.colors,
+      primary: colors.primary,
+      background: colors.background,
+      card: colors.background,
+      text: colors.text,
+      border: colors.border,
+    },
+  };
+
+  return (
+    <ThemeProvider value={navTheme}>
+      <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+      {/* key: troca de tema redesenha tudo; RestorePath volta para a tela onde a pessoa estava */}
+      <RootNavigator key={scheme} />
+      {changes.current > 0 ? <RestorePath key={`restore-${changes.current}`} path={pathAtChange.current} /> : null}
+    </ThemeProvider>
+  );
+}
+
+function RestorePath({ path }: { path: string }) {
+  const target = useRef(path).current;
+  useEffect(() => {
+    if (!target || target === '/') return;
+    const t = setTimeout(() => {
+      try {
+        router.push(target as never);
+      } catch {
+        // se a rota não existir mais, fica no início
+      }
+    }, 50);
+    return () => clearTimeout(t);
+  }, [target]);
+  return null;
 }
 
 function RootNavigator() {
@@ -73,6 +125,20 @@ function RootNavigator() {
         <Stack.Screen name="painel" options={{ title: 'Painel do político' }} />
         <Stack.Screen name="apoiar/[username]" options={{ title: 'Receber novidades', presentation: 'modal' }} />
         <Stack.Screen name="autorizacoes" options={{ title: 'Minhas autorizações' }} />
+        <Stack.Screen name="salvos" options={{ title: 'Salvos' }} />
+        <Stack.Screen name="atividade" options={{ title: 'Sua atividade' }} />
+        <Stack.Screen name="config/aparencia" options={{ title: 'Aparência' }} />
+        <Stack.Screen name="config/notificacoes" options={{ title: 'Notificações' }} />
+        <Stack.Screen name="config/privacidade" options={{ title: 'Privacidade da conta' }} />
+        <Stack.Screen name="config/bloqueados" options={{ title: 'Bloqueados e silenciados' }} />
+        <Stack.Screen name="config/comentarios" options={{ title: 'Comentários' }} />
+        <Stack.Screen name="config/seguranca" options={{ title: 'Senha e segurança' }} />
+        <Stack.Screen name="config/dados-pessoais" options={{ title: 'Informações pessoais' }} />
+        <Stack.Screen name="config/melhores-amigos" options={{ title: 'Melhores amigos' }} />
+        <Stack.Screen name="config/idioma" options={{ title: 'Idioma' }} />
+        <Stack.Screen name="config/verificacao" options={{ title: 'Verificação' }} />
+        <Stack.Screen name="config/ajuda" options={{ title: 'Ajuda' }} />
+        <Stack.Screen name="config/sobre" options={{ title: 'Sobre' }} />
         <Stack.Screen name="battle/new" options={{ title: 'Nova batalha', presentation: 'modal' }} />
         <Stack.Screen name="battle/[id]" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
       </Stack.Protected>

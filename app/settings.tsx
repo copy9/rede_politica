@@ -1,61 +1,29 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { NavRow, Section, SettingsScreen, audienceLabel } from '@/components/SettingsUI';
+import { useSettings } from '@/lib/settings';
 import { useApp, useMe } from '@/lib/store';
-import { colors, spacing } from '@/lib/theme';
+import { colors, spacing, themed } from '@/lib/theme';
 
-type IconName = React.ComponentProps<typeof Ionicons>['name'];
+const THEME_LABEL = { system: 'Automático', light: 'Claro', dark: 'Escuro' };
+const LANG_LABEL = { 'pt-BR': 'Português', en: 'English', es: 'Español' };
 
-const soon = () => Alert.alert('Em breve', 'Esta configuração será liberada nas próximas versões.');
-
-const SECTIONS: { title: string; items: { icon: IconName; label: string; onPress?: () => void }[] }[] = [
-  {
-    title: 'Sua conta',
-    items: [
-      { icon: 'person-circle-outline', label: 'Editar perfil', onPress: () => router.push('/edit-profile') },
-      { icon: 'shield-checkmark-outline', label: 'Verificação de conta oficial' },
-      { icon: 'key-outline', label: 'Senha e segurança' },
-    ],
-  },
-  {
-    title: 'Como você usa a Rede Política',
-    items: [
-      { icon: 'bookmark-outline', label: 'Salvos', onPress: () => router.navigate('/profile') },
-      { icon: 'notifications-outline', label: 'Notificações', onPress: () => router.push('/notifications') },
-      { icon: 'time-outline', label: 'Tempo de uso' },
-    ],
-  },
-  {
-    title: 'Quem pode ver seu conteúdo',
-    items: [
-      { icon: 'shield-checkmark-outline', label: 'Minhas autorizações a políticos', onPress: () => router.push('/autorizacoes') },
-      { icon: 'lock-closed-outline', label: 'Privacidade da conta' },
-      { icon: 'people-outline', label: 'Contas bloqueadas' },
-      { icon: 'chatbubbles-outline', label: 'Mensagens e respostas' },
-    ],
-  },
-  {
-    title: 'Mais informações e suporte',
-    items: [
-      { icon: 'help-circle-outline', label: 'Ajuda' },
-      { icon: 'document-text-outline', label: 'Termos de uso e privacidade' },
-      { icon: 'information-circle-outline', label: 'Sobre' },
-    ],
-  },
-];
-
-export default function SettingsScreen() {
+export default function SettingsHome() {
   const me = useMe();
-  const { signOut, updateProfile } = useApp();
+  const { signOut, updateProfile, consents } = useApp();
+  const { settings } = useSettings();
+  const [query, setQuery] = useState('');
   const political = me.accountType === 'politico';
+  const myConsents = consents.filter((c) => c.userId === me.id).length;
 
   const toggleAccountType = () =>
     Alert.alert(
       political ? 'Voltar para conta de cidadão?' : 'Ativar conta política?',
       political
         ? 'Você perde o acesso ao Painel do político.'
-        : 'Para candidatos e políticos. Libera o Painel com dados do seu público e o banco de apoiadores. Contas oficiais passam por verificação.',
+        : 'Para candidatos e políticos. Libera o Painel com dados do seu público e o banco de apoiadores.',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -74,51 +42,104 @@ export default function SettingsScreen() {
       { text: 'Sair', style: 'destructive', onPress: signOut },
     ]);
 
+  // Busca: filtra as opções pelo nome
+  const q = query.trim().toLowerCase();
+  const show = (label: string) => !q || label.toLowerCase().includes(q);
+  const go = (path: string) => () => router.push(path as never);
+
+  const sections: { title: string; rows: { icon: React.ComponentProps<typeof NavRow>['icon']; label: string; value?: string; onPress: () => void }[] }[] = [
+    {
+      title: 'Sua conta',
+      rows: [
+        { icon: 'person-circle-outline', label: 'Editar perfil', onPress: go('/edit-profile') },
+        { icon: 'card-outline', label: 'Informações pessoais', onPress: go('/config/dados-pessoais') },
+        { icon: 'key-outline', label: 'Senha e segurança', onPress: go('/config/seguranca') },
+        { icon: 'shield-checkmark-outline', label: 'Verificação de conta oficial', value: settings.verification.status === 'em_analise' ? 'Em análise' : undefined, onPress: go('/config/verificacao') },
+        { icon: political ? 'person-outline' : 'business-outline', label: political ? 'Conta política (ativa)' : 'Sou político ou candidato', onPress: toggleAccountType },
+        ...(political ? [{ icon: 'bar-chart-outline' as const, label: 'Painel do político', onPress: go('/painel') }] : []),
+      ],
+    },
+    {
+      title: 'Como você usa a Rede Política',
+      rows: [
+        { icon: 'bookmark-outline', label: 'Salvos', onPress: go('/salvos') },
+        { icon: 'time-outline', label: 'Sua atividade', onPress: go('/atividade') },
+        { icon: 'notifications-outline', label: 'Notificações', value: settings.notifications.pauseAll ? 'Pausadas' : undefined, onPress: go('/config/notificacoes') },
+        { icon: 'hourglass-outline', label: 'Tempo de uso', value: settings.dailyLimitMin ? `${settings.dailyLimitMin} min/dia` : undefined, onPress: go('/atividade?tab=tempo') },
+      ],
+    },
+    {
+      title: 'Quem pode ver seu conteúdo',
+      rows: [
+        { icon: 'lock-closed-outline', label: 'Privacidade da conta', value: settings.privateAccount ? 'Privada' : 'Pública', onPress: go('/config/privacidade') },
+        { icon: 'star-outline', label: 'Melhores amigos', value: settings.closeFriendIds.length ? String(settings.closeFriendIds.length) : undefined, onPress: go('/config/melhores-amigos') },
+        { icon: 'remove-circle-outline', label: 'Bloqueados e silenciados', value: String(settings.blockedIds.length + settings.mutedIds.length), onPress: go('/config/bloqueados') },
+        { icon: 'shield-half-outline', label: 'Minhas autorizações a políticos', value: myConsents ? String(myConsents) : undefined, onPress: go('/autorizacoes') },
+      ],
+    },
+    {
+      title: 'Como outras pessoas podem interagir com você',
+      rows: [
+        { icon: 'chatbubbles-outline', label: 'Mensagens', value: audienceLabel(settings.whoCanMessage), onPress: go('/config/privacidade') },
+        { icon: 'at-outline', label: 'Menções', value: audienceLabel(settings.whoCanMention), onPress: go('/config/privacidade') },
+        { icon: 'chatbubble-ellipses-outline', label: 'Comentários e palavras ocultas', onPress: go('/config/comentarios') },
+        { icon: 'flash-outline', label: 'Desafios para batalhas', value: audienceLabel(settings.whoCanChallenge), onPress: go('/config/privacidade') },
+      ],
+    },
+    {
+      title: 'Seu app e mídia',
+      rows: [
+        { icon: 'contrast-outline', label: 'Aparência (modo escuro)', value: THEME_LABEL[settings.themeMode], onPress: go('/config/aparencia') },
+        { icon: 'cellular-outline', label: 'Uso de dados e mídia', value: settings.dataSaver ? 'Economia ligada' : undefined, onPress: go('/config/aparencia') },
+        { icon: 'language-outline', label: 'Idioma', value: LANG_LABEL[settings.language], onPress: go('/config/idioma') },
+      ],
+    },
+    {
+      title: 'Mais informações e suporte',
+      rows: [
+        { icon: 'help-circle-outline', label: 'Ajuda', onPress: go('/config/ajuda') },
+        { icon: 'document-text-outline', label: 'Termos de uso e privacidade', onPress: go('/config/sobre?tab=termos') },
+        { icon: 'information-circle-outline', label: 'Sobre', onPress: go('/config/sobre') },
+      ],
+    },
+  ];
+
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Tipo de conta</Text>
-        {political ? (
-          <Pressable style={styles.row} onPress={() => router.push('/painel')}>
-            <Ionicons name="bar-chart-outline" size={24} color={colors.text} />
-            <Text style={styles.label}>Painel do político</Text>
-            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-          </Pressable>
-        ) : null}
-        <Pressable style={styles.row} onPress={toggleAccountType}>
-          <Ionicons name={political ? 'person-outline' : 'business-outline'} size={24} color={colors.text} />
-          <Text style={styles.label}>{political ? 'Conta política (ativa) · mudar para cidadão' : 'Sou político ou candidato'}</Text>
-          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-        </Pressable>
+    <SettingsScreen>
+      <View style={styles.searchBox}>
+        <TextInput
+          placeholder="Pesquisar nas configurações"
+          placeholderTextColor={colors.textMuted}
+          value={query}
+          onChangeText={setQuery}
+          style={styles.search}
+        />
       </View>
-      {SECTIONS.map((section) => (
-        <View key={section.title} style={styles.section}>
-          <Text style={styles.sectionTitle}>{section.title}</Text>
-          {section.items.map((item) => (
-            <Pressable key={item.label} style={styles.row} onPress={item.onPress ?? soon}>
-              <Ionicons name={item.icon} size={24} color={colors.text} />
-              <Text style={styles.label}>{item.label}</Text>
-              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-            </Pressable>
-          ))}
-        </View>
-      ))}
-      <View style={styles.section}>
-        <Pressable style={styles.row} onPress={logout}>
-          <Text style={styles.logout}>Sair</Text>
-        </Pressable>
-      </View>
+      {sections.map((section) => {
+        const rows = section.rows.filter((r) => show(r.label));
+        if (!rows.length) return null;
+        return (
+          <Section key={section.title} title={section.title}>
+            {rows.map((r) => (
+              <NavRow key={r.label} icon={r.icon} label={r.label} value={r.value} onPress={r.onPress} />
+            ))}
+          </Section>
+        );
+      })}
+      {show('Sair') ? (
+        <Section title="Entrar">
+          <NavRow label="Sair" onPress={logout} danger />
+        </Section>
+      ) : null}
       <Text style={styles.version}>Rede Política • versão de demonstração</Text>
-    </ScrollView>
+    </SettingsScreen>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.surface },
-  section: { backgroundColor: colors.background, marginBottom: spacing.sm, paddingVertical: spacing.sm },
-  sectionTitle: { color: colors.textMuted, fontSize: 13, fontWeight: '600', paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
-  label: { flex: 1, fontSize: 15, color: colors.text },
-  logout: { color: colors.like, fontSize: 15, fontWeight: '600' },
-  version: { textAlign: 'center', color: colors.textMuted, fontSize: 12, paddingVertical: spacing.xl },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    searchBox: { backgroundColor: colors.background, padding: spacing.md, marginBottom: spacing.sm },
+    search: { backgroundColor: colors.surface, borderRadius: 10, paddingHorizontal: 14, height: 40, color: colors.text, fontSize: 15 },
+    version: { textAlign: 'center', color: colors.textMuted, fontSize: 12, paddingVertical: spacing.xl },
+  }),
+);

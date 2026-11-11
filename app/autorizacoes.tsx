@@ -4,7 +4,7 @@ import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native
 import { Avatar } from '@/components/Avatar';
 import { UserName } from '@/components/UserName';
 import { useApp, useMe } from '@/lib/store';
-import { colors, spacing } from '@/lib/theme';
+import { colors, spacing, themed } from '@/lib/theme';
 import type { ShareField } from '@/lib/types';
 
 const LABELS: Record<ShareField, string> = {
@@ -67,7 +67,7 @@ export default function MyConsentsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   intro: { color: colors.textMuted, padding: spacing.lg, fontSize: 13 },
   row: { flexDirection: 'row', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
@@ -75,4 +75,4 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', gap: spacing.xl, marginTop: 6 },
   link: { color: colors.primary, fontWeight: '700' },
   empty: { textAlign: 'center', color: colors.textMuted, marginTop: 24 },
-});
+}));

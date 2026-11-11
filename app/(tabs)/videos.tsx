@@ -10,6 +10,7 @@ import { compactNumber } from '@/lib/format';
 import { useApp, useMe } from '@/lib/store';
 import type { Post } from '@/lib/types';
 
+import { themed } from '@/lib/theme';
 /** Vídeos curtos em tela cheia, rolagem vertical (um por vez). */
 export default function VideosScreen() {
   const { posts } = useApp();
@@ -116,7 +117,7 @@ function Action({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   title: { position: 'absolute', left: 16, color: '#fff', fontSize: 22, fontWeight: '800' },
   side: { position: 'absolute', right: 12, bottom: 110, alignItems: 'center', gap: 20 },
@@ -131,4 +132,4 @@ const styles = StyleSheet.create({
   caption: { color: '#fff' },
   empty: { alignItems: 'center', justifyContent: 'center' },
   emptyText: { color: '#fff' },
-});
+}));

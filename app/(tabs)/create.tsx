@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MediaVideo } from '@/components/MediaVideo';
 import { useApp, useMe } from '@/lib/store';
-import { colors, spacing } from '@/lib/theme';
+import { colors, spacing, themed } from '@/lib/theme';
 import type { MediaType } from '@/lib/types';
 
 type Picked = { uri: string; type: MediaType };
@@ -130,7 +130,7 @@ export default function CreateScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   header: {
     flexDirection: 'row',
@@ -156,4 +156,4 @@ const styles = StyleSheet.create({
   caption: { flex: 1, minHeight: 60, fontSize: 15, color: colors.text, textAlignVertical: 'top' },
   option: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   optionInput: { flex: 1, fontSize: 15, color: colors.text },
-});
+}));

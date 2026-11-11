@@ -1,12 +1,12 @@
 import { StyleSheet, TextInput, type TextInputProps } from 'react-native';
 
-import { colors } from '@/lib/theme';
+import { colors, themed } from '@/lib/theme';
 
 export function Field(props: TextInputProps) {
   return <TextInput placeholderTextColor={colors.textMuted} autoCapitalize="none" {...props} style={[styles.input, props.style]} />;
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   input: {
     backgroundColor: colors.surface,
     borderWidth: StyleSheet.hairlineWidth,
@@ -17,4 +17,4 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.text,
   },
-});
+}));

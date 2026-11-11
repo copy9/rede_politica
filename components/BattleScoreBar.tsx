@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import { compactNumber } from '@/lib/format';
-import { colors } from '@/lib/theme';
+import { colors, themed } from '@/lib/theme';
 
 /** Barra de placar: azul (quem abriu a batalha) x âmbar (convidado). */
 export function BattleScoreBar({ host, opponent, height = 22 }: { host: number; opponent: number; height?: number }) {
@@ -19,9 +19,9 @@ export function BattleScoreBar({ host, opponent, height = 22 }: { host: number; 
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   bar: { flexDirection: 'row', overflow: 'hidden', width: '100%' },
   side: { justifyContent: 'center', paddingHorizontal: 10 },
   right: { alignItems: 'flex-end' },
   text: { color: '#fff', fontWeight: '800', fontSize: 12 },
-});
+}));

@@ -5,8 +5,9 @@ import { useRef, useState } from 'react';
 import { Alert, Animated, Pressable, Share, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { compactNumber, pluralize, timeAgo } from '@/lib/format';
+import { useSettings } from '@/lib/settings';
 import { useApp } from '@/lib/store';
-import { colors, spacing } from '@/lib/theme';
+import { colors, spacing, themed } from '@/lib/theme';
 import type { Post } from '@/lib/types';
 import { Avatar } from './Avatar';
 import { MediaVideo } from './MediaVideo';
@@ -15,6 +16,8 @@ import { UserName } from './UserName';
 export function PostCard({ post, active = false }: { post: Post; active?: boolean }) {
   const { me, getUser, commentsFor, toggleLike, toggleSave, deletePost, storyUsers } = useApp();
   const { width } = useWindowDimensions();
+  const { settings } = useSettings();
+  const autoplay = settings.autoplayVideos && !settings.dataSaver;
   const [expanded, setExpanded] = useState(false);
   const heart = useRef(new Animated.Value(0)).current;
   const lastTap = useRef(0);
@@ -96,7 +99,7 @@ export function PostCard({ post, active = false }: { post: Post; active?: boolea
       {/* Mídia */}
       <View style={{ width: mediaSize, height: mediaSize, alignSelf: 'center', backgroundColor: colors.surface }}>
         {post.type === 'video' ? (
-          <MediaVideo uri={post.uri} active={active} style={StyleSheet.absoluteFill} onPress={onMediaPress} />
+          <MediaVideo uri={post.uri} active={active && autoplay} style={StyleSheet.absoluteFill} onPress={onMediaPress} />
         ) : (
           <Pressable style={StyleSheet.absoluteFill} onPress={onMediaPress}>
             <Image source={{ uri: post.uri }} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} />
@@ -128,7 +131,7 @@ export function PostCard({ post, active = false }: { post: Post; active?: boolea
 
       {/* Curtidas, legenda, comentários */}
       <View style={styles.body}>
-        {post.likes.length > 0 ? (
+        {post.likes.length > 0 && !settings.hideLikeCounts ? (
           <Pressable onPress={() => router.push(`/likes/${post.id}`)}>
             <Text style={styles.bold}>{pluralize(post.likes.length, 'curtida', 'curtidas')}</Text>
           </Pressable>
@@ -155,7 +158,7 @@ export function PostCard({ post, active = false }: { post: Post; active?: boolea
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   card: { backgroundColor: colors.background, paddingBottom: spacing.md },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: spacing.sm },
   headerLeft: {},
@@ -169,4 +172,4 @@ const styles = StyleSheet.create({
   caption: { color: colors.text, lineHeight: 19 },
   muted: { color: colors.textMuted },
   time: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
-});
+}));

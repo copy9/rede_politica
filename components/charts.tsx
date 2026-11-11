@@ -4,10 +4,27 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, spacing } from '@/lib/theme';
+import { colors, spacing, themed } from '@/lib/theme';
 
-export const SERIES = { one: colors.primary, two: colors.accent };
-const STATUS = { good: '#15803D', neutral: '#94A3B8', critical: '#B91C1C' };
+export const SERIES = {
+  get one() {
+    return colors.series1;
+  },
+  get two() {
+    return colors.series2;
+  },
+};
+const STATUS = {
+  get good() {
+    return colors.good;
+  },
+  get neutral() {
+    return colors.neutral;
+  },
+  get critical() {
+    return colors.critical;
+  },
+};
 
 const pct = (v: number) => `${v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 
@@ -227,7 +244,7 @@ export function SegmentBar({ parts }: { parts: { label: string; value: number; c
 
 export const SENTIMENT_COLORS = STATUS;
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   card: {
     backgroundColor: colors.background,
     borderRadius: 16,
@@ -274,4 +291,4 @@ const styles = StyleSheet.create({
   fill: { height: '100%', borderRadius: 5 },
   segmentBar: { flexDirection: 'row', height: 14, borderRadius: 7, overflow: 'hidden' },
   segmentLegend: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.lg },
-});
+}));

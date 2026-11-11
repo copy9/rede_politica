@@ -5,13 +5,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PostGrid } from '@/components/PostGrid';
 import { UserRow } from '@/components/UserRow';
+import { useSettings } from '@/lib/settings';
 import { useApp } from '@/lib/store';
-import { colors, spacing } from '@/lib/theme';
+import { colors, spacing, themed } from '@/lib/theme';
 
 const TOPICS = ['Todos', 'Educação', 'Saúde', 'Mobilidade', 'Orçamento', 'Cultura', 'Obras'];
 
 export default function ExploreScreen() {
   const { users, posts, me } = useApp();
+  const { settings } = useSettings();
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
   const [topic, setTopic] = useState('Todos');
@@ -24,17 +26,18 @@ export default function ExploreScreen() {
       users.filter(
         (u) =>
           u.id !== me?.id &&
+          !settings.blockedIds.includes(u.id) &&
           (!q || u.username.includes(q) || u.name.toLowerCase().includes(q) || (u.role ?? '').toLowerCase().includes(q)),
       ),
-    [users, q, me],
+    [users, q, me, settings.blockedIds],
   );
 
   const gridPosts = useMemo(() => {
-    const list = [...posts].sort((a, b) => b.likes.length - a.likes.length || b.createdAt - a.createdAt);
+    const list = posts.filter((p) => !settings.blockedIds.includes(p.userId)).sort((a, b) => b.likes.length - a.likes.length || b.createdAt - a.createdAt);
     if (topic === 'Todos') return list;
     const t = topic.toLowerCase();
     return list.filter((p) => p.caption.toLowerCase().includes(t.slice(0, 5)));
-  }, [posts, topic]);
+  }, [posts, topic, settings.blockedIds]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -92,7 +95,7 @@ export default function ExploreScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   searchRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md },
   search: {
@@ -112,5 +115,5 @@ const styles = StyleSheet.create({
   chip: { borderWidth: 1, borderColor: colors.border, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 6 },
   chipActive: { backgroundColor: colors.text, borderColor: colors.text },
   chipText: { color: colors.text, fontWeight: '500' },
-  chipTextActive: { color: colors.white },
-});
+  chipTextActive: { color: colors.background },
+}));

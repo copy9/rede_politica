@@ -7,7 +7,7 @@ import { Avatar } from '@/components/Avatar';
 import { UserName } from '@/components/UserName';
 import { timeAgo } from '@/lib/format';
 import { useApp, useMe } from '@/lib/store';
-import { colors, spacing } from '@/lib/theme';
+import { colors, spacing, themed } from '@/lib/theme';
 
 export default function InboxScreen() {
   const me = useMe();
@@ -90,7 +90,7 @@ export default function InboxScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   search: {
     flexDirection: 'row',
@@ -107,4 +107,4 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
   preview: { color: colors.textMuted, marginTop: 2 },
   empty: { textAlign: 'center', marginTop: 40, color: colors.textMuted, paddingHorizontal: spacing.xl },
-});
+}));

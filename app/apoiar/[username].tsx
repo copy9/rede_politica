@@ -6,7 +6,7 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Swit
 import { Avatar } from '@/components/Avatar';
 import { INTERESTS } from '@/lib/analytics';
 import { useApp, useMe } from '@/lib/store';
-import { colors, spacing } from '@/lib/theme';
+import { colors, spacing, themed } from '@/lib/theme';
 import type { ShareField } from '@/lib/types';
 
 const FIELDS: { key: ShareField; label: string; hint: string }[] = [
@@ -139,7 +139,7 @@ export default function SupportScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { padding: spacing.lg, gap: spacing.md, paddingBottom: 48, maxWidth: 560, width: '100%', alignSelf: 'center' },
   head: { alignItems: 'center', gap: 6, marginBottom: spacing.sm },
@@ -161,4 +161,4 @@ const styles = StyleSheet.create({
   secondary: { paddingVertical: 10, alignItems: 'center' },
   revoke: { color: colors.like, fontWeight: '700' },
   empty: { textAlign: 'center', marginTop: 40, color: colors.textMuted },
-});
+}));

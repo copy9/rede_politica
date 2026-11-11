@@ -3,6 +3,7 @@ import { CameraView, useCameraPermissions, type CameraType } from 'expo-camera';
 import { useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { themed } from '@/lib/theme';
 /**
  * Câmera ao vivo do próprio usuário (prévia local).
  * Por enquanto a imagem aparece só no seu celular; enviar para a plateia
@@ -54,7 +55,7 @@ export function LiveCamera() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   box: { ...StyleSheet.absoluteFill, backgroundColor: '#1E293B' },
   center: { alignItems: 'center', justifyContent: 'center', gap: 8, padding: 10 },
   text: { color: 'rgba(255,255,255,0.85)', fontSize: 12, textAlign: 'center' },
@@ -69,4 +70,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-});
+}));

@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Field } from '@/components/Field';
 import { Logo } from '@/components/Logo';
 import { useApp } from '@/lib/store';
-import { colors, spacing } from '@/lib/theme';
+import { colors, spacing, themed } from '@/lib/theme';
 
 export default function LoginScreen() {
   const { signIn } = useApp();
@@ -54,7 +54,7 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1, justifyContent: 'center', paddingHorizontal: spacing.xl, maxWidth: 420, width: '100%', alignSelf: 'center' },
   logo: { alignItems: 'center', marginBottom: 36, gap: 8 },
@@ -67,4 +67,4 @@ const styles = StyleSheet.create({
   footer: { position: 'absolute', bottom: 24, left: 0, right: 0, alignItems: 'center' },
   footerText: { color: colors.textMuted },
   footerLink: { color: colors.primary, fontWeight: '700' },
-});
+}));
