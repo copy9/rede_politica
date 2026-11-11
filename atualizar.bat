@@ -5,6 +5,6 @@ cd /d "%~dp0"
 title Rede Politica - sincronizando com o GitHub
 :loop
 echo [%time%] Buscando atualizacoes...
-git pull --ff-only
+git pull --ff-only || (git checkout -- package-lock.json & git pull --ff-only)
 timeout /t 30 /nobreak >nul
 goto loop
