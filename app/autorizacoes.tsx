@@ -31,7 +31,7 @@ export default function MyConsentsScreen() {
       keyExtractor={(c) => c.id}
       ListHeaderComponent={
         <Text style={styles.intro}>
-          Políticos que você autorizou a enviar novidades. Eles veem só os dados listados. Cancele quando quiser.
+          Políticos de quem você recebe novidades. Eles veem só os dados listados. Cancele quando quiser.
         </Text>
       }
       renderItem={({ item }) => {

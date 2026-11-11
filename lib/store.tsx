@@ -41,7 +41,7 @@ import type {
   User,
 } from './types';
 import { ageRangeOf } from './analytics';
-import { useSettings } from './settings';
+import { useSettings, type ShareProfile } from './settings';
 
 type SignUpInput = {
   name: string;
@@ -53,6 +53,12 @@ type SignUpInput = {
   party?: string;
   city?: string;
   state?: string;
+  /** data de nascimento DD/MM/AAAA: a rede é só para maiores de 18 */
+  birthDate: string;
+  /** "Tenho 18 anos ou mais e aceito os Termos de uso e a Política de Privacidade" */
+  acceptedTerms: boolean;
+  /** opcional: o que compartilhar com políticos ao tocar em "Quero receber novidades" */
+  shareProfile?: ShareProfile;
 };
 export type SignInResult = { ok: true } | { ok: false; error: string } | { ok: false; needsCode: true; sentTo: string; demoCode: string };
 export type InteractionKind = 'comment' | 'message' | 'mention' | 'challenge';
@@ -165,6 +171,18 @@ type AppState = {
 
 const AppContext = createContext<AppState | null>(null);
 
+/** Idade a partir de "DD/MM/AAAA" (null se a data for inválida) */
+export function ageFrom(date: string, now = new Date()): number | null {
+  const m = date.trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return null;
+  const [d, mo, y] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const birth = new Date(y, mo - 1, d);
+  if (birth.getDate() !== d || birth.getMonth() !== mo - 1 || y < now.getFullYear() - 120 || birth > now) return null;
+  let age = now.getFullYear() - y;
+  if (now.getMonth() < mo - 1 || (now.getMonth() === mo - 1 && now.getDate() < d)) age -= 1;
+  return age;
+}
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [meId, setMeId] = useState<string | null>(null);
   const { settings, accountSettings, updateAccount, removeAccount, setActiveAccount } = useSettings();
@@ -261,12 +279,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const cancelLoginCode = useCallback(() => setPendingLogin(null), []);
 
   const signUp = useCallback(
-    ({ name, username, email, password, accountType = 'cidadao', role, party, city, state }: SignUpInput) => {
+    ({ name, username, email, password, accountType = 'cidadao', role, party, city, state, birthDate, acceptedTerms, shareProfile }: SignUpInput) => {
       const clean = username.trim().replace(/^@/, '').toLowerCase();
       if (!name.trim() || !clean || !email.trim() || !password) return 'Preencha todos os campos.';
       if (!/^[a-z0-9._]{3,30}$/.test(clean)) return 'O usuário deve ter 3 a 30 letras, números, ponto ou _.';
       if (password.length < 6) return 'A senha precisa de pelo menos 6 caracteres.';
       if (users.some((u) => u.username === clean)) return 'Esse nome de usuário já está em uso.';
+      const age = ageFrom(birthDate);
+      if (age === null) return 'Informe a data de nascimento no formato DD/MM/AAAA.';
+      if (age < 18) return 'A Rede Política é só para maiores de 18 anos.';
+      if (!acceptedTerms) return 'Para criar a conta, confirme que tem 18 anos ou mais e aceite os Termos.';
+      if (shareProfile?.fields.includes('whatsapp') && (shareProfile.whatsapp ?? '').replace(/\D/g, '').length < 10)
+        return 'Informe o WhatsApp com DDD, ou desmarque essa opção.';
       if (accountType === 'politico' && (!role?.trim() || !city?.trim() || !state?.trim()))
         return 'Para conta política, informe cargo/pretensão, cidade e UF.';
       const user: User = {
@@ -280,9 +304,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         party: party?.trim() || undefined,
         city: city?.trim() || undefined,
         state: state?.trim().toUpperCase() || undefined,
+        // guarda só o ano (o suficiente para a faixa etária)
+        birthYear: Number(birthDate.trim().slice(-4)),
       };
       setUsers((prev) => [...prev, user]);
-      updateAccount(user.id, { passwordHash: hashPassword(user.id, password), email: email.trim() });
+      updateAccount(user.id, {
+        passwordHash: hashPassword(user.id, password),
+        email: email.trim(),
+        phone: shareProfile?.whatsapp?.trim() ?? '',
+        termsAcceptedAt: Date.now(),
+        shareProfile: shareProfile?.fields.length
+          ? { ...shareProfile, email: shareProfile.fields.includes('email') ? email.trim() : undefined }
+          : undefined,
+      });
       completeLogin(user.id);
       return null;
     },

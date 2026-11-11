@@ -17,8 +17,8 @@ type Tab = 'posts' | 'videos' | 'saved';
 
 export function ProfileView({ user }: { user: User }) {
   const me = useMe();
-  const { postsBy, posts, followersOf, followingOf, storyUsers, openConversationWith, consentFor, supportersFor, canSeeContent, canInteract, activityText } = useApp();
-  const { accountSettings } = useSettings();
+  const { postsBy, posts, followersOf, followingOf, storyUsers, openConversationWith, consentFor, supportersFor, canSeeContent, canInteract, activityText, giveConsent } = useApp();
+  const { accountSettings, settings } = useSettings();
   const { showBanner } = useOverlay();
   const [tab, setTab] = useState<Tab>('posts');
   const isMe = user.id === me.id;
@@ -124,7 +124,18 @@ export function ProfileView({ user }: { user: User }) {
       {!isMe && user.accountType === 'politico' ? (
         <Pressable
           style={[styles.supportBtn, consentFor(user.id) && styles.supportBtnOn]}
-          onPress={() => router.push(`/apoiar/${user.username}`)}>
+          onPress={() => {
+            // Já autorizado: abre para alterar ou cancelar
+            if (consentFor(user.id)) return router.push(`/apoiar/${user.username}`);
+            // Perfil de compartilhamento escolhido antes (cadastro/Configurações): 1 toque
+            const sp = settings.shareProfile;
+            if (sp?.fields.length) {
+              const err = giveConsent(user.id, { ...sp, email: sp.email ?? settings.email, whatsapp: sp.whatsapp ?? settings.phone });
+              if (!err) return showBanner(`Pronto! Você vai receber novidades de ${user.name}. Toque de novo para alterar ou cancelar.`, { icon: 'notifications', tone: 'success' });
+            }
+            // Sem perfil definido (ou faltou algum contato): abre o formulário
+            router.push(`/apoiar/${user.username}`);
+          }}>
           <Ionicons
             name={consentFor(user.id) ? 'notifications' : 'notifications-outline'}
             size={16}

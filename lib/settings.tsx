@@ -9,6 +9,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
+import type { ShareField } from './types';
+
 export type ThemeMode = 'system' | 'light' | 'dark';
 export type Audience = 'todos' | 'seguidores' | 'ninguem';
 export type Language = 'pt-BR' | 'en' | 'es';
@@ -27,6 +29,11 @@ export type NotificationPrefs = {
 
 export type Device = { id: string; name: string; where: string; lastActiveAt: number; icon: 'phone-portrait-outline' | 'desktop-outline' | 'globe-outline' };
 export type Report = { id: string; text: string; createdAt: number };
+/**
+ * O que o usuário escolheu compartilhar ao tocar em "Quero receber novidades" (opcional).
+ * Com isso definido, autorizar um político é 1 toque, sem formulário.
+ */
+export type ShareProfile = { fields: ShareField[]; email?: string; whatsapp?: string; interests: string[] };
 
 export type DeviceSettings = {
   themeMode: ThemeMode;
@@ -64,6 +71,9 @@ export type AccountSettings = {
   email: string;
   verification: { status: 'nenhuma' | 'em_analise'; requestedAt?: number; office?: string };
   reports: Report[];
+  shareProfile?: ShareProfile;
+  /** quando aceitou os termos e confirmou ter 18+ */
+  termsAcceptedAt?: number;
 };
 
 export type Settings = DeviceSettings & AccountSettings;

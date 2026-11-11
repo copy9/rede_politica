@@ -4,7 +4,7 @@
 // Tudo é AGREGADO (percentuais e totais): nenhum dado individual sai daqui.
 import type { Post, Supporter, User } from './types';
 
-export const AGE_RANGES = ['16-17', '18-24', '25-34', '35-44', '45-59', '60+'] as const;
+export const AGE_RANGES = ['18-24', '25-34', '35-44', '45-59', '60+'] as const;
 export type AgeRange = (typeof AGE_RANGES)[number];
 
 export const INTERESTS = [
@@ -22,7 +22,6 @@ export const INTERESTS = [
 
 export function ageRangeOf(birthYear: number, now = new Date()): AgeRange {
   const age = now.getFullYear() - birthYear;
-  if (age < 18) return '16-17';
   if (age < 25) return '18-24';
   if (age < 35) return '25-34';
   if (age < 45) return '35-44';
@@ -169,7 +168,7 @@ export function buildDashboard(politician: User, posts: Post[], supporters: numb
   const gender = { F: Math.round(f * 10) / 10, O: Math.round(o * 10) / 10, M: Math.round((100 - f - o) * 10) / 10 };
 
   // Faixa etária x gênero (percentual do público total)
-  const ageWeights = [0.4, 4, 12, 22, 33, 28].map((w) => w * (0.8 + base() * 0.4));
+  const ageWeights = [4, 12, 22, 33, 28].map((w) => w * (0.8 + base() * 0.4));
   const agePct = toPercents(ageWeights);
   const age = AGE_RANGES.map((range, i) => {
     const fShare = gender.F / (gender.F + gender.M);
@@ -275,7 +274,7 @@ export function demoSupporters(politician: User, count = 40): Supporter[] {
       username: showName ? `${slug}${Math.floor(r() * 90 + 10)}` : undefined,
       city: r() > 0.15 ? (r() < 0.55 ? (politician.city ?? cityList[0]) : pick(cityList)) : undefined,
       state: state,
-      ageRange: r() > 0.25 ? pick(AGE_RANGES.slice(1)) : undefined,
+      ageRange: r() > 0.25 ? pick(AGE_RANGES) : undefined,
       interests,
       whatsapp: wantsWhats ? `(${ddd}) 9${Math.floor(1000 + r() * 8999)}-${Math.floor(1000 + r() * 8999)}` : undefined,
       email: wantsEmail ? `${slug}@exemplo.com` : undefined,

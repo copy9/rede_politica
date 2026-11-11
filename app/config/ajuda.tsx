@@ -19,7 +19,7 @@ const FAQ = [
   },
   {
     q: 'Como cancelo uma autorização?',
-    a: 'Em Configurações › Minhas autorizações a políticos. O político deixa de ver seus dados na hora.',
+    a: 'Em Configurações › Autorizações da plataforma. O político deixa de ver seus dados na hora.',
   },
   {
     q: 'Como funcionam as batalhas?',

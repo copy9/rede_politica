@@ -1,12 +1,14 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Field } from '@/components/Field';
 import { Logo } from '@/components/Logo';
+import { INTERESTS } from '@/lib/analytics';
 import { useApp } from '@/lib/store';
+import type { ShareField } from '@/lib/types';
 import { colors, spacing, themed } from '@/lib/theme';
 
 export default function SignUpScreen() {
@@ -20,9 +22,41 @@ export default function SignUpScreen() {
   const [party, setParty] = useState('');
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
+  const [birthDate, setBirthDate] = useState('');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  // opcional: receber novidades de políticos (escolhido uma vez aqui)
+  const [wantsUpdates, setWantsUpdates] = useState(false);
+  const [shareFields, setShareFields] = useState<ShareField[]>(['nome', 'cidade', 'interesses']);
+  const [whatsapp, setWhatsapp] = useState('');
+  const [interests, setInterests] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const submit = () => setError(signUp({ email, name, username, password, accountType, role, party, city, state }));
+  const toggleField = (f: ShareField) => setShareFields((prev) => (prev.includes(f) ? prev.filter((x) => x !== f) : [...prev, f]));
+  const toggleInterest = (i: string) => setInterests((prev) => (prev.includes(i) ? prev.filter((x) => x !== i) : [...prev, i]));
+
+  // 31121990 -> 31/12/1990 enquanto digita
+  const onBirthDate = (v: string) => {
+    const d = v.replace(/\D/g, '').slice(0, 8);
+    setBirthDate([d.slice(0, 2), d.slice(2, 4), d.slice(4, 8)].filter(Boolean).join('/'));
+  };
+
+  const submit = () =>
+    setError(
+      signUp({
+        email,
+        name,
+        username,
+        password,
+        accountType,
+        role,
+        party,
+        city,
+        state,
+        birthDate,
+        acceptedTerms,
+        shareProfile: wantsUpdates && shareFields.length ? { fields: shareFields, whatsapp, interests } : undefined,
+      }),
+    );
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -55,23 +89,82 @@ export default function SignUpScreen() {
             <Field placeholder="Nome completo" value={name} onChangeText={setName} autoCapitalize="words" />
             <Field placeholder="Nome de usuário" value={username} onChangeText={setUsername} autoCorrect={false} />
             <Field placeholder="Senha (mín. 6 caracteres)" value={password} onChangeText={setPassword} secureTextEntry />
+            <Field placeholder="Data de nascimento (DD/MM/AAAA)" value={birthDate} onChangeText={onBirthDate} keyboardType="number-pad" maxLength={10} />
             {accountType === 'politico' ? (
               <>
                 <Field placeholder="Cargo ou pretensão (ex.: Vereador, Pré-candidata a prefeita)" value={role} onChangeText={setRole} autoCapitalize="sentences" />
                 <Field placeholder="Partido (opcional)" value={party} onChangeText={setParty} autoCapitalize="characters" />
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <Field placeholder="Cidade" value={city} onChangeText={setCity} autoCapitalize="words" style={{ flex: 1 }} />
-                  <Field placeholder="UF" value={state} onChangeText={setState} autoCapitalize="characters" maxLength={2} style={{ width: 70 }} />
-                </View>
               </>
+            ) : null}
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <Field placeholder={accountType === 'politico' ? 'Cidade' : 'Cidade (opcional)'} value={city} onChangeText={setCity} autoCapitalize="words" style={{ flex: 1 }} />
+              <Field placeholder="UF" value={state} onChangeText={setState} autoCapitalize="characters" maxLength={2} style={{ width: 70 }} />
+            </View>
+
+            {/* Obrigatório: idade e termos */}
+            <Pressable style={styles.check} onPress={() => setAcceptedTerms((v) => !v)}>
+              <Ionicons name={acceptedTerms ? 'checkbox' : 'square-outline'} size={22} color={acceptedTerms ? colors.primary : colors.textMuted} />
+              <Text style={styles.checkText}>
+                Tenho 18 anos ou mais e aceito os{' '}
+                <Text style={styles.link} onPress={() => router.push('/termos')}>
+                  Termos de uso e a Política de Privacidade
+                </Text>
+                .
+              </Text>
+            </Pressable>
+
+            {/* Opcional e separado: novidades de políticos */}
+            {accountType === 'cidadao' ? (
+              <View style={[styles.optin, wantsUpdates && styles.optinOn]}>
+                <Text style={styles.optinHeader}>Autorizações da plataforma</Text>
+                <Pressable style={styles.check} onPress={() => setWantsUpdates((v) => !v)}>
+                  <Ionicons name={wantsUpdates ? 'checkbox' : 'square-outline'} size={22} color={wantsUpdates ? colors.primary : colors.textMuted} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.checkTitle}>Quero receber novidades de políticos (opcional)</Text>
+                    <Text style={styles.checkHint}>
+                      Escolha uma vez o que compartilhar. Depois, no perfil de cada político, basta um toque em “Quero receber
+                      novidades”. Nada é enviado a ninguém até você tocar nesse botão.
+                    </Text>
+                  </View>
+                </Pressable>
+                {wantsUpdates ? (
+                  <>
+                    <View style={styles.chips}>
+                      {(
+                        [
+                          ['nome', 'Nome'],
+                          ['cidade', 'Cidade'],
+                          ['faixaEtaria', 'Faixa etária'],
+                          ['interesses', 'Interesses'],
+                          ['whatsapp', 'WhatsApp'],
+                          ['email', 'E-mail'],
+                        ] as [ShareField, string][]
+                      ).map(([f, label]) => (
+                        <Pressable key={f} onPress={() => toggleField(f)} style={[styles.chip, shareFields.includes(f) && styles.chipOn]}>
+                          <Text style={[styles.chipText, shareFields.includes(f) && styles.chipTextOn]}>{label}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                    {shareFields.includes('whatsapp') ? (
+                      <Field placeholder="WhatsApp com DDD" value={whatsapp} onChangeText={setWhatsapp} keyboardType="phone-pad" />
+                    ) : null}
+                    {shareFields.includes('interesses') ? (
+                      <View style={styles.chips}>
+                        {INTERESTS.map((i) => (
+                          <Pressable key={i} onPress={() => toggleInterest(i)} style={[styles.chip, interests.includes(i) && styles.chipOn]}>
+                            <Text style={[styles.chipText, interests.includes(i) && styles.chipTextOn]}>{i}</Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    ) : null}
+                  </>
+                ) : null}
+              </View>
             ) : null}
             {error ? <Text style={styles.error}>{error}</Text> : null}
             <Pressable style={styles.button} onPress={submit}>
               <Text style={styles.buttonText}>Cadastrar</Text>
             </Pressable>
-            <Text style={styles.terms}>
-              Ao se cadastrar, você concorda com os Termos de Uso e a Política de Privacidade.
-            </Text>
           </View>
 
           <Text style={styles.footerText}>
@@ -109,6 +202,19 @@ function TypeCard({
 }
 
 const styles = themed(() => StyleSheet.create({
+  check: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  checkText: { flex: 1, color: colors.text, fontSize: 13, lineHeight: 19 },
+  checkTitle: { color: colors.text, fontWeight: '700', fontSize: 14 },
+  checkHint: { color: colors.textMuted, fontSize: 12, lineHeight: 17, marginTop: 2 },
+  link: { color: colors.primary, fontWeight: '700' },
+  optin: { borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 12, gap: 10 },
+  optinHeader: { color: colors.textMuted, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  optinOn: { borderColor: colors.primary, backgroundColor: colors.infoBg },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  chip: { borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: colors.background },
+  chipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipText: { color: colors.text, fontSize: 13 },
+  chipTextOn: { color: colors.white, fontWeight: '600' },
   label: { fontWeight: '700', color: colors.text },
   types: { flexDirection: 'row', gap: 8 },
   type: { flex: 1, borderWidth: 1.5, borderColor: colors.border, borderRadius: 12, padding: 12, gap: 4 },

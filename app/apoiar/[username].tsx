@@ -25,7 +25,8 @@ export default function SupportScreen() {
   const me = useMe();
   const { getUserByUsername, consentFor, giveConsent, revokeConsent } = useApp();
   const politician = getUserByUsername(username);
-  const { settings } = useSettings();
+  const { settings, update } = useSettings();
+  const [remember, setRemember] = useState(!settings.shareProfile);
   const existing = politician ? consentFor(politician.id) : undefined;
 
   const [fields, setFields] = useState<ShareField[]>(existing?.fields ?? ['nome', 'cidade', 'interesses']);
@@ -46,6 +47,7 @@ export default function SupportScreen() {
     if (!agree) return setError('Para continuar, marque que você autoriza o contato.');
     const err = giveConsent(politician.id, { fields, email, whatsapp, interests });
     if (err) return setError(err);
+    if (remember) update({ shareProfile: { fields, email, whatsapp, interests } });
     router.back();
   };
 
@@ -116,11 +118,17 @@ export default function SupportScreen() {
           <Ionicons name={agree ? 'checkbox' : 'square-outline'} size={22} color={agree ? colors.primary : colors.textMuted} />
           <Text style={styles.agreeText}>
             Autorizo {politician.name} a usar as informações acima para me enviar notícias, convites e comunicados do seu
-            mandato ou campanha. Sei que posso cancelar a qualquer momento em Configurações › Minhas autorizações, e que os
+            mandato ou campanha. Sei que posso cancelar a qualquer momento em Configurações › Autorizações da plataforma, e que os
             dados não podem ser repassados a terceiros.
           </Text>
         </Pressable>
 
+        {!existing ? (
+          <Pressable style={styles.agree} onPress={() => setRemember((v) => !v)}>
+            <Ionicons name={remember ? 'checkbox' : 'square-outline'} size={22} color={remember ? colors.primary : colors.textMuted} />
+            <Text style={styles.agreeText}>Usar estas escolhas nos próximos políticos (aí basta 1 toque, sem este formulário)</Text>
+          </Pressable>
+        ) : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <Pressable style={styles.primary} onPress={submit}>

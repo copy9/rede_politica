@@ -131,7 +131,7 @@ function RootNavigator() {
         <Stack.Screen name="settings" options={{ title: t('Configurações') }} />
         <Stack.Screen name="painel" options={{ title: t('Painel do político') }} />
         <Stack.Screen name="apoiar/[username]" options={{ title: t('Receber novidades'), presentation: 'modal' }} />
-        <Stack.Screen name="autorizacoes" options={{ title: t('Minhas autorizações') }} />
+        <Stack.Screen name="autorizacoes" options={{ title: t('Autorizações da plataforma') }} />
         <Stack.Screen name="salvos" options={{ title: t('Salvos') }} />
         <Stack.Screen name="atividade" options={{ title: t('Sua atividade') }} />
         <Stack.Screen name="config/aparencia" options={{ title: t('Aparência') }} />
@@ -149,6 +149,8 @@ function RootNavigator() {
         <Stack.Screen name="battle/new" options={{ title: t('Nova batalha'), presentation: 'modal' }} />
         <Stack.Screen name="battle/[id]" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
       </Stack.Protected>
+      {/* Termos: abre com ou sem login */}
+      <Stack.Screen name="termos" options={{ title: t('Termos e Privacidade') }} />
       <Stack.Screen name="+not-found" options={{ title: t('Página não encontrada') }} />
     </Stack>
   );

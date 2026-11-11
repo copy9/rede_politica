@@ -237,7 +237,7 @@ export default function PainelScreen() {
                 />
               </Card>
 
-              <Card title="Faixa etária" info="Inclui eleitores de 16 e 17 anos (voto facultativo)">
+              <Card title="Faixa etária" info="A rede é só para maiores de 18 anos">
                 <SplitBarList rows={d.age.map((a) => ({ label: a.range, a: a.F, b: a.M }))} names={['Mulheres', 'Homens']} />
               </Card>
 

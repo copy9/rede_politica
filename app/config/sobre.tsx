@@ -4,21 +4,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Logo } from '@/components/Logo';
 import { SettingsScreen } from '@/components/SettingsUI';
+import { PRIVACY, TERMS } from '@/lib/legal';
 import { colors, spacing, themed } from '@/lib/theme';
-
-const TERMS = [
-  ['Respeito', 'Debata ideias, não ataque pessoas. Ameaças, discurso de ódio e assédio levam à suspensão da conta.'],
-  ['Informação verdadeira', 'Não publique conteúdo falso sobre eleições, candidatos ou o processo de votação. Conteúdos denunciados podem ser removidos.'],
-  ['Contas políticas', 'Devem representar a pessoa real. Propaganda eleitoral segue as regras e os prazos da Justiça Eleitoral.'],
-  ['Dados de apoiadores', 'Só podem ser usados para a finalidade autorizada pelo cidadão. É proibido vender, ceder ou repassar a terceiros.'],
-];
-
-const PRIVACY = [
-  ['O que coletamos', 'Dados do seu perfil, o que você publica e como usa o app. Cidade, gênero, nascimento e interesses são opcionais.'],
-  ['Estatísticas', 'Políticos veem apenas números agregados e anônimos do público deles.'],
-  ['Consentimento', 'Seu nome e contato só são compartilhados com um político se você autorizar, e você pode cancelar quando quiser.'],
-  ['Seus direitos (LGPD)', 'Você pode pedir cópia, correção ou exclusão dos seus dados em Configurações › Informações pessoais.'],
-];
 
 export default function AboutScreen() {
   const params = useLocalSearchParams<{ tab?: string }>();

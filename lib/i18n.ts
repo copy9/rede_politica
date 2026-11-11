@@ -8,6 +8,8 @@ import { useSettings, type Language } from './settings';
 type Dict = Record<string, string>;
 
 const en: Dict = {
+  'Autorizações da plataforma': 'Platform permissions',
+  'Termos e Privacidade': 'Terms and Privacy',
   'Modo escuro': 'Dark mode',
   'Seguindo o celular. Mais opções em Aparência.': 'Following your phone. More options in Appearance.',
   // Configurações (página principal)
@@ -93,6 +95,8 @@ const en: Dict = {
 };
 
 const es: Dict = {
+  'Autorizações da plataforma': 'Autorizaciones de la plataforma',
+  'Termos e Privacidade': 'Términos y Privacidad',
   'Modo escuro': 'Modo oscuro',
   'Seguindo o celular. Mais opções em Aparência.': 'Siguiendo el teléfono. Más opciones en Apariencia.',
   Configurações: 'Configuración',

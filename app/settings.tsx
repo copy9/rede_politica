@@ -70,7 +70,7 @@ export default function SettingsHome() {
         { icon: 'lock-closed-outline', label: 'Privacidade da conta', value: settings.privateAccount ? t('Privada') : t('Pública'), onPress: go('/config/privacidade') },
         { icon: 'star-outline', label: 'Melhores amigos', value: settings.closeFriendIds.length ? String(settings.closeFriendIds.length) : undefined, onPress: go('/config/melhores-amigos') },
         { icon: 'remove-circle-outline', label: 'Bloqueados e silenciados', value: String(settings.blockedIds.length + settings.mutedIds.length), onPress: go('/config/bloqueados') },
-        { icon: 'shield-half-outline', label: 'Minhas autorizações a políticos', value: myConsents ? String(myConsents) : undefined, onPress: go('/autorizacoes') },
+        { icon: 'shield-half-outline', label: 'Autorizações da plataforma', value: myConsents ? String(myConsents) : undefined, onPress: go('/autorizacoes') },
       ],
     },
     {
