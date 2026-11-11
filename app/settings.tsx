@@ -3,11 +3,11 @@ import { useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useOverlay } from '@/components/Overlay';
-import { NavRow, Section, SettingsScreen, audienceLabel } from '@/components/SettingsUI';
+import { NavRow, Section, SettingsScreen, ToggleRow, audienceLabel } from '@/components/SettingsUI';
 import { useT } from '@/lib/i18n';
 import { useSettings } from '@/lib/settings';
 import { useApp, useMe } from '@/lib/store';
-import { colors, spacing, themed } from '@/lib/theme';
+import { colors, getScheme, spacing, themed } from '@/lib/theme';
 
 const THEME_LABEL = { system: 'Automático', light: 'Claro', dark: 'Escuro' };
 const LANG_LABEL = { 'pt-BR': 'Português', en: 'English', es: 'Español' };
@@ -15,7 +15,7 @@ const LANG_LABEL = { 'pt-BR': 'Português', en: 'English', es: 'Español' };
 export default function SettingsHome() {
   const me = useMe();
   const { signOut, updateProfile, consents } = useApp();
-  const { settings } = useSettings();
+  const { settings, update } = useSettings();
   const [query, setQuery] = useState('');
   const t = useT();
   const political = me.accountType === 'politico';
@@ -111,6 +111,17 @@ export default function SettingsHome() {
           style={styles.search}
         />
       </View>
+      {show('Modo escuro') ? (
+        <Section>
+          <ToggleRow
+            icon="moon-outline"
+            label={t('Modo escuro')}
+            description={settings.themeMode === 'system' ? t('Seguindo o celular. Mais opções em Aparência.') : undefined}
+            value={getScheme() === 'dark'}
+            onChange={(on) => update({ themeMode: on ? 'dark' : 'light' })}
+          />
+        </Section>
+      ) : null}
       {sections.map((section) => {
         const rows = section.rows.filter((r) => show(r.label));
         if (!rows.length) return null;

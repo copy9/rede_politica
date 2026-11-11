@@ -5,16 +5,25 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ProfileView } from '@/components/ProfileView';
 import { UserName } from '@/components/UserName';
+import { useSettings } from '@/lib/settings';
 import { useMe } from '@/lib/store';
-import { colors, spacing, themed } from '@/lib/theme';
+import { colors, getScheme, spacing, themed } from '@/lib/theme';
 
 export default function MyProfileScreen() {
   const me = useMe();
+  const { update } = useSettings();
+  const dark = getScheme() === 'dark';
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
         <UserName user={me} size={20} />
         <View style={styles.icons}>
+          <Pressable
+            onPress={() => update({ themeMode: dark ? 'light' : 'dark' })}
+            hitSlop={8}
+            accessibilityLabel={dark ? 'Mudar para modo claro' : 'Mudar para modo escuro'}>
+            <Ionicons name={dark ? 'sunny-outline' : 'moon-outline'} size={25} color={colors.text} />
+          </Pressable>
           <Pressable onPress={() => router.navigate('/create')} hitSlop={8}>
             <Ionicons name="add-circle-outline" size={27} color={colors.text} />
           </Pressable>
