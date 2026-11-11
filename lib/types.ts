@@ -1,5 +1,10 @@
+/** cidadão = usuário normal; politico = candidatos e políticos (têm o Painel do político) */
+export type AccountType = 'cidadao' | 'politico';
+export type Gender = 'F' | 'M' | 'O';
+
 export type User = {
   id: string;
+  accountType: AccountType;
   username: string;
   name: string;
   avatar: string;
@@ -9,6 +14,12 @@ export type User = {
   party?: string;
   website?: string;
   verified?: boolean;
+  /** Dados declarados pelo próprio usuário (usados só em estatísticas agregadas) */
+  city?: string;
+  state?: string;
+  gender?: Gender;
+  birthYear?: number;
+  interests?: string[];
 };
 
 export type MediaType = 'image' | 'video';
@@ -101,4 +112,39 @@ export type BattleMessage = {
   /** Quando a mensagem é um apoio: lado e pontos */
   support?: { side: BattleSide; points: number };
   createdAt: number;
+};
+
+/** Campos que o eleitor pode escolher compartilhar com um político */
+export type ShareField = 'nome' | 'cidade' | 'faixaEtaria' | 'interesses' | 'email' | 'whatsapp';
+
+/**
+ * Autorização (consentimento LGPD) de um usuário para um político:
+ * só quem autoriza entra no banco de apoiadores, e pode revogar quando quiser.
+ */
+export type SupporterConsent = {
+  id: string;
+  politicianId: string;
+  userId: string;
+  fields: ShareField[];
+  email?: string;
+  whatsapp?: string;
+  interests: string[];
+  createdAt: number;
+};
+
+/** Apoiador como o político enxerga (só com os campos autorizados) */
+export type Supporter = {
+  consentId: string;
+  userId?: string;
+  name?: string;
+  username?: string;
+  avatar?: string;
+  city?: string;
+  state?: string;
+  ageRange?: string;
+  interests: string[];
+  email?: string;
+  whatsapp?: string;
+  createdAt: number;
+  demo?: boolean;
 };

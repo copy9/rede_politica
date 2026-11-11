@@ -70,6 +70,9 @@ function RootNavigator() {
           options={{ headerShown: false, presentation: 'fullScreenModal', animation: 'fade' }}
         />
         <Stack.Screen name="settings" options={{ title: 'Configurações' }} />
+        <Stack.Screen name="painel" options={{ title: 'Painel do político' }} />
+        <Stack.Screen name="apoiar/[username]" options={{ title: 'Receber novidades', presentation: 'modal' }} />
+        <Stack.Screen name="autorizacoes" options={{ title: 'Minhas autorizações' }} />
         <Stack.Screen name="battle/new" options={{ title: 'Nova batalha', presentation: 'modal' }} />
         <Stack.Screen name="battle/[id]" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
       </Stack.Protected>

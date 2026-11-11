@@ -1,5 +1,17 @@
 // Dados fictícios de demonstração. Serão substituídos pelo Supabase.
-import type { AppNotification, BattleMessage, Comment, Conversation, Follow, LiveBattle, Message, Post, Story, User } from './types';
+import type {
+  AppNotification,
+  BattleMessage,
+  Comment,
+  Conversation,
+  Follow,
+  LiveBattle,
+  Message,
+  Post,
+  Story,
+  SupporterConsent,
+  User,
+} from './types';
 
 const now = Date.now();
 const min = 60 * 1000;
@@ -16,6 +28,12 @@ export const DEMO_USER_ID = 'u_demo';
 export const mockUsers: User[] = [
   {
     id: DEMO_USER_ID,
+    accountType: 'cidadao',
+    city: 'Recife',
+    state: 'PE',
+    gender: 'M',
+    birthYear: 1990,
+    interests: ['Mobilidade', 'Segurança'],
     username: 'voce.demo',
     name: 'Você (demo)',
     avatar: avatar(12),
@@ -24,6 +42,10 @@ export const mockUsers: User[] = [
   },
   {
     id: 'u_ana',
+    accountType: 'politico',
+    city: 'Recife',
+    state: 'PE',
+    gender: 'F',
     username: 'ana.ribeiro.ver',
     name: 'Ana Ribeiro',
     avatar: avatar(47),
@@ -35,6 +57,10 @@ export const mockUsers: User[] = [
   },
   {
     id: 'u_carlos',
+    accountType: 'politico',
+    city: 'Salvador',
+    state: 'BA',
+    gender: 'M',
     username: 'carlosmendes.dep',
     name: 'Carlos Mendes',
     avatar: avatar(59),
@@ -45,6 +71,12 @@ export const mockUsers: User[] = [
   },
   {
     id: 'u_julia',
+    accountType: 'cidadao',
+    city: 'Olinda',
+    state: 'PE',
+    gender: 'F',
+    birthYear: 1994,
+    interests: ['Orçamento', 'Educação'],
     username: 'julia.observa',
     name: 'Júlia Santos',
     avatar: avatar(32),
@@ -53,6 +85,12 @@ export const mockUsers: User[] = [
   },
   {
     id: 'u_rafa',
+    accountType: 'cidadao',
+    city: 'Recife',
+    state: 'PE',
+    gender: 'M',
+    birthYear: 2001,
+    interests: ['Cultura', 'Emprego'],
     username: 'rafa.movimento',
     name: 'Rafael Lima',
     avatar: avatar(8),
@@ -61,6 +99,10 @@ export const mockUsers: User[] = [
   },
   {
     id: 'u_marta',
+    accountType: 'politico',
+    city: 'Recife',
+    state: 'PE',
+    gender: 'F',
     username: 'marta.prefeita',
     name: 'Marta Oliveira',
     avatar: avatar(44),
@@ -71,6 +113,10 @@ export const mockUsers: User[] = [
   },
   {
     id: 'u_obs',
+    accountType: 'cidadao',
+    city: 'Recife',
+    state: 'PE',
+    interests: ['Orçamento'],
     username: 'observatorio.civico',
     name: 'Observatório Cívico',
     avatar: avatar(68),
@@ -277,4 +323,28 @@ export const mockBattleMessages: BattleMessage[] = [
   { id: 'bm1', battleId: 'b1', userId: 'u_julia', text: 'Quero ver os números do custo!', createdAt: now - 90 * 1000 },
   { id: 'bm2', battleId: 'b1', userId: 'u_rafa', text: 'apoiou Ana Ribeiro', support: { side: 'host', points: 20 }, createdAt: now - 60 * 1000 },
   { id: 'bm3', battleId: 'b1', userId: 'u_obs', text: 'Boa pergunta do deputado.', createdAt: now - 30 * 1000 },
+];
+
+export const DEMO_POLITICIAN_USERNAME = 'ana.ribeiro.ver';
+
+/** Autorizações de usuários da rede (consentimento para receber novidades do político) */
+export const mockConsents: SupporterConsent[] = [
+  {
+    id: 'cs1',
+    politicianId: 'u_ana',
+    userId: 'u_rafa',
+    fields: ['nome', 'cidade', 'faixaEtaria', 'interesses', 'whatsapp'],
+    whatsapp: '(81) 98888-1234',
+    interests: ['Cultura', 'Emprego'],
+    createdAt: now - 3 * d,
+  },
+  {
+    id: 'cs2',
+    politicianId: 'u_ana',
+    userId: 'u_julia',
+    fields: ['nome', 'cidade', 'interesses', 'email'],
+    email: 'julia.santos@exemplo.com',
+    interests: ['Orçamento', 'Educação'],
+    createdAt: now - 9 * d,
+  },
 ];

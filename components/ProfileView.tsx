@@ -15,7 +15,7 @@ type Tab = 'posts' | 'videos' | 'saved';
 
 export function ProfileView({ user }: { user: User }) {
   const me = useMe();
-  const { postsBy, posts, followersOf, followingOf, storyUsers, openConversationWith } = useApp();
+  const { postsBy, posts, followersOf, followingOf, storyUsers, openConversationWith, consentFor, supportersFor } = useApp();
   const [tab, setTab] = useState<Tab>('posts');
   const isMe = user.id === me.id;
 
@@ -63,6 +63,14 @@ export function ProfileView({ user }: { user: User }) {
         {user.role || user.party ? (
           <Text style={styles.role}>{[user.role, user.party].filter(Boolean).join(' • ')}</Text>
         ) : null}
+        {user.accountType === 'politico' ? (
+          <View style={styles.politicalBadge}>
+            <Ionicons name="business-outline" size={12} color={colors.primaryDark} />
+            <Text style={styles.politicalText}>
+              Conta política{user.city ? ` · ${user.city}${user.state ? `/${user.state}` : ''}` : ''}
+            </Text>
+          </View>
+        ) : null}
         {user.bio ? <Text style={styles.bioText}>{user.bio}</Text> : null}
         {user.website ? (
           <Text style={styles.link} onPress={() => Linking.openURL(`https://${user.website}`).catch(() => {})}>
@@ -70,6 +78,19 @@ export function ProfileView({ user }: { user: User }) {
           </Text>
         ) : null}
       </View>
+
+      {isMe && user.accountType === 'politico' ? (
+        <Pressable style={styles.panelCard} onPress={() => router.push('/painel')}>
+          <Ionicons name="bar-chart" size={20} color={colors.primary} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.panelTitle}>Painel do político</Text>
+            <Text style={styles.panelSub}>
+              Público, desempenho e {supportersFor(user.id).length + 40} apoiadores cadastrados
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+        </Pressable>
+      ) : null}
 
       <View style={styles.buttons}>
         {isMe ? (
@@ -86,6 +107,20 @@ export function ProfileView({ user }: { user: User }) {
           </>
         )}
       </View>
+      {!isMe && user.accountType === 'politico' ? (
+        <Pressable
+          style={[styles.supportBtn, consentFor(user.id) && styles.supportBtnOn]}
+          onPress={() => router.push(`/apoiar/${user.username}`)}>
+          <Ionicons
+            name={consentFor(user.id) ? 'notifications' : 'notifications-outline'}
+            size={16}
+            color={consentFor(user.id) ? colors.primaryDark : colors.white}
+          />
+          <Text style={[styles.supportText, consentFor(user.id) && { color: colors.primaryDark }]}>
+            {consentFor(user.id) ? 'Você recebe novidades · alterar' : 'Quero receber novidades'}
+          </Text>
+        </Pressable>
+      ) : null}
 
       <View style={styles.tabs}>
         <TabIcon icon="grid" active={tab === 'posts'} onPress={() => setTab('posts')} />
@@ -139,6 +174,14 @@ const styles = StyleSheet.create({
   bioText: { color: colors.text, lineHeight: 19 },
   link: { color: colors.primaryDark, fontWeight: '600' },
   buttons: { flexDirection: 'row', gap: spacing.sm, padding: spacing.lg },
+  politicalBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', backgroundColor: '#EFF6FF', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginVertical: 2 },
+  politicalText: { color: colors.primaryDark, fontSize: 12, fontWeight: '600' },
+  panelCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginHorizontal: spacing.lg, marginTop: spacing.md, padding: spacing.md, borderRadius: 12, backgroundColor: colors.surface },
+  panelTitle: { fontWeight: '700', color: colors.text },
+  panelSub: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
+  supportBtn: { flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', marginHorizontal: spacing.lg, marginTop: -spacing.sm, marginBottom: spacing.md, paddingVertical: 9, borderRadius: 8, backgroundColor: colors.primaryDark },
+  supportBtnOn: { backgroundColor: '#DBEAFE' },
+  supportText: { color: colors.white, fontWeight: '700' },
   tabs: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
   tab: { flex: 1, alignItems: 'center', paddingVertical: spacing.md },
   tabActive: { borderBottomWidth: 1.5, borderBottomColor: colors.text },

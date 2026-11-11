@@ -11,6 +11,7 @@ import {
   mockComments,
   mockConversations,
   mockFollows,
+  mockConsents,
   mockMessages,
   mockNotifications,
   mockPosts,
@@ -28,12 +29,44 @@ import type {
   MediaType,
   Message,
   Post,
+  ShareField,
   Story,
+  Supporter,
+  SupporterConsent,
   User,
 } from './types';
+import { ageRangeOf } from './analytics';
 
-type SignUpInput = { name: string; username: string; email: string; password: string };
-type ProfileUpdate = Partial<Pick<User, 'name' | 'username' | 'bio' | 'role' | 'party' | 'website' | 'avatar'>>;
+type SignUpInput = {
+  name: string;
+  username: string;
+  email: string;
+  password: string;
+  accountType?: User['accountType'];
+  role?: string;
+  party?: string;
+  city?: string;
+  state?: string;
+};
+type ConsentInput = { fields: ShareField[]; email?: string; whatsapp?: string; interests: string[] };
+type ProfileUpdate = Partial<
+  Pick<
+    User,
+    | 'name'
+    | 'username'
+    | 'bio'
+    | 'role'
+    | 'party'
+    | 'website'
+    | 'avatar'
+    | 'accountType'
+    | 'city'
+    | 'state'
+    | 'gender'
+    | 'birthYear'
+    | 'interests'
+  >
+>;
 
 type AppState = {
   me: User | null;
@@ -90,6 +123,14 @@ type AppState = {
   setBattleViewers: (battleId: string, viewers: number) => void;
   startBattle: (battleId: string) => void;
   endBattle: (battleId: string) => void;
+
+  // apoiadores (consentimento LGPD)
+  consents: SupporterConsent[];
+  consentFor: (politicianId: string) => SupporterConsent | undefined;
+  giveConsent: (politicianId: string, input: ConsentInput) => string | null;
+  revokeConsent: (consentId: string) => void;
+  /** Apoiadores do político, mostrando só os campos que cada um autorizou */
+  supportersFor: (politicianId: string) => Supporter[];
 };
 
 const AppContext = createContext<AppState | null>(null);
@@ -106,6 +147,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [messages, setMessages] = useState<Message[]>(mockMessages);
   const [battles, setBattles] = useState<LiveBattle[]>(mockBattles);
   const [battleMessages, setBattleMessages] = useState<BattleMessage[]>(mockBattleMessages);
+  const [consents, setConsents] = useState<SupporterConsent[]>(mockConsents);
 
   const me = useMemo(() => users.find((u) => u.id === meId) ?? null, [users, meId]);
 
@@ -131,19 +173,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signUp = useCallback(
-    ({ name, username, email, password }: SignUpInput) => {
+    ({ name, username, email, password, accountType = 'cidadao', role, party, city, state }: SignUpInput) => {
       const clean = username.trim().replace(/^@/, '').toLowerCase();
       if (!name.trim() || !clean || !email.trim() || !password) return 'Preencha todos os campos.';
       if (!/^[a-z0-9._]{3,30}$/.test(clean)) return 'O usuário deve ter 3 a 30 letras, números, ponto ou _.';
       if (password.length < 6) return 'A senha precisa de pelo menos 6 caracteres.';
       if (users.some((u) => u.username === clean)) return 'Esse nome de usuário já está em uso.';
+      if (accountType === 'politico' && (!role?.trim() || !city?.trim() || !state?.trim()))
+        return 'Para conta política, informe cargo/pretensão, cidade e UF.';
       const user: User = {
         id: newId('u'),
+        accountType,
         username: clean,
         name: name.trim(),
         avatar: `https://i.pravatar.cc/300?u=${encodeURIComponent(clean)}`,
         bio: '',
-        role: 'Cidadão',
+        role: accountType === 'politico' ? role!.trim() : 'Cidadão',
+        party: party?.trim() || undefined,
+        city: city?.trim() || undefined,
+        state: state?.trim().toUpperCase() || undefined,
       };
       setUsers((prev) => [...prev, user]);
       setMeId(user.id);
@@ -457,6 +505,65 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setBattles((prev) => prev.map((b) => (b.id === battleId && b.status === 'live' ? { ...b, status: 'ended' } : b)));
   }, []);
 
+  const consentFor = useCallback(
+    (politicianId: string) => consents.find((c) => c.politicianId === politicianId && c.userId === meId),
+    [consents, meId],
+  );
+
+  const giveConsent = useCallback(
+    (politicianId: string, { fields, email, whatsapp, interests }: ConsentInput) => {
+      if (!meId || politicianId === meId) return 'Não é possível.';
+      if (!fields.length) return 'Escolha pelo menos uma informação para compartilhar.';
+      if (fields.includes('email') && !/^\S+@\S+\.\S+$/.test(email ?? '')) return 'Informe um e-mail válido.';
+      if (fields.includes('whatsapp') && (whatsapp ?? '').replace(/\D/g, '').length < 10)
+        return 'Informe um WhatsApp válido, com DDD.';
+      const consent: SupporterConsent = {
+        id: newId('cs'),
+        politicianId,
+        userId: meId,
+        fields,
+        email: fields.includes('email') ? email?.trim() : undefined,
+        whatsapp: fields.includes('whatsapp') ? whatsapp?.trim() : undefined,
+        interests: fields.includes('interesses') ? interests : [],
+        createdAt: Date.now(),
+      };
+      setConsents((prev) => [...prev.filter((c) => !(c.politicianId === politicianId && c.userId === meId)), consent]);
+      return null;
+    },
+    [meId],
+  );
+
+  const revokeConsent = useCallback(
+    (consentId: string) => setConsents((prev) => prev.filter((c) => !(c.id === consentId && c.userId === meId))),
+    [meId],
+  );
+
+  const supportersFor = useCallback(
+    (politicianId: string) =>
+      consents
+        .filter((c) => c.politicianId === politicianId)
+        .map((c): Supporter => {
+          const u = users.find((x) => x.id === c.userId);
+          const has = (f: ShareField) => c.fields.includes(f);
+          return {
+            consentId: c.id,
+            userId: c.userId,
+            name: has('nome') ? u?.name : undefined,
+            username: has('nome') ? u?.username : undefined,
+            avatar: has('nome') ? u?.avatar : undefined,
+            city: has('cidade') ? u?.city : undefined,
+            state: has('cidade') ? u?.state : undefined,
+            ageRange: has('faixaEtaria') && u?.birthYear ? ageRangeOf(u.birthYear) : undefined,
+            interests: has('interesses') ? c.interests : [],
+            email: c.email,
+            whatsapp: c.whatsapp,
+            createdAt: c.createdAt,
+          };
+        })
+        .sort((a, b) => b.createdAt - a.createdAt),
+    [consents, users],
+  );
+
   const value: AppState = {
     me,
     users,
@@ -503,6 +610,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setBattleViewers,
     startBattle,
     endBattle,
+    consents,
+    consentFor,
+    giveConsent,
+    revokeConsent,
+    supportersFor,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

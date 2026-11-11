@@ -15,7 +15,16 @@ Login e cadastro · Feed com stories · Explorar e busca · Nova publicação (g
 Vídeos em tela cheia · Meu perfil (publicações, vídeos, salvos) · Perfil de outra pessoa ·
 Seguidores/seguindo · Publicação · Comentários · Curtidas · Notificações · Mensagens (lista e conversa) ·
 Visualizador de stories · Editar perfil · Configurações ·
-**Batalhas de lives** (lista, sala ao vivo com placar/apoios/chat, criar ou agendar batalha)
+**Batalhas de lives** (lista, sala ao vivo com placar/apoios/chat, criar ou agendar batalha) ·
+**Contas: cidadão e político** · **Painel do político** (início, desempenho, público, apoiadores)
+
+### Dados e LGPD
+
+- **Estatísticas do público** (gênero, idade, cidades, bairros, temas, horários) são sempre **agregadas e anônimas**,
+  a partir do que cada usuário declarou em *Editar perfil › Sobre você*.
+- O **banco de apoiadores** só mostra quem tocou em **"Quero receber novidades"** no perfil do político e autorizou,
+  com apenas os campos que escolheu. O cidadão cancela em *Configurações › Minhas autorizações*.
+- Login de demonstração como político: botão "Entrar como político (demonstração)" (conta `ana.ribeiro.ver`).
 
 > **Modo demonstração:** por enquanto os dados são fictícios e ficam só na memória do app
 > (`lib/mockData.ts` e `lib/store.tsx`). Entre com o botão "Entrar com a conta de demonstração"

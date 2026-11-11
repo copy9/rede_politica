@@ -16,6 +16,7 @@ export default function LoginScreen() {
 
   const submit = () => setError(signIn(username, password));
   const demo = () => setError(signIn('voce.demo', 'demo'));
+  const demoPolitician = () => setError(signIn('ana.ribeiro.ver', 'demo'));
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -34,6 +35,9 @@ export default function LoginScreen() {
           </Pressable>
           <Pressable onPress={demo}>
             <Text style={styles.demo}>Entrar com a conta de demonstração</Text>
+          </Pressable>
+          <Pressable onPress={demoPolitician}>
+            <Text style={styles.demo}>Entrar como político (demonstração)</Text>
           </Pressable>
         </View>
 

@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { useApp } from '@/lib/store';
+import { useApp, useMe } from '@/lib/store';
 import { colors, spacing } from '@/lib/theme';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -29,6 +29,7 @@ const SECTIONS: { title: string; items: { icon: IconName; label: string; onPress
   {
     title: 'Quem pode ver seu conteúdo',
     items: [
+      { icon: 'shield-checkmark-outline', label: 'Minhas autorizações a políticos', onPress: () => router.push('/autorizacoes') },
       { icon: 'lock-closed-outline', label: 'Privacidade da conta' },
       { icon: 'people-outline', label: 'Contas bloqueadas' },
       { icon: 'chatbubbles-outline', label: 'Mensagens e respostas' },
@@ -45,7 +46,27 @@ const SECTIONS: { title: string; items: { icon: IconName; label: string; onPress
 ];
 
 export default function SettingsScreen() {
-  const { signOut } = useApp();
+  const me = useMe();
+  const { signOut, updateProfile } = useApp();
+  const political = me.accountType === 'politico';
+
+  const toggleAccountType = () =>
+    Alert.alert(
+      political ? 'Voltar para conta de cidadão?' : 'Ativar conta política?',
+      political
+        ? 'Você perde o acesso ao Painel do político.'
+        : 'Para candidatos e políticos. Libera o Painel com dados do seu público e o banco de apoiadores. Contas oficiais passam por verificação.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: political ? 'Voltar para cidadão' : 'Ativar',
+          onPress: () => {
+            updateProfile({ accountType: political ? 'cidadao' : 'politico' });
+            if (!political) router.push('/painel');
+          },
+        },
+      ],
+    );
 
   const logout = () =>
     Alert.alert('Sair da conta?', undefined, [
@@ -55,6 +76,21 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView style={styles.container}>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Tipo de conta</Text>
+        {political ? (
+          <Pressable style={styles.row} onPress={() => router.push('/painel')}>
+            <Ionicons name="bar-chart-outline" size={24} color={colors.text} />
+            <Text style={styles.label}>Painel do político</Text>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </Pressable>
+        ) : null}
+        <Pressable style={styles.row} onPress={toggleAccountType}>
+          <Ionicons name={political ? 'person-outline' : 'business-outline'} size={24} color={colors.text} />
+          <Text style={styles.label}>{political ? 'Conta política (ativa) · mudar para cidadão' : 'Sou político ou candidato'}</Text>
+          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+        </Pressable>
+      </View>
       {SECTIONS.map((section) => (
         <View key={section.title} style={styles.section}>
           <Text style={styles.sectionTitle}>{section.title}</Text>
