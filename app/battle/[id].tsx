@@ -20,6 +20,7 @@ import { LiveCamera } from '@/components/LiveCamera';
 import { useOverlay } from '@/components/Overlay';
 import { MediaVideo } from '@/components/MediaVideo';
 import { compactNumber } from '@/lib/format';
+import { getLiveVideo } from '@/lib/livekit';
 import { useApp, useMe } from '@/lib/store';
 import { colors, spacing, themed } from '@/lib/theme';
 import type { BattleMessage, BattleSide, LiveBattle, User } from '@/lib/types';
@@ -137,14 +138,27 @@ export default function BattleRoomScreen() {
         </View>
 
         {/* Os dois lados */}
-        <View style={[styles.split, { height: halfHeight }]}>
-          <Half user={host} battle={battle} sideKey="host" isMe={host.id === me.id} />
-          <View style={styles.divider} />
-          <Half user={opponent} battle={battle} sideKey="opponent" isMe={opponent.id === me.id} />
-          <View style={styles.vsWrap} pointerEvents="none">
-            <Text style={styles.vs}>VS</Text>
-          </View>
-        </View>
+        {(() => {
+          const stage = (
+            <View style={[styles.split, { height: halfHeight }]}>
+              <Half user={host} battle={battle} sideKey="host" isMe={host.id === me.id} />
+              <View style={styles.divider} />
+              <Half user={opponent} battle={battle} sideKey="opponent" isMe={opponent.id === me.id} />
+              <View style={styles.vsWrap} pointerEvents="none">
+                <Text style={styles.vs}>VS</Text>
+              </View>
+            </View>
+          );
+          // No app instalado: vídeo e áudio ao vivo de um celular para o outro (LiveKit)
+          const LV = getLiveVideo();
+          return LV && live ? (
+            <LV.BattleRoom battleId={battle.id} speaker={isParticipant}>
+              {stage}
+            </LV.BattleRoom>
+          ) : (
+            stage
+          );
+        })()}
 
         <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
           <BattleScoreBar host={battle.scores.host} opponent={battle.scores.opponent} height={24} />
@@ -235,13 +249,26 @@ const firstName = (u: User) => u.name.split(' ')[0];
 function Half({ user, battle, sideKey, isMe }: { user: User; battle: LiveBattle; sideKey: BattleSide; isMe: boolean }) {
   const media = battle.media[sideKey];
   const live = battle.status === 'live';
+  const LV = getLiveVideo();
   const leading =
     battle.status !== 'scheduled' &&
     battle.scores[sideKey] > battle.scores[sideKey === 'host' ? 'opponent' : 'host'];
   return (
     <Pressable style={styles.half} disabled={isMe} onPress={() => router.push(`/user/${user.username}`)}>
-      {live && isMe ? (
-        // Seu lado: a sua câmera de verdade
+      {live && LV ? (
+        // App instalado: vídeo ao vivo de cada lado
+        <LV.SideVideo
+          userId={user.id}
+          isMe={isMe}
+          fallback={
+            <View style={[StyleSheet.absoluteFill, styles.placeholder]}>
+              <Avatar uri={user.avatar} size={72} />
+              <Text style={styles.waiting}>{isMe ? 'Ligando sua câmera…' : 'Aguardando vídeo…'}</Text>
+            </View>
+          }
+        />
+      ) : live && isMe ? (
+        // Expo Go / navegador: só a prévia da sua câmera
         <LiveCamera />
       ) : media && live ? (
         <MediaVideo uri={media} active startMuted={sideKey === 'opponent'} style={StyleSheet.absoluteFill} />
@@ -326,6 +353,7 @@ const styles = themed(() => StyleSheet.create({
   split: { flexDirection: 'row' },
   half: { flex: 1, overflow: 'hidden', backgroundColor: '#111827' },
   divider: { width: 2, backgroundColor: '#0B1020' },
+  waiting: { color: 'rgba(255,255,255,0.75)', fontSize: 12 },
   placeholder: { alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#1E293B' },
   vsWrap: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
   vs: {

@@ -4,3 +4,7 @@
 export const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://rqpxnpynkyeocxmjyzav.supabase.co';
 export const SUPABASE_PUBLISHABLE_KEY =
   process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_9ORBBumPUrkUHFycGu5_aA_tVIcnDFR';
+
+// Endereço do servidor de vídeo ao vivo (LiveKit). Não é secreto.
+// A chave e o segredo ficam só no Supabase (Edge Functions > Secrets).
+export const LIVEKIT_URL = process.env.EXPO_PUBLIC_LIVEKIT_URL || 'wss://rede-politica-8mzcieqr.livekit.cloud';

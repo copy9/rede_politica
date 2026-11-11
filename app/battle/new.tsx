@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -18,7 +18,9 @@ const WHEN = [
 export default function NewBattleScreen() {
   const me = useMe();
   const { users, followingOf, createBattle, canInteract } = useApp();
-  const [opponentId, setOpponentId] = useState<string | null>(null);
+  // vindo do botão "Desafiar" no perfil: a pessoa já vem escolhida
+  const { adversario } = useLocalSearchParams<{ adversario?: string }>();
+  const [opponentId, setOpponentId] = useState<string | null>(adversario ?? null);
   const [topic, setTopic] = useState('');
   const [minutes, setMinutes] = useState(5);
   const [whenHours, setWhenHours] = useState(0);
@@ -29,7 +31,10 @@ export default function NewBattleScreen() {
   const following = followingOf(me.id);
   const others = users.filter((u) => u.id !== me.id && !following.some((f) => f.id === u.id));
   const q = query.trim().toLowerCase();
-  const candidates = [...following, ...others].filter(
+  const ordered = [...following, ...others];
+  // a pessoa escolhida pelo perfil aparece no topo da lista
+  const chosen = adversario ? ordered.find((u) => u.id === adversario) : undefined;
+  const candidates = (chosen ? [chosen, ...ordered.filter((u) => u.id !== chosen.id)] : ordered).filter(
     (u) => !q || u.username.includes(q) || u.name.toLowerCase().includes(q),
   );
 

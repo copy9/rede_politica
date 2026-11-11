@@ -17,7 +17,7 @@ type Tab = 'posts' | 'videos' | 'saved';
 
 export function ProfileView({ user }: { user: User }) {
   const me = useMe();
-  const { postsBy, posts, followersOf, followingOf, storyUsers, openConversationWith, consentFor, supportersFor, canSeeContent, canInteract, activityText, giveConsent } = useApp();
+  const { postsBy, posts, followersOf, followingOf, storyUsers, openConversationWith, consentFor, supportersFor, canSeeContent, canInteract, activityText, giveConsent, isFollowing } = useApp();
   const { accountSettings, settings } = useSettings();
   const { showBanner } = useOverlay();
   const [tab, setTab] = useState<Tab>('posts');
@@ -41,6 +41,18 @@ export function ProfileView({ user }: { user: User }) {
     if (id) router.push(`/messages/${id}`);
     else if (!canInteract(user.id, 'message'))
       showBanner(`@${user.username} não recebe mensagens de você.`, { icon: 'chatbubbles-outline', tone: 'warning' });
+  };
+
+  // Desafiar para debate: aparece depois que você segue a pessoa
+  const following = !isMe && isFollowing(user.id);
+  const onChallenge = () => {
+    if (!canInteract(user.id, 'challenge'))
+      return showBanner(`@${user.username} só aceita desafios de quem ela segue. Peça para ela te seguir também.`, {
+        icon: 'flash-outline',
+        tone: 'warning',
+        durationMs: 5000,
+      });
+    router.push(`/battle/new?adversario=${user.id}`);
   };
 
   const onShare = () => {
@@ -118,6 +130,12 @@ export function ProfileView({ user }: { user: User }) {
               <FollowButton userId={user.id} />
             </View>
             <SecondaryButton flex label="Mensagem" onPress={onMessage} />
+            {following ? (
+              <Pressable style={styles.challengeBtn} onPress={onChallenge} accessibilityLabel="Desafiar para debate">
+                <Ionicons name="flash" size={15} color={colors.white} />
+                <Text style={styles.challengeText}>Desafiar</Text>
+              </Pressable>
+            ) : null}
           </>
         )}
       </View>
@@ -222,6 +240,8 @@ const styles = themed(() => StyleSheet.create({
   panelCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginHorizontal: spacing.lg, marginTop: spacing.md, padding: spacing.md, borderRadius: 12, backgroundColor: colors.surface },
   panelTitle: { fontWeight: '700', color: colors.text },
   panelSub: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
+  challengeBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: colors.like },
+  challengeText: { color: colors.white, fontWeight: '700', fontSize: 14 },
   supportBtn: { flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', marginHorizontal: spacing.lg, marginTop: -spacing.sm, marginBottom: spacing.md, paddingVertical: 9, borderRadius: 8, backgroundColor: colors.primary },
   supportBtnOn: { backgroundColor: colors.selectedBg },
   supportText: { color: colors.white, fontWeight: '700' },
