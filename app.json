@@ -36,7 +36,15 @@
       ],
       "expo-secure-store",
       "expo-video",
-      "expo-image"
+      "expo-image",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "A Rede Política usa a câmera para você entrar ao vivo nas batalhas e gravar publicações.",
+          "microphonePermission": "A Rede Política usa o microfone para o áudio das batalhas ao vivo e dos vídeos.",
+          "recordAudioAndroid": true
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

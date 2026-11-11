@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
 import { BattleScoreBar } from '@/components/BattleScoreBar';
+import { LiveCamera } from '@/components/LiveCamera';
 import { MediaVideo } from '@/components/MediaVideo';
 import { compactNumber } from '@/lib/format';
 import { useApp, useMe } from '@/lib/store';
@@ -277,13 +278,15 @@ function Half({ user, battle, sideKey, isMe }: { user: User; battle: LiveBattle;
     battle.status !== 'scheduled' &&
     battle.scores[sideKey] > battle.scores[sideKey === 'host' ? 'opponent' : 'host'];
   return (
-    <Pressable style={styles.half} onPress={() => router.push(`/user/${user.username}`)}>
-      {media && live ? (
+    <Pressable style={styles.half} disabled={isMe} onPress={() => router.push(`/user/${user.username}`)}>
+      {live && isMe ? (
+        // Seu lado: a sua câmera de verdade
+        <LiveCamera />
+      ) : media && live ? (
         <MediaVideo uri={media} active startMuted={sideKey === 'opponent'} style={StyleSheet.absoluteFill} />
       ) : (
         <View style={[StyleSheet.absoluteFill, styles.placeholder]}>
           <Avatar uri={user.avatar} size={72} />
-          {live && isMe ? <Text style={styles.cameraHint}>Sua câmera aparece aqui{'\n'}(na versão com transmissão real)</Text> : null}
         </View>
       )}
       <View style={[styles.sideTag, { backgroundColor: sideKey === 'host' ? colors.primary : colors.accent }]}>
@@ -363,7 +366,6 @@ const styles = StyleSheet.create({
   half: { flex: 1, overflow: 'hidden', backgroundColor: '#111827' },
   divider: { width: 2, backgroundColor: '#0B1020' },
   placeholder: { alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#1E293B' },
-  cameraHint: { color: 'rgba(255,255,255,0.7)', fontSize: 11, textAlign: 'center' },
   vsWrap: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
   vs: {
     color: '#fff',
