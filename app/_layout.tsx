@@ -1,56 +1,77 @@
-import { useFonts } from 'expo-font';
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { useColorScheme } from '@/components/useColorScheme';
+import { AppProvider, useApp } from '@/lib/store';
+import { colors } from '@/lib/theme';
 
-export {
-  // Catch any errors thrown by the Layout component.
-  ErrorBoundary,
-} from 'expo-router';
+export { ErrorBoundary } from 'expo-router';
 
-export const unstable_settings = {
-  // Ensure that reloading on `/modal` keeps a back button present.
-  anchor: '(tabs)',
-};
-
-// Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
+const theme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    primary: colors.primary,
+    background: colors.background,
+    card: colors.background,
+    text: colors.text,
+    border: colors.border,
+  },
+};
+
 export default function RootLayout() {
-  const [loaded, error] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
-
-  // Expo Router uses Error Boundaries to catch errors in the navigation tree.
   useEffect(() => {
-    if (error) throw error;
-  }, [error]);
-
-  useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [loaded]);
-
-  if (!loaded) {
-    return null;
-  }
-
-  return <RootLayoutNav />;
-}
-
-function RootLayoutNav() {
-  const colorScheme = useColorScheme();
+    SplashScreen.hideAsync();
+  }, []);
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
+    <SafeAreaProvider>
+      <AppProvider>
+        <ThemeProvider value={theme}>
+          <StatusBar style="dark" />
+          <RootNavigator />
+        </ThemeProvider>
+      </AppProvider>
+    </SafeAreaProvider>
+  );
+}
+
+function RootNavigator() {
+  const { me } = useApp();
+  const loggedIn = !!me;
+
+  return (
+    <Stack screenOptions={{ headerBackButtonDisplayMode: 'minimal', headerShadowVisible: false }}>
+      {/* Telas visíveis só sem login */}
+      <Stack.Protected guard={!loggedIn}>
+        <Stack.Screen name="login" options={{ headerShown: false }} />
+        <Stack.Screen name="signup" options={{ headerShown: false }} />
+      </Stack.Protected>
+
+      {/* Telas visíveis só com login */}
+      <Stack.Protected guard={loggedIn}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-      </Stack>
-    </ThemeProvider>
+        <Stack.Screen name="post/[id]" options={{ title: 'Publicação' }} />
+        <Stack.Screen name="comments/[id]" options={{ title: 'Comentários', presentation: 'modal' }} />
+        <Stack.Screen name="likes/[id]" options={{ title: 'Curtidas' }} />
+        <Stack.Screen name="user/[username]" options={{ title: '' }} />
+        <Stack.Screen name="follows/[username]" options={{ title: '' }} />
+        <Stack.Screen name="edit-profile" options={{ title: 'Editar perfil', presentation: 'modal' }} />
+        <Stack.Screen name="notifications" options={{ title: 'Notificações' }} />
+        <Stack.Screen name="messages/index" options={{ title: 'Mensagens' }} />
+        <Stack.Screen name="messages/[id]" options={{ title: '' }} />
+        <Stack.Screen
+          name="story/[userId]"
+          options={{ headerShown: false, presentation: 'fullScreenModal', animation: 'fade' }}
+        />
+        <Stack.Screen name="settings" options={{ title: 'Configurações' }} />
+      </Stack.Protected>
+      <Stack.Screen name="+not-found" options={{ title: 'Página não encontrada' }} />
+    </Stack>
   );
 }

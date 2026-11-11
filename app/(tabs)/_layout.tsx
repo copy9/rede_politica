@@ -1,67 +1,40 @@
-import { SymbolView } from 'expo-symbols';
-import { Link, Tabs } from 'expo-router';
-import { Platform, Pressable } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { Tabs } from 'expo-router';
+import type { ColorValue } from 'react-native';
 
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
+import { Avatar } from '@/components/Avatar';
+import { useMe } from '@/lib/store';
+import { colors } from '@/lib/theme';
+
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
+
+function icon(filled: IconName, outline: IconName) {
+  return ({ focused, color }: { focused: boolean; color: ColorValue }) => (
+    <Ionicons name={focused ? filled : outline} size={26} color={String(color)} />
+  );
+}
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
+  const me = useMe();
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme].tint,
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
-        headerShown: useClientOnlyValue(false, true),
+        headerShown: false,
+        tabBarShowLabel: false,
+        tabBarActiveTintColor: colors.text,
+        tabBarInactiveTintColor: colors.text,
+        tabBarStyle: { backgroundColor: colors.background, borderTopColor: colors.border },
       }}>
+      <Tabs.Screen name="index" options={{ title: 'Início', tabBarIcon: icon('home', 'home-outline') }} />
+      <Tabs.Screen name="explore" options={{ title: 'Explorar', tabBarIcon: icon('search', 'search-outline') }} />
+      <Tabs.Screen name="create" options={{ title: 'Publicar', tabBarIcon: icon('add-circle', 'add-circle-outline') }} />
+      <Tabs.Screen name="videos" options={{ title: 'Vídeos', tabBarIcon: icon('play-circle', 'play-circle-outline') }} />
       <Tabs.Screen
-        name="index"
+        name="profile"
         options={{
-          title: 'Tab One',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{
-                ios: 'chevron.left.forwardslash.chevron.right',
-                android: 'code',
-                web: 'code',
-              }}
-              tintColor={color}
-              size={28}
-            />
-          ),
-          headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable style={{ marginRight: 15 }}>
-                {({ pressed }) => (
-                  <SymbolView
-                    name={{ ios: 'info.circle', android: 'info', web: 'info' }}
-                    size={25}
-                    tintColor={Colors[colorScheme].text}
-                    style={{ opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="two"
-        options={{
-          title: 'Tab Two',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{
-                ios: 'chevron.left.forwardslash.chevron.right',
-                android: 'code',
-                web: 'code',
-              }}
-              tintColor={color}
-              size={28}
-            />
+          title: 'Perfil',
+          tabBarIcon: ({ focused }) => (
+            <Avatar uri={me.avatar} size={focused ? 26 : 24} ring={focused ? 'seen' : 'none'} />
           ),
         }}
       />

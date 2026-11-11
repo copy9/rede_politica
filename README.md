@@ -9,6 +9,17 @@ App de rede social com foco em política, no estilo Instagram/TikTok (feed de v�
 - **Supabase**: login, banco de dados, armazenamento de fotos/vídeos e tempo real (cliente em `lib/supabase.ts`)
 - **expo-video / expo-image / expo-image-picker**: tocar vídeos, mostrar imagens e escolher mídia da galeria/câmera
 
+## Telas prontas
+
+Login e cadastro · Feed com stories · Explorar e busca · Nova publicação (galeria/câmera) ·
+Vídeos em tela cheia · Meu perfil (publicações, vídeos, salvos) · Perfil de outra pessoa ·
+Seguidores/seguindo · Publicação · Comentários · Curtidas · Notificações · Mensagens (lista e conversa) ·
+Visualizador de stories · Editar perfil · Configurações
+
+> **Modo demonstração:** por enquanto os dados são fictícios e ficam só na memória do app
+> (`lib/mockData.ts` e `lib/store.tsx`). Entre com o botão "Entrar com a conta de demonstração"
+> ou com o usuário `voce.demo` e qualquer senha. O próximo passo é ligar no Supabase.
+
 ## Como rodar no seu computador
 
 Pré-requisitos: [Node.js LTS](https://nodejs.org) e [Git](https://git-scm.com). No celular, instale o app **Expo Go**.
@@ -42,9 +53,9 @@ Para ver no navegador, aperte `w` no terminal.
 ## Estrutura
 
 ```
-app/          telas (cada arquivo é uma rota)
+app/          telas (cada arquivo é uma rota; (tabs) = barra inferior)
 components/   componentes reutilizáveis
 constants/    cores e constantes
-lib/          cliente do Supabase e utilitários
+lib/          estado do app, dados de demonstração, tema e cliente do Supabase
 assets/       ícones, imagens e fontes
 ```

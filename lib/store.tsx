@@ -1,0 +1,405 @@
+// Estado do app (modo demonstração, em memória).
+// As funções aqui têm a mesma "forma" que terão com o Supabase,
+// então as telas não precisam mudar quando o backend for ligado.
+import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+
+import { newId } from './format';
+import {
+  DEMO_USER_ID,
+  mockComments,
+  mockConversations,
+  mockFollows,
+  mockMessages,
+  mockNotifications,
+  mockPosts,
+  mockStories,
+  mockUsers,
+} from './mockData';
+import type { AppNotification, Comment, Conversation, Follow, MediaType, Message, Post, Story, User } from './types';
+
+type SignUpInput = { name: string; username: string; email: string; password: string };
+type ProfileUpdate = Partial<Pick<User, 'name' | 'username' | 'bio' | 'role' | 'party' | 'website' | 'avatar'>>;
+
+type AppState = {
+  me: User | null;
+  users: User[];
+  posts: Post[];
+  comments: Comment[];
+  stories: Story[];
+  follows: Follow[];
+  notifications: AppNotification[];
+  conversations: Conversation[];
+  messages: Message[];
+
+  // autenticação
+  signIn: (username: string, password: string) => string | null;
+  signUp: (input: SignUpInput) => string | null;
+  signOut: () => void;
+  updateProfile: (changes: ProfileUpdate) => string | null;
+
+  // consultas
+  getUser: (id: string) => User | undefined;
+  getUserByUsername: (username: string) => User | undefined;
+  getPost: (id: string) => Post | undefined;
+  postsBy: (userId: string) => Post[];
+  commentsFor: (postId: string) => Comment[];
+  followersOf: (userId: string) => User[];
+  followingOf: (userId: string) => User[];
+  isFollowing: (userId: string) => boolean;
+  feed: () => Post[];
+  storyUsers: () => { user: User; stories: Story[]; seen: boolean }[];
+  conversationMessages: (conversationId: string) => Message[];
+
+  // ações
+  toggleLike: (postId: string) => void;
+  toggleSave: (postId: string) => void;
+  toggleCommentLike: (commentId: string) => void;
+  addComment: (postId: string, text: string) => void;
+  createPost: (input: { type: MediaType; uri: string; caption: string; location?: string }) => Post | null;
+  deletePost: (postId: string) => void;
+  addStory: (uri: string) => void;
+  markStorySeen: (storyId: string) => void;
+  toggleFollow: (userId: string) => void;
+  openConversationWith: (userId: string) => string | null;
+  sendMessage: (conversationId: string, text: string) => void;
+};
+
+const AppContext = createContext<AppState | null>(null);
+
+export function AppProvider({ children }: { children: React.ReactNode }) {
+  const [meId, setMeId] = useState<string | null>(null);
+  const [users, setUsers] = useState<User[]>(mockUsers);
+  const [posts, setPosts] = useState<Post[]>(mockPosts);
+  const [comments, setComments] = useState<Comment[]>(mockComments);
+  const [stories, setStories] = useState<Story[]>(mockStories);
+  const [follows, setFollows] = useState<Follow[]>(mockFollows);
+  const [notifications, setNotifications] = useState<AppNotification[]>(mockNotifications);
+  const [conversations, setConversations] = useState<Conversation[]>(mockConversations);
+  const [messages, setMessages] = useState<Message[]>(mockMessages);
+
+  const me = useMemo(() => users.find((u) => u.id === meId) ?? null, [users, meId]);
+
+  const notify = useCallback(
+    (n: Omit<AppNotification, 'id' | 'createdAt' | 'fromUserId'>) => {
+      if (!meId || n.toUserId === meId) return;
+      setNotifications((prev) => [{ ...n, id: newId('n'), fromUserId: meId, createdAt: Date.now() }, ...prev]);
+    },
+    [meId],
+  );
+
+  const signIn = useCallback(
+    (username: string, password: string) => {
+      const clean = username.trim().replace(/^@/, '').toLowerCase();
+      if (!clean || !password) return 'Preencha usuário e senha.';
+      // Modo demonstração: qualquer senha é aceita para contas existentes.
+      const user = users.find((u) => u.username.toLowerCase() === clean);
+      if (!user) return 'Usuário não encontrado. Use "voce.demo" ou crie uma conta.';
+      setMeId(user.id);
+      return null;
+    },
+    [users],
+  );
+
+  const signUp = useCallback(
+    ({ name, username, email, password }: SignUpInput) => {
+      const clean = username.trim().replace(/^@/, '').toLowerCase();
+      if (!name.trim() || !clean || !email.trim() || !password) return 'Preencha todos os campos.';
+      if (!/^[a-z0-9._]{3,30}$/.test(clean)) return 'O usuário deve ter 3 a 30 letras, números, ponto ou _.';
+      if (password.length < 6) return 'A senha precisa de pelo menos 6 caracteres.';
+      if (users.some((u) => u.username === clean)) return 'Esse nome de usuário já está em uso.';
+      const user: User = {
+        id: newId('u'),
+        username: clean,
+        name: name.trim(),
+        avatar: `https://i.pravatar.cc/300?u=${encodeURIComponent(clean)}`,
+        bio: '',
+        role: 'Cidadão',
+      };
+      setUsers((prev) => [...prev, user]);
+      setMeId(user.id);
+      return null;
+    },
+    [users],
+  );
+
+  const signOut = useCallback(() => setMeId(null), []);
+
+  const updateProfile = useCallback(
+    (changes: ProfileUpdate) => {
+      if (!meId) return 'Não autenticado.';
+      if (changes.username !== undefined) {
+        const clean = changes.username.trim().replace(/^@/, '').toLowerCase();
+        if (!/^[a-z0-9._]{3,30}$/.test(clean)) return 'O usuário deve ter 3 a 30 letras, números, ponto ou _.';
+        if (users.some((u) => u.username === clean && u.id !== meId)) return 'Esse nome de usuário já está em uso.';
+        changes = { ...changes, username: clean };
+      }
+      setUsers((prev) => prev.map((u) => (u.id === meId ? { ...u, ...changes } : u)));
+      return null;
+    },
+    [meId, users],
+  );
+
+  const getUser = useCallback((id: string) => users.find((u) => u.id === id), [users]);
+  const getUserByUsername = useCallback(
+    (username: string) => users.find((u) => u.username === username),
+    [users],
+  );
+  const getPost = useCallback((id: string) => posts.find((p) => p.id === id), [posts]);
+  const postsBy = useCallback(
+    (userId: string) => posts.filter((p) => p.userId === userId).sort((a, b) => b.createdAt - a.createdAt),
+    [posts],
+  );
+  const commentsFor = useCallback(
+    (postId: string) => comments.filter((c) => c.postId === postId).sort((a, b) => a.createdAt - b.createdAt),
+    [comments],
+  );
+  const followersOf = useCallback(
+    (userId: string) =>
+      follows
+        .filter((f) => f.followingId === userId)
+        .map((f) => users.find((u) => u.id === f.followerId))
+        .filter((u): u is User => !!u),
+    [follows, users],
+  );
+  const followingOf = useCallback(
+    (userId: string) =>
+      follows
+        .filter((f) => f.followerId === userId)
+        .map((f) => users.find((u) => u.id === f.followingId))
+        .filter((u): u is User => !!u),
+    [follows, users],
+  );
+  const isFollowing = useCallback(
+    (userId: string) => follows.some((f) => f.followerId === meId && f.followingId === userId),
+    [follows, meId],
+  );
+
+  const feed = useCallback(() => {
+    const following = new Set(follows.filter((f) => f.followerId === meId).map((f) => f.followingId));
+    if (meId) following.add(meId);
+    const mine = posts.filter((p) => following.has(p.userId));
+    const list = mine.length ? mine : posts;
+    return [...list].sort((a, b) => b.createdAt - a.createdAt);
+  }, [follows, posts, meId]);
+
+  const storyUsers = useCallback(() => {
+    const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
+    const byUser = new Map<string, Story[]>();
+    stories
+      .filter((s) => s.createdAt > dayAgo)
+      .sort((a, b) => a.createdAt - b.createdAt)
+      .forEach((s) => byUser.set(s.userId, [...(byUser.get(s.userId) ?? []), s]));
+    const list = [...byUser.entries()]
+      .map(([userId, list]) => ({
+        user: users.find((u) => u.id === userId)!,
+        stories: list,
+        seen: !!meId && list.every((s) => s.seenBy.includes(meId)),
+      }))
+      .filter((x) => !!x.user);
+    // Meu story primeiro, depois não vistos, depois vistos.
+    return list.sort((a, b) => {
+      if (a.user.id === meId) return -1;
+      if (b.user.id === meId) return 1;
+      return Number(a.seen) - Number(b.seen);
+    });
+  }, [stories, users, meId]);
+
+  const conversationMessages = useCallback(
+    (conversationId: string) =>
+      messages.filter((m) => m.conversationId === conversationId).sort((a, b) => a.createdAt - b.createdAt),
+    [messages],
+  );
+
+  const toggleLike = useCallback(
+    (postId: string) => {
+      if (!meId) return;
+      const post = posts.find((p) => p.id === postId);
+      if (!post) return;
+      const liked = post.likes.includes(meId);
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === postId ? { ...p, likes: liked ? p.likes.filter((id) => id !== meId) : [...p.likes, meId] } : p,
+        ),
+      );
+      if (!liked) notify({ type: 'like', toUserId: post.userId, postId });
+    },
+    [meId, posts, notify],
+  );
+
+  const toggleSave = useCallback(
+    (postId: string) => {
+      if (!meId) return;
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === postId
+            ? { ...p, savedBy: p.savedBy.includes(meId) ? p.savedBy.filter((id) => id !== meId) : [...p.savedBy, meId] }
+            : p,
+        ),
+      );
+    },
+    [meId],
+  );
+
+  const toggleCommentLike = useCallback(
+    (commentId: string) => {
+      if (!meId) return;
+      setComments((prev) =>
+        prev.map((c) =>
+          c.id === commentId
+            ? { ...c, likes: c.likes.includes(meId) ? c.likes.filter((id) => id !== meId) : [...c.likes, meId] }
+            : c,
+        ),
+      );
+    },
+    [meId],
+  );
+
+  const addComment = useCallback(
+    (postId: string, text: string) => {
+      const body = text.trim();
+      if (!meId || !body) return;
+      setComments((prev) => [...prev, { id: newId('c'), postId, userId: meId, text: body, createdAt: Date.now(), likes: [] }]);
+      const post = posts.find((p) => p.id === postId);
+      if (post) notify({ type: 'comment', toUserId: post.userId, postId, text: body });
+    },
+    [meId, posts, notify],
+  );
+
+  const createPost = useCallback(
+    ({ type, uri, caption, location }: { type: MediaType; uri: string; caption: string; location?: string }) => {
+      if (!meId) return null;
+      const post: Post = {
+        id: newId('p'),
+        userId: meId,
+        type,
+        uri,
+        caption: caption.trim(),
+        location: location?.trim() || undefined,
+        createdAt: Date.now(),
+        likes: [],
+        savedBy: [],
+      };
+      setPosts((prev) => [post, ...prev]);
+      return post;
+    },
+    [meId],
+  );
+
+  const deletePost = useCallback(
+    (postId: string) => {
+      setPosts((prev) => prev.filter((p) => !(p.id === postId && p.userId === meId)));
+      setComments((prev) => prev.filter((c) => c.postId !== postId));
+    },
+    [meId],
+  );
+
+  const addStory = useCallback(
+    (uri: string) => {
+      if (!meId) return;
+      setStories((prev) => [...prev, { id: newId('s'), userId: meId, uri, createdAt: Date.now(), seenBy: [meId] }]);
+    },
+    [meId],
+  );
+
+  const markStorySeen = useCallback(
+    (storyId: string) => {
+      if (!meId) return;
+      setStories((prev) =>
+        prev.map((s) => (s.id === storyId && !s.seenBy.includes(meId) ? { ...s, seenBy: [...s.seenBy, meId] } : s)),
+      );
+    },
+    [meId],
+  );
+
+  const toggleFollow = useCallback(
+    (userId: string) => {
+      if (!meId || userId === meId) return;
+      const already = follows.some((f) => f.followerId === meId && f.followingId === userId);
+      setFollows((prev) =>
+        already
+          ? prev.filter((f) => !(f.followerId === meId && f.followingId === userId))
+          : [...prev, { followerId: meId, followingId: userId }],
+      );
+      if (!already) notify({ type: 'follow', toUserId: userId });
+    },
+    [meId, follows, notify],
+  );
+
+  const openConversationWith = useCallback(
+    (userId: string) => {
+      if (!meId || userId === meId) return null;
+      const existing = conversations.find(
+        (c) => c.participantIds.length === 2 && c.participantIds.includes(meId) && c.participantIds.includes(userId),
+      );
+      if (existing) return existing.id;
+      const conv: Conversation = { id: newId('cv'), participantIds: [meId, userId] };
+      setConversations((prev) => [...prev, conv]);
+      return conv.id;
+    },
+    [meId, conversations],
+  );
+
+  const sendMessage = useCallback(
+    (conversationId: string, text: string) => {
+      const body = text.trim();
+      if (!meId || !body) return;
+      setMessages((prev) => [...prev, { id: newId('m'), conversationId, senderId: meId, text: body, createdAt: Date.now() }]);
+    },
+    [meId],
+  );
+
+  const value: AppState = {
+    me,
+    users,
+    posts,
+    comments,
+    stories,
+    follows,
+    notifications,
+    conversations,
+    messages,
+    signIn,
+    signUp,
+    signOut,
+    updateProfile,
+    getUser,
+    getUserByUsername,
+    getPost,
+    postsBy,
+    commentsFor,
+    followersOf,
+    followingOf,
+    isFollowing,
+    feed,
+    storyUsers,
+    conversationMessages,
+    toggleLike,
+    toggleSave,
+    toggleCommentLike,
+    addComment,
+    createPost,
+    deletePost,
+    addStory,
+    markStorySeen,
+    toggleFollow,
+    openConversationWith,
+    sendMessage,
+  };
+
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+}
+
+export function useApp() {
+  const ctx = useContext(AppContext);
+  if (!ctx) throw new Error('useApp precisa estar dentro de <AppProvider>');
+  return ctx;
+}
+
+/** Usuário logado (as telas internas só aparecem com login, então nunca é nulo lá). */
+export function useMe() {
+  const { me } = useApp();
+  if (!me) throw new Error('Nenhum usuário logado');
+  return me;
+}
+
+export { DEMO_USER_ID };

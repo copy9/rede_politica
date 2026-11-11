@@ -1,31 +1,72 @@
-import { StyleSheet } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { router } from 'expo-router';
+import { useCallback, useRef, useState } from 'react';
+import { FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import EditScreenInfo from '@/components/EditScreenInfo';
-import { Text, View } from '@/components/Themed';
+import { Logo } from '@/components/Logo';
+import { PostCard } from '@/components/PostCard';
+import { StoriesBar } from '@/components/StoriesBar';
+import { useApp } from '@/lib/store';
+import { colors, spacing } from '@/lib/theme';
+import type { Post } from '@/lib/types';
 
-export default function TabOneScreen() {
+export default function FeedScreen() {
+  const { feed, notifications, me } = useApp();
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const posts = feed();
+  const hasNotifications = notifications.some((n) => n.toUserId === me?.id);
+
+  // Só o vídeo que está visível toca
+  const onViewable = useRef(({ viewableItems }: { viewableItems: { item: Post; isViewable: boolean }[] }) => {
+    const first = viewableItems.find((v) => v.isViewable);
+    setActiveId(first?.item?.id ?? null);
+  }).current;
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 600);
+  }, []);
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Tab One</Text>
-      <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
-      <EditScreenInfo path="app/(tabs)/index.tsx" />
-    </View>
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <View style={styles.header}>
+        <Logo size={22} />
+        <View style={styles.headerIcons}>
+          <Pressable onPress={() => router.push('/notifications')} hitSlop={8}>
+            <Ionicons name="heart-outline" size={26} color={colors.text} />
+            {hasNotifications ? <View style={styles.dot} /> : null}
+          </Pressable>
+          <Pressable onPress={() => router.push('/messages')} hitSlop={8}>
+            <Ionicons name="paper-plane-outline" size={25} color={colors.text} />
+          </Pressable>
+        </View>
+      </View>
+
+      <FlatList
+        data={posts}
+        keyExtractor={(p) => p.id}
+        renderItem={({ item }) => <PostCard post={item} active={item.id === activeId} />}
+        ListHeaderComponent={<StoriesBar />}
+        onViewableItemsChanged={onViewable}
+        viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        showsVerticalScrollIndicator={false}
+      />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  safe: { flex: 1, backgroundColor: colors.background },
+  header: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  separator: {
-    marginVertical: 30,
-    height: 1,
-    width: '80%',
-  },
+  headerIcons: { flexDirection: 'row', gap: 20 },
+  dot: { position: 'absolute', top: 0, right: 0, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.like },
 });
