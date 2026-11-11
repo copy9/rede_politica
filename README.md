@@ -36,6 +36,12 @@ npx expo start
 Abra o **Expo Go** no celular e escaneie o QR code que aparece no terminal (celular e PC na mesma rede Wi-Fi).
 Para ver no navegador, aperte `w` no terminal.
 
+## Atualização automática (Windows)
+
+Dê dois cliques em **`atualizar.bat`** e deixe a janela aberta: a cada 30 segundos ela baixa
+do GitHub as alterações novas. Se o `npx expo start` estiver rodando em outra janela, o app no
+celular recarrega sozinho com as mudanças.
+
 ## Supabase
 
 1. Crie uma conta e um projeto em https://supabase.com
