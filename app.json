@@ -61,7 +61,15 @@
         }
       ],
       "@livekit/react-native-expo-plugin",
-      "@config-plugins/react-native-webrtc"
+      "@config-plugins/react-native-webrtc",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "extraProguardRules": "-keep class livekit.org.webrtc.** { *; }\n-keep class livekit.org.jni_zero.** { *; }\n-dontwarn livekit.org.jni_zero.**\n-keep class io.livekit.** { *; }\n-keep class com.oney.WebRTCModule.** { *; }\n-dontwarn livekit.org.webrtc.**"
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
