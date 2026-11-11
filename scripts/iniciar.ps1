@@ -39,6 +39,20 @@ function Install-Deps {
   }
 }
 
+# Baixa as atualizacoes. Se o "npm install" tiver mexido no package-lock.json
+# (comum no Windows) e isso travar o pull, descarta so essa alteracao e tenta de novo.
+function Sync-Repo {
+  git pull --ff-only -q 2>&1 | Out-Host
+  if ($LASTEXITCODE -eq 0) { return $true }
+  Log 'O pull travou. Descartando alteracoes automaticas do package-lock.json e tentando de novo...' 'Yellow'
+  git checkout -- package-lock.json 2>&1 | Out-Null
+  git pull --ff-only -q 2>&1 | Out-Host
+  if ($LASTEXITCODE -eq 0) { return $true }
+  Log 'Nao consegui baixar as atualizacoes. Mande um print desta janela.' 'Red'
+  git status --short | Out-Host
+  return $false
+}
+
 function Start-App {
   Log 'Abrindo o app (janela do QR Code)...' 'Cyan'
   return Start-Process -FilePath 'cmd.exe' -ArgumentList '/k', 'title Rede Politica - App (QR Code) && npx expo start' -WorkingDirectory $root -PassThru
@@ -53,14 +67,14 @@ function Stop-App($proc) {
 }
 
 Log 'Buscando atualizacoes do GitHub...' 'Cyan'
-git pull --ff-only | Out-Host
+Sync-Repo | Out-Null
 if (Test-NeedsInstall) { Install-Deps }
 $app = Start-App
 
 while ($true) {
   Start-Sleep -Seconds 30
   $before = git rev-parse HEAD
-  git pull --ff-only -q
+  Sync-Repo | Out-Null
   $after = git rev-parse HEAD
 
   if ($before -ne $after) {
