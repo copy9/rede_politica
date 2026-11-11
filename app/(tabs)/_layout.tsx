@@ -38,6 +38,7 @@ export default function TabLayout() {
           ),
         }}
       />
+      <Tabs.Screen name="battles" options={{ title: 'Batalhas', tabBarIcon: icon('flash', 'flash-outline') }} />
     </Tabs>
   );
 }

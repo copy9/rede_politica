@@ -14,7 +14,8 @@ App de rede social com foco em política, no estilo Instagram/TikTok (feed de v�
 Login e cadastro · Feed com stories · Explorar e busca · Nova publicação (galeria/câmera) ·
 Vídeos em tela cheia · Meu perfil (publicações, vídeos, salvos) · Perfil de outra pessoa ·
 Seguidores/seguindo · Publicação · Comentários · Curtidas · Notificações · Mensagens (lista e conversa) ·
-Visualizador de stories · Editar perfil · Configurações
+Visualizador de stories · Editar perfil · Configurações ·
+**Batalhas de lives** (lista, sala ao vivo com placar/apoios/chat, criar ou agendar batalha)
 
 > **Modo demonstração:** por enquanto os dados são fictícios e ficam só na memória do app
 > (`lib/mockData.ts` e `lib/store.tsx`). Entre com o botão "Entrar com a conta de demonstração"

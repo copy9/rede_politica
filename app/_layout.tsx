@@ -70,6 +70,8 @@ function RootNavigator() {
           options={{ headerShown: false, presentation: 'fullScreenModal', animation: 'fade' }}
         />
         <Stack.Screen name="settings" options={{ title: 'Configurações' }} />
+        <Stack.Screen name="battle/new" options={{ title: 'Nova batalha', presentation: 'modal' }} />
+        <Stack.Screen name="battle/[id]" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
       </Stack.Protected>
       <Stack.Screen name="+not-found" options={{ title: 'Página não encontrada' }} />
     </Stack>

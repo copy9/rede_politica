@@ -73,3 +73,32 @@ export type Message = {
   text: string;
   createdAt: number;
 };
+
+export type BattleSide = 'host' | 'opponent';
+export type BattleStatus = 'live' | 'scheduled' | 'ended';
+
+/** Batalha de lives: duas pessoas ao vivo, a plateia apoia um lado com pontos. */
+export type LiveBattle = {
+  id: string;
+  hostId: string;
+  opponentId: string;
+  topic: string;
+  status: BattleStatus;
+  /** Início (ou horário agendado) em ms */
+  startsAt: number;
+  durationSec: number;
+  viewers: number;
+  scores: Record<BattleSide, number>;
+  /** Vídeo de cada lado (no modo demonstração, vídeos de exemplo) */
+  media: Partial<Record<BattleSide, string>>;
+};
+
+export type BattleMessage = {
+  id: string;
+  battleId: string;
+  userId: string;
+  text: string;
+  /** Quando a mensagem é um apoio: lado e pontos */
+  support?: { side: BattleSide; points: number };
+  createdAt: number;
+};

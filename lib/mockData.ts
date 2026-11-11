@@ -1,5 +1,5 @@
 // Dados fictícios de demonstração. Serão substituídos pelo Supabase.
-import type { AppNotification, Comment, Conversation, Follow, Message, Post, Story, User } from './types';
+import type { AppNotification, BattleMessage, Comment, Conversation, Follow, LiveBattle, Message, Post, Story, User } from './types';
 
 const now = Date.now();
 const min = 60 * 1000;
@@ -232,4 +232,49 @@ export const mockMessages: Message[] = [
   { id: 'm1', conversationId: 'cv1', senderId: DEMO_USER_ID, text: 'Olá vereadora, quando será a audiência na zona leste?', createdAt: now - 6 * h },
   { id: 'm2', conversationId: 'cv1', senderId: 'u_ana', text: 'Oi! Estamos fechando a data, devo anunciar até sexta.', createdAt: now - 5 * h },
   { id: 'm3', conversationId: 'cv2', senderId: 'u_julia', text: 'Vi seu post do buraco na rua, posso usar na matéria?', createdAt: now - 2 * d },
+];
+
+export const mockBattles: LiveBattle[] = [
+  {
+    id: 'b1',
+    hostId: 'u_ana',
+    opponentId: 'u_carlos',
+    topic: 'Passe livre estudantil: vale o custo?',
+    status: 'live',
+    startsAt: now - 2 * min,
+    durationSec: 10 * 60,
+    viewers: 1284,
+    scores: { host: 3420, opponent: 2980 },
+    media: { host: `${VIDEO}/ForBiggerEscapes.mp4`, opponent: `${VIDEO}/ForBiggerBlazes.mp4` },
+  },
+  {
+    id: 'b2',
+    hostId: 'u_rafa',
+    opponentId: 'u_julia',
+    topic: 'Cultura nas periferias: quem paga a conta?',
+    status: 'live',
+    startsAt: now - 6 * min,
+    durationSec: 8 * 60,
+    viewers: 342,
+    scores: { host: 860, opponent: 1210 },
+    media: { host: `${VIDEO}/ForBiggerJoyrides.mp4`, opponent: `${VIDEO}/ForBiggerFun.mp4` },
+  },
+  {
+    id: 'b3',
+    hostId: 'u_marta',
+    opponentId: 'u_obs',
+    topic: 'Prestação de contas: obras da gestão',
+    status: 'scheduled',
+    startsAt: now + 3 * h,
+    durationSec: 15 * 60,
+    viewers: 0,
+    scores: { host: 0, opponent: 0 },
+    media: {},
+  },
+];
+
+export const mockBattleMessages: BattleMessage[] = [
+  { id: 'bm1', battleId: 'b1', userId: 'u_julia', text: 'Quero ver os números do custo!', createdAt: now - 90 * 1000 },
+  { id: 'bm2', battleId: 'b1', userId: 'u_rafa', text: 'apoiou Ana Ribeiro', support: { side: 'host', points: 20 }, createdAt: now - 60 * 1000 },
+  { id: 'bm3', battleId: 'b1', userId: 'u_obs', text: 'Boa pergunta do deputado.', createdAt: now - 30 * 1000 },
 ];

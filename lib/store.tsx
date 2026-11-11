@@ -6,6 +6,8 @@ import React, { createContext, useCallback, useContext, useMemo, useState } from
 import { newId } from './format';
 import {
   DEMO_USER_ID,
+  mockBattleMessages,
+  mockBattles,
   mockComments,
   mockConversations,
   mockFollows,
@@ -15,7 +17,20 @@ import {
   mockStories,
   mockUsers,
 } from './mockData';
-import type { AppNotification, Comment, Conversation, Follow, MediaType, Message, Post, Story, User } from './types';
+import type {
+  AppNotification,
+  BattleMessage,
+  BattleSide,
+  Comment,
+  Conversation,
+  Follow,
+  LiveBattle,
+  MediaType,
+  Message,
+  Post,
+  Story,
+  User,
+} from './types';
 
 type SignUpInput = { name: string; username: string; email: string; password: string };
 type ProfileUpdate = Partial<Pick<User, 'name' | 'username' | 'bio' | 'role' | 'party' | 'website' | 'avatar'>>;
@@ -30,6 +45,8 @@ type AppState = {
   notifications: AppNotification[];
   conversations: Conversation[];
   messages: Message[];
+  battles: LiveBattle[];
+  battleMessages: BattleMessage[];
 
   // autenticação
   signIn: (username: string, password: string) => string | null;
@@ -62,6 +79,17 @@ type AppState = {
   toggleFollow: (userId: string) => void;
   openConversationWith: (userId: string) => string | null;
   sendMessage: (conversationId: string, text: string) => void;
+
+  // batalhas de lives
+  getBattle: (id: string) => LiveBattle | undefined;
+  messagesForBattle: (battleId: string) => BattleMessage[];
+  createBattle: (input: { opponentId: string; topic: string; durationSec: number; scheduleAt?: number }) => LiveBattle | null;
+  /** Apoio da plateia. fromUserId é usado pela simulação de outros espectadores. */
+  supportBattle: (battleId: string, side: BattleSide, points: number, fromUserId?: string) => void;
+  sendBattleMessage: (battleId: string, text: string, fromUserId?: string) => void;
+  setBattleViewers: (battleId: string, viewers: number) => void;
+  startBattle: (battleId: string) => void;
+  endBattle: (battleId: string) => void;
 };
 
 const AppContext = createContext<AppState | null>(null);
@@ -76,6 +104,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<AppNotification[]>(mockNotifications);
   const [conversations, setConversations] = useState<Conversation[]>(mockConversations);
   const [messages, setMessages] = useState<Message[]>(mockMessages);
+  const [battles, setBattles] = useState<LiveBattle[]>(mockBattles);
+  const [battleMessages, setBattleMessages] = useState<BattleMessage[]>(mockBattleMessages);
 
   const me = useMemo(() => users.find((u) => u.id === meId) ?? null, [users, meId]);
 
@@ -348,6 +378,85 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [meId],
   );
 
+  const getBattle = useCallback((id: string) => battles.find((b) => b.id === id), [battles]);
+
+  const messagesForBattle = useCallback(
+    (battleId: string) => battleMessages.filter((m) => m.battleId === battleId).sort((a, b) => a.createdAt - b.createdAt),
+    [battleMessages],
+  );
+
+  const createBattle = useCallback(
+    ({ opponentId, topic, durationSec, scheduleAt }: { opponentId: string; topic: string; durationSec: number; scheduleAt?: number }) => {
+      if (!meId || opponentId === meId || !topic.trim()) return null;
+      const battle: LiveBattle = {
+        id: newId('b'),
+        hostId: meId,
+        opponentId,
+        topic: topic.trim(),
+        status: scheduleAt ? 'scheduled' : 'live',
+        startsAt: scheduleAt ?? Date.now(),
+        durationSec,
+        viewers: 0,
+        scores: { host: 0, opponent: 0 },
+        media: {},
+      };
+      setBattles((prev) => [battle, ...prev]);
+      return battle;
+    },
+    [meId],
+  );
+
+  const supportBattle = useCallback(
+    (battleId: string, side: BattleSide, points: number, fromUserId?: string) => {
+      const from = fromUserId ?? meId;
+      const battle = battles.find((b) => b.id === battleId);
+      if (!from || points <= 0 || !battle || battle.status !== 'live') return;
+      setBattles((prev) =>
+        prev.map((b) => (b.id === battleId ? { ...b, scores: { ...b.scores, [side]: b.scores[side] + points } } : b)),
+      );
+      // Aparece no chat: apoios meus e apoios grandes (os pontinhos automáticos da simulação não)
+      if (!fromUserId || points >= 5) {
+        const target = users.find((u) => u.id === (side === 'host' ? battle.hostId : battle.opponentId));
+        setBattleMessages((prev) => [
+          ...prev,
+          {
+            id: newId('bm'),
+            battleId,
+            userId: from,
+            text: `apoiou ${target?.name ?? ''}`.trim(),
+            support: { side, points },
+            createdAt: Date.now(),
+          },
+        ]);
+      }
+    },
+    [meId, battles, users],
+  );
+
+  const sendBattleMessage = useCallback(
+    (battleId: string, text: string, fromUserId?: string) => {
+      const from = fromUserId ?? meId;
+      const body = text.trim();
+      if (!from || !body) return;
+      setBattleMessages((prev) => [...prev, { id: newId('bm'), battleId, userId: from, text: body, createdAt: Date.now() }]);
+    },
+    [meId],
+  );
+
+  const setBattleViewers = useCallback((battleId: string, viewers: number) => {
+    setBattles((prev) => prev.map((b) => (b.id === battleId ? { ...b, viewers: Math.max(0, Math.round(viewers)) } : b)));
+  }, []);
+
+  const startBattle = useCallback((battleId: string) => {
+    setBattles((prev) =>
+      prev.map((b) => (b.id === battleId && b.status === 'scheduled' ? { ...b, status: 'live', startsAt: Date.now() } : b)),
+    );
+  }, []);
+
+  const endBattle = useCallback((battleId: string) => {
+    setBattles((prev) => prev.map((b) => (b.id === battleId && b.status === 'live' ? { ...b, status: 'ended' } : b)));
+  }, []);
+
   const value: AppState = {
     me,
     users,
@@ -358,6 +467,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     notifications,
     conversations,
     messages,
+    battles,
+    battleMessages,
     signIn,
     signUp,
     signOut,
@@ -384,6 +495,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     toggleFollow,
     openConversationWith,
     sendMessage,
+    getBattle,
+    messagesForBattle,
+    createBattle,
+    supportBattle,
+    sendBattleMessage,
+    setBattleViewers,
+    startBattle,
+    endBattle,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
