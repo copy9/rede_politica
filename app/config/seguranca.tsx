@@ -1,71 +1,132 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { Image } from 'expo-image';
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { Linking, Platform, Pressable, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useOverlay } from '@/components/Overlay';
 import { InfoText, PrimaryButton, Section, SettingsScreen, ToggleRow } from '@/components/SettingsUI';
 import { timeAgo } from '@/lib/format';
 import { useSettings } from '@/lib/settings';
-import { useApp } from '@/lib/store';
+import { useApp, type TwoFactorSetup } from '@/lib/store';
 import { colors, spacing, themed } from '@/lib/theme';
 
 export default function SecurityScreen() {
   const { settings, update } = useSettings();
-  const { changePassword } = useApp();
+  const { changePassword, twoFactorEnabled, startTwoFactor, confirmTwoFactor, disableTwoFactor, signOutOtherDevices } = useApp();
   const { showBanner, confirm } = useOverlay();
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [again, setAgain] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const hasPassword = !!settings.passwordHash;
+  const [busy, setBusy] = useState(false);
+  // ligar dois fatores
+  const [setup, setSetup] = useState<TwoFactorSetup | null>(null);
+  const [code, setCode] = useState('');
+  const [tfError, setTfError] = useState<string | null>(null);
 
   const submit = async () => {
     if (next !== again) return setError('As senhas novas não conferem.');
+    setBusy(true);
     const err = await changePassword(current, next);
+    setBusy(false);
     if (err) return setError(err);
     setError(null);
     setCurrent('');
     setNext('');
     setAgain('');
-    showBanner(hasPassword ? 'Senha alterada. Use a nova senha no próximo login.' : 'Senha criada. A partir de agora ela será pedida no login.', {
-      icon: 'key-outline',
-      tone: 'success',
+    showBanner('Senha alterada. Use a nova senha no próximo login.', { icon: 'key-outline', tone: 'success' });
+  };
+
+  const toggleTwoFactor = async (on: boolean) => {
+    setTfError(null);
+    if (on) {
+      const r = await startTwoFactor();
+      if (typeof r === 'string') return showBanner(r, { icon: 'alert-circle-outline', tone: 'warning' });
+      setSetup(r);
+      setCode('');
+      return;
+    }
+    confirm('Desligar dois fatores?', 'O login vai pedir só a senha de novo.', 'Desligar', async () => {
+      const err = await disableTwoFactor();
+      showBanner(err ?? 'Dois fatores desligado.', { icon: 'shield-outline', tone: err ? 'warning' : 'info' });
     });
   };
 
-  const toggleTwoFactor = (on: boolean) => {
-    if (on && !settings.phone && !settings.email) {
-      showBanner('Cadastre um telefone ou e-mail em Informações pessoais para receber o código.', { icon: 'alert-circle-outline', tone: 'warning' });
-      return;
-    }
-    update({ twoFactor: on });
-    showBanner(on ? 'Dois fatores ligado: o próximo login vai pedir um código.' : 'Dois fatores desligado.', { icon: 'shield-checkmark-outline' });
+  const finishSetup = async () => {
+    if (!setup) return;
+    const err = await confirmTwoFactor(setup.factorId, code);
+    if (err) return setTfError(err);
+    setSetup(null);
+    showBanner('Dois fatores ligado! Nos próximos logins o app vai pedir o código do app autenticador.', {
+      icon: 'shield-checkmark',
+      tone: 'success',
+      durationMs: 6000,
+    });
   };
+
+  const others = settings.devices.filter((d) => d.id !== settings.deviceId);
 
   return (
     <SettingsScreen>
-      <Section title={hasPassword ? 'Alterar senha' : 'Criar senha'}>
-        {!hasPassword ? (
-          <InfoText>Esta conta de demonstração ainda aceita qualquer senha. Crie uma para proteger o acesso neste aparelho.</InfoText>
-        ) : null}
+      <Section title="Alterar senha">
         <View style={styles.form}>
-          {hasPassword ? (
-            <TextInput placeholder="Senha atual" placeholderTextColor={colors.textMuted} secureTextEntry value={current} onChangeText={setCurrent} style={styles.input} />
-          ) : null}
+          <TextInput placeholder="Senha atual" placeholderTextColor={colors.textMuted} secureTextEntry value={current} onChangeText={setCurrent} style={styles.input} />
           <TextInput placeholder="Nova senha (mín. 8, com letras e números)" placeholderTextColor={colors.textMuted} secureTextEntry value={next} onChangeText={setNext} style={styles.input} />
           <TextInput placeholder="Repita a nova senha" placeholderTextColor={colors.textMuted} secureTextEntry value={again} onChangeText={setAgain} style={styles.input} />
           {error ? <Text style={styles.error}>{error}</Text> : null}
         </View>
-        <PrimaryButton label={hasPassword ? 'Alterar senha' : 'Criar senha'} onPress={submit} />
+        <PrimaryButton label={busy ? 'Alterando…' : 'Alterar senha'} onPress={submit} disabled={busy} />
       </Section>
-      <Section title="Proteção" footer="Recomendado para contas políticas: dificulta que alguém invada sua conta.">
+
+      <Section title="Proteção" footer="Recomendado para contas políticas: mesmo que descubram sua senha, ninguém entra sem o código do seu celular.">
         <ToggleRow
           icon="shield-checkmark-outline"
           label="Autenticação em dois fatores"
-          description={`Pede um código ao entrar${settings.phone ? ` (enviado para ${settings.phone})` : settings.email ? ` (enviado para ${settings.email})` : ''}`}
-          value={settings.twoFactor}
+          description="Pede um código do app autenticador (Google Authenticator, Microsoft Authenticator…) ao entrar"
+          value={twoFactorEnabled || !!setup}
           onChange={toggleTwoFactor}
         />
+        {setup ? (
+          <View style={styles.setup}>
+            <Text style={styles.setupTitle}>Ligar dois fatores</Text>
+            <Text style={styles.step}>1. Instale o Google Authenticator (Play Store / App Store), se ainda não tiver.</Text>
+            {Platform.OS !== 'web' ? (
+              <>
+                <Text style={styles.step}>2. Toque no botão abaixo para adicionar a Rede Política no app autenticador:</Text>
+                <Pressable style={styles.linkBtn} onPress={() => Linking.openURL(setup.uri).catch(() => showBanner('Não achei um app autenticador. Use a chave abaixo.', { tone: 'warning' }))}>
+                  <Ionicons name="open-outline" size={16} color={colors.white} />
+                  <Text style={styles.linkText}>Abrir no app autenticador</Text>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <Text style={styles.step}>2. No app autenticador, escaneie este código:</Text>
+                <Image source={{ uri: setup.qr }} style={styles.qr} contentFit="contain" />
+              </>
+            )}
+            <Text style={styles.step}>Ou, no app autenticador, escolha "Inserir chave de configuração" e use esta chave:</Text>
+            <Pressable onPress={() => Share.share({ message: setup.secret }).catch(() => {})}>
+              <Text style={styles.secret} selectable>
+                {setup.secret}
+              </Text>
+            </Pressable>
+            <Text style={styles.step}>3. Digite o código de 6 números que aparece no app autenticador:</Text>
+            <TextInput
+              placeholder="000000"
+              placeholderTextColor={colors.textMuted}
+              keyboardType="number-pad"
+              maxLength={6}
+              value={code}
+              onChangeText={setCode}
+              style={[styles.input, styles.codeInput]}
+            />
+            {tfError ? <Text style={styles.error}>{tfError}</Text> : null}
+            <PrimaryButton label="Confirmar e ligar" onPress={finishSetup} />
+            <Text style={styles.cancel} onPress={() => setSetup(null)}>
+              Cancelar
+            </Text>
+          </View>
+        ) : null}
         <ToggleRow
           icon="alert-circle-outline"
           label="Alertas de login"
@@ -74,7 +135,8 @@ export default function SecurityScreen() {
           onChange={(loginAlerts) => update({ loginAlerts })}
         />
       </Section>
-      <Section title="Onde você está conectado" footer="Ao sair de um aparelho, ele precisa entrar com a senha de novo.">
+
+      <Section title="Onde você está conectado" footer="Ao desconectar, os outros aparelhos precisam entrar com a senha de novo.">
         {settings.devices.length === 0 ? <InfoText>Nenhum aparelho registrado.</InfoText> : null}
         {settings.devices.map((d) => {
           const isThis = d.id === settings.deviceId;
@@ -87,39 +149,45 @@ export default function SecurityScreen() {
                   {isThis ? <Text style={styles.thisDevice}>  · este aparelho</Text> : null}
                 </Text>
                 <Text style={styles.muted}>
-                  {d.where} · {isThis ? 'ativo agora' : `ativo há ${timeAgo(d.lastActiveAt)}`}
+                  {d.where} · {isThis ? 'ativo agora' : `entrou há ${timeAgo(d.lastActiveAt)}`}
                 </Text>
               </View>
-              {!isThis ? (
-                <Text
-                  style={styles.logout}
-                  onPress={() =>
-                    confirm(`Sair de ${d.name}?`, 'Esse aparelho vai precisar entrar de novo.', 'Sair', () => {
-                      update({ devices: settings.devices.filter((x) => x.id !== d.id) });
-                      showBanner(`Você saiu de ${d.name}.`, { icon: 'log-out-outline' });
-                    }, true)
-                  }>
-                  Sair
-                </Text>
-              ) : null}
             </View>
           );
         })}
+        {others.length ? (
+          <PrimaryButton
+            label="Sair de todos os outros aparelhos"
+            onPress={() =>
+              confirm('Sair dos outros aparelhos?', 'Todos os outros celulares e navegadores vão precisar entrar de novo.', 'Sair dos outros', async () => {
+                const err = await signOutOtherDevices();
+                showBanner(err ?? 'Pronto: só este aparelho continua conectado.', { icon: 'log-out-outline', tone: err ? 'warning' : 'success' });
+              }, true)
+            }
+          />
+        ) : null}
       </Section>
     </SettingsScreen>
   );
-
 }
 
 const styles = themed(() =>
   StyleSheet.create({
     form: { gap: spacing.sm, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
     input: { backgroundColor: colors.surface, borderRadius: 10, paddingHorizontal: 12, height: 44, color: colors.text, fontSize: 15 },
+    codeInput: { textAlign: 'center', fontSize: 22, letterSpacing: 6, marginVertical: 4 },
     error: { color: colors.like },
+    setup: { margin: spacing.lg, padding: spacing.md, borderRadius: 12, backgroundColor: colors.surface, gap: 8 },
+    setupTitle: { fontWeight: '800', fontSize: 16, color: colors.text },
+    step: { color: colors.text, lineHeight: 19 },
+    linkBtn: { flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 10 },
+    linkText: { color: colors.white, fontWeight: '700' },
+    qr: { width: 180, height: 180, alignSelf: 'center', backgroundColor: '#fff', borderRadius: 8 },
+    secret: { fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', color: colors.text, backgroundColor: colors.background, padding: 10, borderRadius: 8, textAlign: 'center', letterSpacing: 1 },
+    cancel: { color: colors.textMuted, textAlign: 'center', paddingVertical: 6 },
     device: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
     deviceName: { color: colors.text, fontWeight: '600' },
     thisDevice: { color: colors.good, fontWeight: '600', fontSize: 12 },
     muted: { color: colors.textMuted, fontSize: 12 },
-    logout: { color: colors.like, fontWeight: '700' },
   }),
 );

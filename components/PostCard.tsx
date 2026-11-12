@@ -13,6 +13,7 @@ import type { Post } from '@/lib/types';
 import { Avatar } from './Avatar';
 import { MediaVideo } from './MediaVideo';
 import { useOverlay } from './Overlay';
+import { useReport } from './useReport';
 import { UserName } from './UserName';
 
 export function PostCard({ post, active = false }: { post: Post; active?: boolean }) {
@@ -20,6 +21,7 @@ export function PostCard({ post, active = false }: { post: Post; active?: boolea
   const { width } = useWindowDimensions();
   const { settings } = useSettings();
   const { showSheet, confirm, showBanner } = useOverlay();
+  const reportIt = useReport();
   const autoplay = settings.autoplayVideos && !settings.dataSaver;
   const [expanded, setExpanded] = useState(false);
   const heart = useRef(new Animated.Value(0)).current;
@@ -77,7 +79,7 @@ export function PostCard({ post, active = false }: { post: Post; active?: boolea
             label: 'Denunciar',
             icon: 'flag-outline',
             destructive: true,
-            onPress: () => showBanner('Obrigado. Sua denúncia foi registrada.', { icon: 'flag-outline', tone: 'success' }),
+            onPress: () => reportIt('post', post.id, 'publicação'),
           },
         ],
       });
@@ -108,7 +110,7 @@ export function PostCard({ post, active = false }: { post: Post; active?: boolea
             </Text>
           ) : null}
         </Pressable>
-        <Pressable onPress={onMore} hitSlop={10}>
+        <Pressable onPress={onMore} hitSlop={10} accessibilityLabel="Mais opções">
           <Ionicons name="ellipsis-horizontal" size={20} color={colors.text} />
         </Pressable>
       </View>
@@ -131,17 +133,17 @@ export function PostCard({ post, active = false }: { post: Post; active?: boolea
 
       {/* Ações */}
       <View style={styles.actions}>
-        <Pressable onPress={() => toggleLike(post.id)} hitSlop={8} style={styles.action}>
+        <Pressable onPress={() => toggleLike(post.id)} hitSlop={8} style={styles.action} accessibilityLabel="Curtir">
           <Ionicons name={liked ? 'heart' : 'heart-outline'} size={26} color={liked ? colors.like : colors.text} />
         </Pressable>
-        <Pressable onPress={openComments} hitSlop={8} style={styles.action}>
+        <Pressable onPress={openComments} hitSlop={8} style={styles.action} accessibilityLabel="Comentar">
           <Ionicons name="chatbubble-outline" size={24} color={colors.text} />
         </Pressable>
-        <Pressable onPress={onShare} hitSlop={8} style={styles.action}>
+        <Pressable onPress={onShare} hitSlop={8} style={styles.action} accessibilityLabel="Compartilhar">
           <Ionicons name="paper-plane-outline" size={24} color={colors.text} />
         </Pressable>
         <View style={{ flex: 1 }} />
-        <Pressable onPress={() => toggleSave(post.id)} hitSlop={8}>
+        <Pressable onPress={() => toggleSave(post.id)} hitSlop={8} accessibilityLabel="Salvar">
           <Ionicons name={saved ? 'bookmark' : 'bookmark-outline'} size={24} color={colors.text} />
         </Pressable>
       </View>

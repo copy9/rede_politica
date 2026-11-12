@@ -5,7 +5,7 @@ import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { useOverlay } from '@/components/Overlay';
 import { InfoText, NavRow, PrimaryButton, Section, SettingsScreen } from '@/components/SettingsUI';
 import { useSettings } from '@/lib/settings';
-import { useMe } from '@/lib/store';
+import { useApp, useMe } from '@/lib/store';
 import { colors, spacing, themed } from '@/lib/theme';
 
 export default function VerificationScreen() {
@@ -15,6 +15,7 @@ export default function VerificationScreen() {
   const [doc, setDoc] = useState('');
   const pending = settings.verification.status === 'em_analise';
   const { showBanner } = useOverlay();
+  const { report } = useApp();
 
   if (me.verified) {
     return (
@@ -47,7 +48,7 @@ export default function VerificationScreen() {
           <NavRow label="Cancelar pedido" danger onPress={() => update({ verification: { status: 'nenhuma' } })} />
         </Section>
       ) : (
-        <Section title="Pedir verificação" footer="O número do documento não fica salvo no aparelho: só o pedido. Na análise, a equipe confere o cargo ou a candidatura nos dados públicos do TSE.">
+        <Section title="Pedir verificação" footer="O número do documento vai só para a equipe de verificação (não aparece no seu perfil nem fica no aparelho). Na análise, a equipe confere o cargo ou a candidatura nos dados públicos do TSE.">
           <View style={styles.form}>
             <TextInput placeholder="Cargo ou candidatura" placeholderTextColor={colors.textMuted} value={office} onChangeText={setOffice} style={styles.input} />
             <TextInput placeholder="CPF ou número da candidatura" placeholderTextColor={colors.textMuted} value={doc} onChangeText={setDoc} keyboardType="number-pad" style={styles.input} />
@@ -55,10 +56,13 @@ export default function VerificationScreen() {
           <PrimaryButton
             label="Enviar pedido"
             disabled={!office.trim() || doc.replace(/\D/g, '').length < 5}
-            onPress={() => {
+            onPress={async () => {
+              // o pedido vai para a equipe de verificação (no banco); no aparelho fica só o status
+              const err = await report('verificacao', me.id, `Pedido de verificação — cargo/candidatura: ${office.trim()} — documento: ${doc.replace(/\D/g, '')}`);
+              if (err) return showBanner(err, { icon: 'alert-circle-outline', tone: 'warning' });
               update({ verification: { status: 'em_analise', requestedAt: Date.now(), office: office.trim() } });
               setDoc('');
-              showBanner('Pedido de verificação enviado.', { icon: 'shield-checkmark', tone: 'success' });
+              showBanner('Pedido de verificação enviado para a equipe.', { icon: 'shield-checkmark', tone: 'success' });
             }}
           />
         </Section>

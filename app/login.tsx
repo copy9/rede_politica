@@ -16,7 +16,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   // Etapa do código (autenticação em dois fatores)
-  const [codeStep, setCodeStep] = useState<{ sentTo: string; demoCode: string } | null>(null);
+  const [codeStep, setCodeStep] = useState(false);
   const [code, setCode] = useState('');
 
   const [busy, setBusy] = useState(false);
@@ -29,13 +29,19 @@ export default function LoginScreen() {
     if ('needsCode' in r) {
       setError(null);
       setCode('');
-      setCodeStep({ sentTo: r.sentTo, demoCode: r.demoCode });
+      setCodeStep(true);
       return;
     }
     setError(r.error);
   };
   const submit = () => attempt(username, password);
-  const confirmCode = () => setError(verifyLoginCode(code));
+  const confirmCode = async () => {
+    if (busy) return;
+    setBusy(true);
+    const err = await verifyLoginCode(code);
+    setBusy(false);
+    setError(err);
+  };
 
   if (codeStep) {
     return (
@@ -44,7 +50,7 @@ export default function LoginScreen() {
           <View style={styles.logo}>
             <Logo size={26} />
             <Text style={styles.codeTitle}>Confirme que é você</Text>
-            <Text style={styles.tagline}>Enviamos um código de 6 dígitos para o {codeStep.sentTo}.</Text>
+            <Text style={styles.tagline}>Abra o seu app autenticador (ex.: Google Authenticator) e digite o código de 6 números da Rede Política.</Text>
           </View>
           <View style={styles.form}>
             <Field
@@ -60,11 +66,10 @@ export default function LoginScreen() {
             <Pressable style={styles.button} onPress={confirmCode}>
               <Text style={styles.buttonText}>Confirmar</Text>
             </Pressable>
-            <Text style={styles.demoCode}>Demonstração (sem SMS de verdade): o código é {codeStep.demoCode}</Text>
             <Pressable
               onPress={() => {
                 cancelLoginCode();
-                setCodeStep(null);
+                setCodeStep(false);
                 setError(null);
               }}>
               <Text style={styles.demo}>Voltar</Text>

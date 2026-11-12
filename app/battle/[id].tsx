@@ -44,7 +44,7 @@ export default function BattleRoomScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const me = useMe();
   const app = useApp();
-  const { getBattle, getUser, messagesForBattle, supportBattle, sendBattleMessage, joinBattle, startBattle, endBattle } = app;
+  const { getBattle, getUser, messagesForBattle, supportBattle, sendBattleMessage, joinBattle, startBattle, endBattle, remindBattle } = app;
   const { width } = useWindowDimensions();
   const { confirm, showBanner } = useOverlay();
   const [now, setNow] = useState(Date.now());
@@ -179,7 +179,10 @@ export default function BattleRoomScreen() {
                 <Text style={styles.startText}>Começar agora</Text>
               </Pressable>
             ) : (
-              <Pressable style={styles.startButton} onPress={() => showBanner('Lembrete criado: avisaremos quando a batalha começar.', { icon: 'alarm-outline', tone: 'success' })}>
+              <Pressable style={styles.startButton} onPress={async () => {
+                  const err = await remindBattle(battle.id);
+                  showBanner(err ?? 'Lembrete criado: você recebe uma notificação quando a batalha começar.', { icon: 'alarm-outline', tone: err ? 'warning' : 'success' });
+                }}>
                 <Text style={styles.startText}>Lembrar-me</Text>
               </Pressable>
             )}

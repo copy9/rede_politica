@@ -62,7 +62,7 @@ export type Follow = {
   followingId: string;
 };
 
-export type NotificationType = 'like' | 'comment' | 'follow' | 'mention' | 'security' | 'request';
+export type NotificationType = 'like' | 'comment' | 'follow' | 'mention' | 'security' | 'request' | 'battle';
 
 export type AppNotification = {
   id: string;
@@ -70,6 +70,7 @@ export type AppNotification = {
   toUserId: string;
   fromUserId: string;
   postId?: string;
+  battleId?: string;
   text?: string;
   createdAt: number;
 };

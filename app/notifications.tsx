@@ -26,13 +26,14 @@ export default function NotificationsScreen() {
     request: 'follows',
     mention: 'mentions',
     security: 'security',
+    battle: 'battles',
   };
   const mine = prefs.pauseAll
     ? []
     : notifications
         .filter((n) => n.toUserId === me.id && prefs[PREF[n.type]])
         .sort((a, b) => b.createdAt - a.createdAt);
-  const requests = settings.privateAccount ? followRequests.filter((r) => r.toId === me.id) : [];
+  const requests = followRequests.filter((r) => r.toId === me.id);
   const now = Date.now();
 
   const sections = [
@@ -103,6 +104,22 @@ function NotificationRow({ n }: { n: AppNotification }) {
   }
   if (!from) return null;
 
+  // Batalha: desafio, agendamento ou "começou" — toque abre a sala
+  if (n.type === 'battle') {
+    return (
+      <Pressable style={styles.row} onPress={() => n.battleId && router.push(`/battle/${n.battleId}`)}>
+        <Avatar uri={from.avatar} size={44} />
+        <Text style={styles.text} numberOfLines={3}>
+          <Text style={styles.bold}>{from.username} </Text>
+          {n.text} <Text style={styles.time}>{timeAgo(n.createdAt)}</Text>
+        </Text>
+        <View style={styles.battleIcon}>
+          <Ionicons name="flash" size={20} color={colors.white} />
+        </View>
+      </Pressable>
+    );
+  }
+
   const text =
     n.type === 'like'
       ? 'curtiu sua publicação.'
@@ -146,6 +163,7 @@ const styles = themed(() => StyleSheet.create({
   thumb: { width: 44, height: 44, backgroundColor: colors.surface },
   paused: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, margin: spacing.lg, padding: spacing.md, borderRadius: 12, backgroundColor: colors.surface },
   pausedText: { flex: 1, color: colors.text },
+  battleIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.like, alignItems: 'center', justifyContent: 'center' },
   securityIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.infoBg, alignItems: 'center', justifyContent: 'center' },
   accept: { backgroundColor: colors.primary, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
   acceptText: { color: colors.white, fontWeight: '700', fontSize: 13 },

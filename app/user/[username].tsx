@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useReport } from '@/components/useReport';
 import { useOverlay } from '@/components/Overlay';
 import { ProfileView } from '@/components/ProfileView';
 import { UserName } from '@/components/UserName';
@@ -14,6 +15,7 @@ export default function UserScreen() {
   const { getUserByUsername, me } = useApp();
   const { settings, toggleIn } = useSettings();
   const { showSheet, confirm, showBanner } = useOverlay();
+  const reportIt = useReport();
   const user = getUserByUsername(username);
 
   if (!user) {
@@ -61,7 +63,7 @@ export default function UserScreen() {
           label: 'Denunciar perfil',
           icon: 'flag-outline' as const,
           destructive: true,
-          onPress: () => showBanner('Obrigado. Sua denúncia foi registrada.', { icon: 'flag-outline', tone: 'success' }),
+          onPress: () => reportIt('profile', user.id, 'perfil'),
         },
       ],
     });
@@ -72,7 +74,7 @@ export default function UserScreen() {
         options={{
           headerTitle: () => <UserName user={user} size={17} />,
           headerRight: () => (
-            <Pressable hitSlop={8} onPress={openMenu}>
+            <Pressable hitSlop={8} onPress={openMenu} accessibilityLabel="Mais opções">
               <Ionicons name="ellipsis-horizontal" size={22} color={colors.text} />
             </Pressable>
           ),

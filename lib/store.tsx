@@ -10,11 +10,11 @@
 //   para mostrar a mensagem certa mais rápido.
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState as RNAppState } from 'react-native';
+import { Platform, AppState as RNAppState } from 'react-native';
 
 import { ageRangeOf } from './analytics';
 import { timeAgo } from './format';
-import { useSettings, type AccountSettings, type Audience, type ShareProfile } from './settings';
+import { useSettings, type AccountSettings, type Audience, type Device, type ShareProfile } from './settings';
 import { supabase } from './supabase';
 import type {
   AppNotification,
@@ -52,7 +52,10 @@ type SignUpInput = {
   acceptedTerms: boolean;
   shareProfile?: ShareProfile;
 };
-export type SignInResult = { ok: true } | { ok: false; error: string } | { ok: false; needsCode: true; sentTo: string; demoCode: string };
+export type SignInResult = { ok: true } | { ok: false; error: string } | { ok: false; needsCode: true };
+/** Dados para ligar a autenticação em dois fatores (app autenticador, ex.: Google Authenticator) */
+export type TwoFactorSetup = { factorId: string; qr: string; secret: string; uri: string };
+export type ReportTarget = 'post' | 'comment' | 'profile' | 'battle' | 'app' | 'verificacao';
 export type InteractionKind = 'comment' | 'message' | 'mention' | 'challenge';
 type ConsentInput = { fields: ShareField[]; email?: string; whatsapp?: string; interests: string[] };
 type ProfileUpdate = Partial<
@@ -96,8 +99,20 @@ type AppState = {
 
   // autenticação
   signIn: (email: string, password: string) => Promise<SignInResult>;
-  verifyLoginCode: (code: string) => string | null;
+  /** confere o código do app autenticador no login */
+  verifyLoginCode: (code: string) => Promise<string | null>;
   cancelLoginCode: () => void;
+  // dois fatores de verdade (Supabase MFA / TOTP)
+  twoFactorEnabled: boolean;
+  startTwoFactor: () => Promise<TwoFactorSetup | string>;
+  confirmTwoFactor: (factorId: string, code: string) => Promise<string | null>;
+  disableTwoFactor: () => Promise<string | null>;
+  /** desconecta a conta de todos os outros aparelhos */
+  signOutOtherDevices: () => Promise<string | null>;
+  /** denúncia / pedido gravado no banco para a equipe analisar */
+  report: (targetType: ReportTarget, targetId: string | null, reason: string) => Promise<string | null>;
+  /** avisa quando a batalha agendada começar */
+  remindBattle: (battleId: string) => Promise<string | null>;
   changePassword: (current: string, next: string) => Promise<string | null>;
   deleteAccount: () => Promise<void>;
   exportMyData: () => string;
@@ -250,6 +265,7 @@ function toNotification(n: Row): AppNotification {
     toUserId: n.to_user_id,
     fromUserId: n.from_user_id ?? '',
     postId: n.post_id ?? undefined,
+    battleId: n.battle_id ?? undefined,
     text: n.text ?? undefined,
     createdAt: ms(n.created_at),
   };
@@ -305,7 +321,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const { settings, accountSettings, updateAccount, removeAccount, setActiveAccount, activeAccountId } = useSettings();
-  const [pendingLogin, setPendingLogin] = useState<{ userId: string; code: string } | null>(null);
+  const [pendingLogin, setPendingLogin] = useState<{ userId: string; factorId: string; email?: string } | null>(null);
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [followRequests, setFollowRequests] = useState<FollowRequest[]>([]);
   const [lastActive, setLastActive] = useState<Record<string, number>>({});
 
@@ -333,8 +350,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   battlesRef.current = battles;
   const meIdRef = useRef(meId);
   meIdRef.current = meId;
+  /** gravações no banco ainda em andamento */
+  const pendingWrites = useRef(0);
+  const writeVersion = useRef(0);
+  const refreshRef = useRef<() => Promise<void>>(async () => {});
   const accountSettingsRef = useRef(accountSettings);
   accountSettingsRef.current = accountSettings;
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
   /** quantas pessoas estão em cada sala de batalha (presença em tempo real) */
   const viewersRef = useRef<Record<string, number>>({});
   /** o que o banco tem de privacidade da minha conta (para saber o que mudou e precisa ser enviado) */
@@ -345,7 +368,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // ---------- baixar tudo do banco ----------
   const loadAll = useCallback(
-    async (uid: string) => {
+    /** devolve false se algo foi gravado durante a leitura (aí os dados lidos já estão velhos e não são aplicados) */
+    async (uid: string, version?: number): Promise<boolean> => {
       const q = await Promise.all([
         supabase.from('profiles').select('*'),
         supabase.from('follows').select('follower_id, following_id'),
@@ -366,10 +390,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         supabase.from('battles').select('*').order('created_at', { ascending: false }).limit(100),
         supabase.from('battle_events').select('*').order('created_at', { ascending: false }).limit(1500),
         supabase.from('consents').select('*'),
+        supabase.from('devices').select('*').order('last_active_at', { ascending: false }),
       ]);
       const err = q.find((r) => r.error)?.error;
       if (err) throw err;
-      const [profiles, fo, fr, bl, mu, cf, po, li, sa, co, cl, st, sv, cm, me_, no, ba, be, cs] = q.map((r) => (r.data ?? []) as Row[]);
+      if (version !== undefined && (version !== writeVersion.current || pendingWrites.current > 0)) return false;
+      const [profiles, fo, fr, bl, mu, cf, po, li, sa, co, cl, st, sv, cm, me_, no, ba, be, cs, dv] = q.map((r) => (r.data ?? []) as Row[]);
 
       const userList = profiles.map(toUser);
       setUsers(userList);
@@ -434,6 +460,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         })),
       );
 
+      // Aparelhos conectados (vêm do banco: valem para todos os aparelhos da conta)
+      updateAccount(uid, {
+        devices: dv.map(
+          (d): Device => ({
+            id: d.device_id,
+            name: d.name,
+            where: d.platform === 'web' ? 'Navegador' : 'Celular',
+            lastActiveAt: ms(d.last_active_at),
+            icon: d.platform === 'web' ? 'globe-outline' : 'phone-portrait-outline',
+          }),
+        ),
+      });
+
       // Regras de privacidade de cada conta (as telas leem por accountSettings(id))
       const myBlocks = bl.filter((b) => b.blocker_id === uid).map((b) => b.blocked_id as string);
       const blockedMe = new Set(bl.filter((b) => b.blocked_id === uid).map((b) => b.blocker_id as string));
@@ -462,24 +501,43 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           });
         }
       });
+      return true;
     },
     [updateAccount],
   );
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (): Promise<void> => {
     const uid = meIdRef.current;
     if (!uid) return;
+    // se ainda tem algo sendo gravado, espera terminar (senão a tela "desfaz" o toque por um instante)
+    if (pendingWrites.current > 0) {
+      await new Promise((r) => setTimeout(r, 1200));
+      return refreshRef.current();
+    }
     try {
       await supabase.rpc('end_expired_battles');
-      await loadAll(uid);
+      const applied = await loadAll(uid, writeVersion.current);
+      if (!applied) {
+        await new Promise((r) => setTimeout(r, 1200));
+        return refreshRef.current();
+      }
     } catch (e) {
       fail((e as Error).message);
     }
   }, [loadAll, fail]);
+  refreshRef.current = refresh;
 
   /** Conclui o login: guarda o e-mail, registra este aparelho e carrega os dados. */
   const completeLogin = useCallback(
-    async (userId: string, email?: string) => {
+    async (userId: string, email?: string, fresh = false) => {
+      const acctBefore = accountSettingsRef.current(userId);
+      // registra este aparelho; num login novo, cria o alerta "Novo acesso" (se ligado)
+      const deviceName = Platform.OS === 'web' ? 'Navegador' : Platform.OS === 'ios' ? 'iPhone' : 'Celular Android';
+      await supabase
+        .rpc('register_login', { p_device_id: settingsRef.current.deviceId || 'aparelho', p_name: deviceName, p_platform: Platform.OS, p_alert: fresh && acctBefore.loginAlerts })
+        .then(() => {}, () => {});
+      const factors = await supabase.auth.mfa.listFactors().catch(() => null);
+      setTwoFactorEnabled(!!factors?.data?.totp?.some((f) => f.status === 'verified'));
       await loadAll(userId);
       const acct = accountSettingsRef.current(userId);
       updateAccount(userId, {
@@ -500,7 +558,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       try {
         const { data } = await supabase.auth.getSession();
         const user = data.session?.user;
-        if (user && alive) await completeLogin(user.id, user.email);
+        if (user && alive) {
+          // conta com dois fatores e sessão sem o código: pede login de novo
+          const aal = await supabase.auth.mfa.getAuthenticatorAssuranceLevel().catch(() => null);
+          if (aal?.data?.nextLevel === 'aal2' && aal.data.currentLevel !== 'aal2') await supabase.auth.signOut().catch(() => {});
+          else await completeLogin(user.id, user.email);
+        }
       } catch {
         // sem internet ou sessão vencida: mostra a tela de login
       } finally {
@@ -662,7 +725,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   /** grava no banco; se der erro, avisa e recarrega (a tela volta ao estado real) */
   const write = useCallback(
     (job: PromiseLike<{ error: { message: string } | null }>) => {
-      Promise.resolve(job).then(
+      pendingWrites.current += 1;
+      writeVersion.current += 1;
+      Promise.resolve(job)
+        .finally(() => {
+          pendingWrites.current -= 1;
+        })
+        .then(
         (r) => {
           if (r.error) {
             fail(r.error.message);
@@ -686,31 +755,99 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (!clean.includes('@')) return { ok: false, error: 'Entre com o e-mail que você usou no cadastro.' };
       const { data, error } = await supabase.auth.signInWithPassword({ email: clean, password });
       if (error || !data.user) return { ok: false, error: friendlyError(error?.message) };
-      const acct = accountSettings(data.user.id);
-      if (acct.twoFactor) {
-        const code = String(Math.floor(100000 + Math.random() * 900000));
-        setPendingLogin({ userId: data.user.id, code });
-        const sentTo = acct.phone ? `celular terminado em ${acct.phone.replace(/\D/g, '').slice(-4)}` : acct.email || 'seu contato';
-        return { ok: false, needsCode: true, sentTo, demoCode: code };
+      // dois fatores ligado: pede o código do app autenticador
+      const aal = await supabase.auth.mfa.getAuthenticatorAssuranceLevel().catch(() => null);
+      if (aal?.data?.nextLevel === 'aal2' && aal.data.currentLevel !== 'aal2') {
+        const factors = await supabase.auth.mfa.listFactors();
+        const factor = factors.data?.totp?.find((f) => f.status === 'verified');
+        if (factor) {
+          setPendingLogin({ userId: data.user.id, factorId: factor.id, email: data.user.email });
+          return { ok: false, needsCode: true };
+        }
       }
       try {
-        await completeLogin(data.user.id, data.user.email);
+        await completeLogin(data.user.id, data.user.email, true);
       } catch (e) {
         return { ok: false, error: friendlyError((e as Error).message) };
       }
       return { ok: true };
     },
-    [accountSettings, completeLogin],
+    [completeLogin],
   );
 
   const verifyLoginCode = useCallback(
-    (code: string) => {
+    async (code: string) => {
       if (!pendingLogin) return 'Comece o login de novo.';
-      if (code.replace(/\D/g, '') !== pendingLogin.code) return 'Código incorreto.';
-      completeLogin(pendingLogin.userId).catch((e: Error) => fail(e.message));
+      const clean = code.replace(/\D/g, '');
+      if (clean.length !== 6) return 'Digite os 6 números do app autenticador.';
+      const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId: pendingLogin.factorId, code: clean });
+      if (error) return 'Código incorreto ou vencido. Use o código que está aparecendo agora no app.';
+      try {
+        await completeLogin(pendingLogin.userId, pendingLogin.email, true);
+      } catch (e) {
+        return friendlyError((e as Error).message);
+      }
       return null;
     },
-    [pendingLogin, completeLogin, fail],
+    [pendingLogin, completeLogin],
+  );
+
+  // ---------- dois fatores (app autenticador) ----------
+  const startTwoFactor = useCallback(async (): Promise<TwoFactorSetup | string> => {
+    // remove tentativas antigas não concluídas
+    const old = await supabase.auth.mfa.listFactors();
+    for (const f of old.data?.all ?? []) if (f.status !== 'verified') await supabase.auth.mfa.unenroll({ factorId: f.id });
+    const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: `Rede Política ${Date.now()}` });
+    if (error || !data) return friendlyError(error?.message);
+    return { factorId: data.id, qr: data.totp.qr_code, secret: data.totp.secret, uri: data.totp.uri };
+  }, []);
+
+  const confirmTwoFactor = useCallback(async (factorId: string, code: string) => {
+    const clean = code.replace(/\D/g, '');
+    if (clean.length !== 6) return 'Digite os 6 números que aparecem no app autenticador.';
+    const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId, code: clean });
+    if (error) return 'Código incorreto. Confira se o relógio do celular está certo e use o código atual.';
+    setTwoFactorEnabled(true);
+    return null;
+  }, []);
+
+  const disableTwoFactor = useCallback(async () => {
+    const { data } = await supabase.auth.mfa.listFactors();
+    for (const f of data?.totp ?? []) {
+      const { error } = await supabase.auth.mfa.unenroll({ factorId: f.id });
+      if (error) return 'Para desligar, saia e entre de novo usando o código do app autenticador.';
+    }
+    setTwoFactorEnabled(false);
+    return null;
+  }, []);
+
+  const signOutOtherDevices = useCallback(async () => {
+    if (!meId) return 'Não autenticado.';
+    const { error } = await supabase.auth.signOut({ scope: 'others' });
+    if (error) return friendlyError(error.message);
+    await supabase.from('devices').delete().eq('user_id', meId).neq('device_id', settingsRef.current.deviceId || 'aparelho');
+    await refresh();
+    return null;
+  }, [meId, refresh]);
+
+  const report = useCallback(
+    async (targetType: ReportTarget, targetId: string | null, reason: string) => {
+      if (!meId) return 'Não autenticado.';
+      const text = reason.trim().slice(0, 2000);
+      if (!text) return 'Escreva o motivo.';
+      const { error } = await supabase.from('reports').insert({ reporter_id: meId, target_type: targetType, target_id: targetId, reason: text });
+      return error ? friendlyError(error.message) : null;
+    },
+    [meId],
+  );
+
+  const remindBattle = useCallback(
+    async (battleId: string) => {
+      if (!meId) return 'Não autenticado.';
+      const { error } = await supabase.from('battle_reminders').upsert({ battle_id: battleId, user_id: meId }, { ignoreDuplicates: true });
+      return error ? friendlyError(error.message) : null;
+    },
+    [meId],
   );
 
   const cancelLoginCode = useCallback(() => {
@@ -754,7 +891,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (!data.session) return 'Conta criada! Abra o e-mail de confirmação e depois toque em "Entrar".';
       updateAccount(data.user.id, { termsAcceptedAt: Date.now(), email: email.trim() });
       try {
-        await completeLogin(data.user.id, data.user.email);
+        await completeLogin(data.user.id, data.user.email, true);
       } catch (e) {
         return friendlyError((e as Error).message);
       }
@@ -1436,6 +1573,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     signIn,
     verifyLoginCode,
     cancelLoginCode,
+    twoFactorEnabled,
+    startTwoFactor,
+    confirmTwoFactor,
+    disableTwoFactor,
+    signOutOtherDevices,
+    report,
+    remindBattle,
     changePassword,
     deleteAccount,
     exportMyData,
