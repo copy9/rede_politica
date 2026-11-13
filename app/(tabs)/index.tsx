@@ -36,6 +36,9 @@ export default function FeedScreen() {
       <View style={styles.header}>
         <Logo size={22} />
         <View style={styles.headerIcons}>
+          <Pressable onPress={() => router.navigate('/create')} hitSlop={8} accessibilityLabel="Nova publicação">
+            <Ionicons name="add-outline" size={28} color={colors.text} />
+          </Pressable>
           <Pressable onPress={() => router.push('/notifications')} hitSlop={8}>
             <Ionicons name="heart-outline" size={26} color={colors.text} />
             {hasNotifications ? <View style={styles.dot} /> : null}

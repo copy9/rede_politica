@@ -26,9 +26,9 @@ export default function TabLayout() {
         tabBarStyle: { backgroundColor: colors.background, borderTopColor: colors.border },
       }}>
       <Tabs.Screen name="index" options={{ title: 'Início', tabBarIcon: icon('home', 'home-outline') }} />
-      <Tabs.Screen name="explore" options={{ title: 'Explorar', tabBarIcon: icon('search', 'search-outline') }} />
-      <Tabs.Screen name="create" options={{ title: 'Publicar', tabBarIcon: icon('add-circle', 'add-circle-outline') }} />
       <Tabs.Screen name="videos" options={{ title: 'Vídeos', tabBarIcon: icon('play-circle', 'play-circle-outline') }} />
+      <Tabs.Screen name="battles" options={{ title: 'Batalhas', tabBarIcon: icon('flash', 'flash-outline') }} />
+      <Tabs.Screen name="explore" options={{ title: 'Explorar', tabBarIcon: icon('search', 'search-outline') }} />
       <Tabs.Screen
         name="profile"
         options={{
@@ -38,7 +38,7 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen name="battles" options={{ title: 'Batalhas', tabBarIcon: icon('flash', 'flash-outline') }} />
+      <Tabs.Screen name="create" options={{ href: null }} />
     </Tabs>
   );
 }

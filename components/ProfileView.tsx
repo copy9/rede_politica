@@ -62,9 +62,16 @@ export function ProfileView({ user }: { user: User }) {
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
       <View style={styles.top}>
-        <Pressable onPress={() => story && router.push(`/story/${user.id}`)}>
-          <Avatar uri={user.avatar} size={84} ring={story ? (story.seen ? 'seen' : story.closeFriends ? 'close' : 'unseen') : 'none'} />
-        </Pressable>
+        <View>
+          <Pressable onPress={() => story && router.push(`/story/${user.id}`)}>
+            <Avatar uri={user.avatar} size={84} ring={story ? (story.seen ? 'seen' : story.closeFriends ? 'close' : 'unseen') : 'none'} />
+          </Pressable>
+          {isMe ? (
+            <Pressable style={styles.addBadge} onPress={() => router.push('/create')} accessibilityLabel="Nova publicação">
+              <Ionicons name="add" size={16} color={colors.white} />
+            </Pressable>
+          ) : null}
+        </View>
         <View style={styles.stats}>
           <Stat value={userPosts.length} label="publicações" />
           <Stat
@@ -81,10 +88,11 @@ export function ProfileView({ user }: { user: User }) {
       </View>
 
       <View style={styles.bio}>
-        <Text style={styles.name}>
-          {user.name}
-          {isPrivate ? <Text style={styles.role}>  🔒 conta privada</Text> : null}
-        </Text>
+        <View style={styles.nameRow}>
+          <Text style={styles.name}>{user.name}</Text>
+          {user.verified ? <Ionicons name="checkmark-circle" size={16} color={colors.primary} /> : null}
+          {isPrivate ? <Text style={styles.role}>🔒 conta privada</Text> : null}
+        </View>
         {activity ? <Text style={styles.activity}>● {activity}</Text> : null}
         {user.role || user.party ? (
           <Text style={styles.role}>{[user.role, user.party].filter(Boolean).join(' • ')}</Text>
@@ -98,10 +106,20 @@ export function ProfileView({ user }: { user: User }) {
           </View>
         ) : null}
         {user.bio ? <Text style={styles.bioText}>{user.bio}</Text> : null}
+      </View>
+
+      <View style={styles.pills}>
         {user.website ? (
-          <Text style={styles.link} onPress={() => Linking.openURL(`https://${user.website}`).catch(() => {})}>
-            <Ionicons name="link" size={13} /> {user.website}
-          </Text>
+          <Pressable style={styles.pill} onPress={() => Linking.openURL(`https://${user.website}`).catch(() => {})}>
+            <Ionicons name="link" size={14} color={colors.text} />
+            <Text style={styles.pillText}>{user.website}</Text>
+          </Pressable>
+        ) : null}
+        {isMe ? (
+          <Pressable style={styles.pill} onPress={() => router.push('/edit-profile')}>
+            <Ionicons name="add" size={16} color={colors.text} />
+            <Text style={styles.pillText}>Adicionar</Text>
+          </Pressable>
         ) : null}
       </View>
 
@@ -172,10 +190,25 @@ export function ProfileView({ user }: { user: User }) {
         </Pressable>
       ) : null}
 
+      {isMe ? (
+        <View style={styles.highlights}>
+          <Pressable style={styles.highlight} onPress={() => router.push('/create')}>
+            <View style={styles.highlightCircle}>
+              <Ionicons name="add" size={32} color={colors.text} />
+            </View>
+            <Text style={styles.highlightLabel}>Novo</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
       <View style={styles.tabs}>
         <TabIcon icon="grid" active={tab === 'posts'} onPress={() => setTab('posts')} />
         <TabIcon icon="play-circle" active={tab === 'videos'} onPress={() => setTab('videos')} />
-        {isMe ? <TabIcon icon="bookmark" active={tab === 'saved'} onPress={() => setTab('saved')} /> : null}
+        {isMe ? (
+          <Pressable onPress={() => router.push('/battle/new')} style={styles.tab} accessibilityLabel="Nova batalha">
+            <Ionicons name="flash-outline" size={22} color={colors.text} />
+          </Pressable>
+        ) : null}
       </View>
 
       {!visible ? (
@@ -248,4 +281,13 @@ const styles = themed(() => StyleSheet.create({
   tabs: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
   tab: { flex: 1, alignItems: 'center', paddingVertical: spacing.md },
   tabActive: { borderBottomWidth: 1.5, borderBottomColor: colors.text },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
+  addBadge: { position: 'absolute', right: 0, bottom: 0, width: 26, height: 26, borderRadius: 13, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.background },
+  pills: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, paddingHorizontal: spacing.lg, marginTop: spacing.md },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1, borderColor: colors.border },
+  pillText: { color: colors.text, fontWeight: '600', fontSize: 13 },
+  highlights: { flexDirection: 'row', paddingHorizontal: spacing.lg, paddingBottom: spacing.md, gap: spacing.md },
+  highlight: { alignItems: 'center', gap: 6, width: 80 },
+  highlightCircle: { width: 72, height: 72, borderRadius: 36, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  highlightLabel: { color: colors.text, fontSize: 12 },
 }));
