@@ -70,7 +70,8 @@ export function BattleGuestsGrid({ battleId, live, isHost, isParticipant, meId, 
   // quadradinho "Participar" aparece para quem assiste e ainda não está no vídeo
   const showSlot = live && !isParticipant && !isHost && mine?.status !== 'accepted' && mine?.status !== 'convidado';
   const invitedToJoin = !isHost && mine?.status === 'convidado';
-  const invitedWaiting = isHost ? guests.filter((g) => g.status === 'convidado') : [];
+  // escolhidos pela criação: aparecem já na grade, como "aguardando", até aceitarem
+  const invitedRows = guests.filter((g) => g.status === 'convidado');
 
   const respondInvite = async (status: 'accepted' | 'declined') => {
     const { error } = await supabase.from('battle_guests').update({ status }).eq('battle_id', battleId).eq('user_id', meId);
@@ -90,7 +91,7 @@ export function BattleGuestsGrid({ battleId, live, isHost, isParticipant, meId, 
     if (error) onMessage('Não foi possível responder agora.');
   };
 
-  if (!showSlot && accepted.length === 0 && !(isHost && pending.length > 0) && !invitedToJoin && invitedWaiting.length === 0) return null;
+  if (!showSlot && accepted.length === 0 && invitedRows.length === 0 && !(isHost && pending.length > 0) && !invitedToJoin) return null;
 
   return (
     <View style={styles.wrap}>
@@ -108,9 +109,9 @@ export function BattleGuestsGrid({ battleId, live, isHost, isParticipant, meId, 
           </View>
         </View>
       ) : null}
-      {isHost && invitedWaiting.length > 0 ? (
+      {isHost && invitedRows.length > 0 ? (
         <Text style={styles.waitingText}>
-          Aguardando {invitedWaiting.map((g) => userOf(g.user_id)?.name ?? 'convidado').join(', ')} aceitar participar
+          Aguardando {invitedRows.map((g) => userOf(g.user_id)?.name ?? 'convidado').join(', ')} aceitar participar
         </Text>
       ) : null}
 
@@ -151,6 +152,18 @@ export function BattleGuestsGrid({ battleId, live, isHost, isParticipant, meId, 
             </View>
           );
         })}
+        {invitedRows.map((g) => {
+          const u = userOf(g.user_id);
+          return (
+            <View key={`inv-${g.user_id}`} style={styles.tile}>
+              <View style={styles.fallback}>
+                <Avatar uri={u?.avatar ?? ''} size={40} />
+                <Text style={styles.tileName} numberOfLines={1}>{u?.name ?? ''}</Text>
+                <Text style={styles.waitTile}>aguardando</Text>
+              </View>
+            </View>
+          );
+        })}
         {showSlot ? (
           <View style={styles.tile}>
             <Pressable onPress={askToJoin} style={styles.slot} accessibilityLabel="Participar da batalha">
@@ -178,6 +191,7 @@ const guestStyles = themed(() => StyleSheet.create({
   tile: { width: '33.33%', aspectRatio: 1, padding: 2 },
   fallback: { flex: 1, backgroundColor: '#111827', borderRadius: 10, alignItems: 'center', justifyContent: 'center', gap: 4, padding: 4 },
   tileName: { color: '#fff', fontSize: 11, maxWidth: '95%' },
+  waitTile: { color: 'rgba(255,255,255,0.6)', fontSize: 10 },
   waitingText: { color: 'rgba(255,255,255,0.7)', fontSize: 12, textAlign: 'center', paddingVertical: 4 },
   slot: { flex: 1, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
   slotPlus: { color: '#fff', fontSize: 22, fontWeight: '300', lineHeight: 24 },

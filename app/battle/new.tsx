@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
@@ -9,6 +9,7 @@ import { UserName } from '@/components/UserName';
 import { useApp, useMe } from '@/lib/store';
 import { colors, spacing, themed } from '@/lib/theme';
 
+const MAX_PARTICIPANTS = 6;
 const DURATIONS = [3, 5, 10, 15];
 const WHEN = [
   { label: 'Agora', hours: 0 },
@@ -21,13 +22,16 @@ export default function NewBattleScreen() {
   const { users, followingOf, createBattle, canInteract } = useApp();
   // vindo do botão "Desafiar" no perfil: a pessoa já vem escolhida
   const { adversario } = useLocalSearchParams<{ adversario?: string }>();
-  const [opponentId, setOpponentId] = useState<string | null>(adversario ?? null);
-  const [guestIds, setGuestIds] = useState<string[]>([]);
+  // escolhidos na ordem: a primeira pessoa é a desafiada, as demais entram ao vivo como convidadas
+  const [picked, setPicked] = useState<string[]>(adversario ? [adversario] : []);
   const [topic, setTopic] = useState('');
   const [minutes, setMinutes] = useState(5);
   const [whenHours, setWhenHours] = useState(0);
   const [query, setQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  const opponentId = picked[0] ?? null;
+  const guestIds = picked.slice(1);
 
   // Quem eu sigo aparece primeiro
   const following = followingOf(me.id);
@@ -40,16 +44,15 @@ export default function NewBattleScreen() {
     (u) => !q || u.username.includes(q) || u.name.toLowerCase().includes(q),
   );
 
-  const guestCandidates = candidates.filter((u) => u.id !== opponentId && canInteract(u.id, 'challenge')).slice(0, 30);
-  const toggleGuest = (id: string) => {
-    if (guestIds.includes(id)) return setGuestIds(guestIds.filter((g) => g !== id));
-    if (guestIds.length >= 6) return setError('No máximo 6 convidados ao vivo.');
+  const togglePick = (id: string) => {
+    if (picked.includes(id)) return setPicked(picked.filter((p) => p !== id));
+    if (picked.length >= MAX_PARTICIPANTS) return setError(`No máximo ${MAX_PARTICIPANTS} pessoas na batalha.`);
     setError(null);
-    setGuestIds([...guestIds, id]);
+    setPicked([...picked, id]);
   };
 
   const start = () => {
-    if (!opponentId) return setError('Escolha quem você vai desafiar.');
+    if (!opponentId) return setError('Escolha pelo menos uma pessoa.');
     if (!topic.trim()) return setError('Escreva o título da batalha.');
     const battle = createBattle({
       opponentId,
@@ -95,39 +98,14 @@ export default function NewBattleScreen() {
             </View>
 
             <View style={styles.guestHead}>
-              <Text style={styles.label}>Convidados ao vivo</Text>
-              <Text style={styles.counter}>{guestIds.length}/6</Text>
+              <Text style={styles.label}>Quem participa</Text>
+              <Text style={styles.counter}>
+                {picked.length}/{MAX_PARTICIPANTS}
+              </Text>
             </View>
-            <Text style={styles.muted}>Toque nas pessoas para convidar. Elas entram no vídeo quando aceitarem.</Text>
-            {guestCandidates.length > 0 ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.guestRow}>
-                {guestCandidates.map((u) => {
-                  const on = guestIds.includes(u.id);
-                  const full = !on && guestIds.length >= 6;
-                  return (
-                    <Pressable
-                      key={u.id}
-                      onPress={() => toggleGuest(u.id)}
-                      style={[styles.guestItem, full && { opacity: 0.35 }]}
-                      accessibilityLabel={`Convidar ${u.username}`}>
-                      <View style={[styles.guestRing, on && styles.guestRingOn]}>
-                        <Avatar uri={u.avatar} size={56} />
-                        {on ? (
-                          <View style={styles.guestCheck}>
-                            <Ionicons name="checkmark" size={12} color="#fff" />
-                          </View>
-                        ) : null}
-                      </View>
-                      <Text style={[styles.guestName, on && styles.guestNameOn]} numberOfLines={1}>
-                        {u.username}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-            ) : (
-              <Text style={styles.muted}>Nenhuma pessoa disponível para convidar.</Text>
-            )}
+            <Text style={styles.muted}>
+              Toque nas bolinhas para escolher várias pessoas. O número 1 é a pessoa desafiada; as outras entram ao vivo como convidadas.
+            </Text>
 
             <Text style={styles.label}>Desafiar</Text>
             <View style={styles.search}>
@@ -144,14 +122,15 @@ export default function NewBattleScreen() {
           </View>
         }
         renderItem={({ item }) => {
-          const selected = item.id === opponentId;
+          const selected = picked.includes(item.id);
+          const order = picked.indexOf(item.id) + 1;
           // respeita "Quem pode desafiar você para batalhas" de cada conta
           const allowed = canInteract(item.id, 'challenge');
           return (
             <Pressable
               style={[styles.person, selected && styles.personSelected, !allowed && { opacity: 0.45 }]}
               disabled={!allowed}
-              onPress={() => setOpponentId(item.id)}>
+              onPress={() => togglePick(item.id)}>
               <Avatar uri={item.avatar} size={44} />
               <View style={{ flex: 1 }}>
                 <UserName user={item} />
@@ -159,9 +138,14 @@ export default function NewBattleScreen() {
                   {allowed ? [item.name, item.role].filter(Boolean).join(' • ') : 'Não aceita desafios de você'}
                 </Text>
               </View>
+              {selected ? (
+                <View style={styles.orderBadge}>
+                  <Text style={styles.orderText}>{order}</Text>
+                </View>
+              ) : null}
               <Ionicons
-                name={selected ? 'radio-button-on' : 'radio-button-off'}
-                size={22}
+                name={selected ? 'checkmark-circle' : 'ellipse-outline'}
+                size={26}
                 color={selected ? colors.like : colors.textMuted}
               />
             </Pressable>
@@ -200,19 +184,14 @@ const styles = themed(() => StyleSheet.create({
   chip: { borderWidth: 1, borderColor: colors.border, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 7 },
   chipActive: { backgroundColor: colors.like, borderColor: colors.like },
   chipText: { color: colors.text, fontWeight: '600' },
+  guestHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm },
+  counter: { color: colors.textMuted, fontWeight: '700' },
   search: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.surface, borderRadius: 10, paddingHorizontal: 12, height: 38 },
   person: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
   personSelected: { backgroundColor: colors.dangerBg },
+  orderBadge: { minWidth: 22, height: 22, borderRadius: 11, backgroundColor: colors.like, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  orderText: { color: '#fff', fontWeight: '800', fontSize: 12 },
   muted: { color: colors.textMuted, fontSize: 13 },
-  guestHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm },
-  counter: { color: colors.textMuted, fontWeight: '700' },
-  guestRow: { gap: spacing.md, paddingVertical: spacing.xs },
-  guestItem: { width: 72, alignItems: 'center', gap: 4 },
-  guestRing: { borderRadius: 999, borderWidth: 2, borderColor: 'transparent', padding: 2 },
-  guestRingOn: { borderColor: colors.like },
-  guestCheck: { position: 'absolute', right: -2, bottom: -2, width: 20, height: 20, borderRadius: 10, backgroundColor: colors.like, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.background },
-  guestName: { color: colors.textMuted, fontSize: 12, maxWidth: 72 },
-  guestNameOn: { color: colors.text, fontWeight: '700' },
   footer: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.lg, gap: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, backgroundColor: colors.background },
   error: { color: colors.like, textAlign: 'center' },
   note: { color: colors.textMuted, fontSize: 12, textAlign: 'center' },
