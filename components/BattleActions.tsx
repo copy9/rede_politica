@@ -12,12 +12,26 @@ const HEART_COLORS = ['#F43F5E', '#FB7185', '#EC4899', '#F97316', '#FACC15'];
 
 type Heart = { id: number; x: number; color: string; anim: Animated.Value };
 
-export function BattleActions({ battle, host, opponent, meId }: { battle: LiveBattle; host: User; opponent: User; meId: string }) {
+export function BattleActions({
+  battle,
+  host,
+  opponent,
+  meId,
+  side = null,
+}: {
+  battle: LiveBattle;
+  host: User;
+  opponent: User;
+  meId: string;
+  side?: 'host' | 'opponent' | null;
+}) {
   const { likeBattle, isFollowing, toggleFollow } = useApp();
   const { showSheet, showBanner } = useOverlay();
   const [hearts, setHearts] = useState<Heart[]>([]);
   const pending = useRef(0);
   const sentByMe = useRef(0);
+  const sideRef = useRef(side);
+  sideRef.current = side;
   const lastTotal = useRef(battle.likes ?? 0);
   const nextId = useRef(0);
   const participant = meId === host.id || meId === opponent.id;
@@ -49,7 +63,7 @@ export function BattleActions({ battle, host, opponent, meId }: { battle: LiveBa
       const n = Math.min(50, pending.current);
       pending.current -= n;
       sentByMe.current += n;
-      likeBattle(battle.id, n);
+      likeBattle(battle.id, n, sideRef.current);
     }, 1000);
     return () => clearInterval(t);
   }, [battle.id, likeBattle]);

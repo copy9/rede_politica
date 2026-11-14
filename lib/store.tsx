@@ -163,7 +163,7 @@ type AppState = {
   supportBattle: (battleId: string, side: BattleSide, points: number) => void;
   sendBattleMessage: (battleId: string, text: string) => void;
   /** curtidas da plateia (o app junta vários toques num envio só) */
-  likeBattle: (battleId: string, amount: number) => void;
+  likeBattle: (battleId: string, amount: number, side?: 'host' | 'opponent' | null) => void;
   /** entra na sala (conta quem está assistindo); devolve a função para sair */
   joinBattle: (battleId: string) => () => void;
   startBattle: (battleId: string) => void;
@@ -1394,11 +1394,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const likeBattle = useCallback(
-    (battleId: string, amount: number) => {
+    (battleId: string, amount: number, side?: 'host' | 'opponent' | null) => {
       const n = Math.max(1, Math.min(50, Math.round(amount)));
       if (!meId) return;
-      setBattles((prev) => prev.map((b) => (b.id === battleId ? { ...b, likes: (b.likes ?? 0) + n } : b)));
-      write(supabase.from('battle_events').insert({ id: uuid(), battle_id: battleId, user_id: meId, kind: 'like', amount: n }));
+      // a barra anda na hora para o lado escolhido; o valor oficial vem do banco
+      setBattles((prev) =>
+        prev.map((b) =>
+          b.id === battleId
+            ? { ...b, likes: (b.likes ?? 0) + n, scores: side ? { ...b.scores, [side]: b.scores[side] + n } : b.scores }
+            : b,
+        ),
+      );
+      write(supabase.from('battle_events').insert({ id: uuid(), battle_id: battleId, user_id: meId, kind: 'like', amount: n, side: side ?? null }));
     },
     [meId, write],
   );

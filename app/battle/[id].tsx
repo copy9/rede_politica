@@ -139,6 +139,11 @@ export default function BattleRoomScreen() {
           </Pressable>
         </View>
 
+        {/* Placar no topo: cresce para o lado com mais presentes e curtidas */}
+        <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
+          <BattleScoreBar host={battle.scores.host} opponent={battle.scores.opponent} height={24} />
+        </View>
+
         {battle.status === 'scheduled' ? (
           <View style={styles.scheduled}>
             <Ionicons name="calendar-outline" size={28} color="#fff" />
@@ -181,10 +186,6 @@ export default function BattleRoomScreen() {
           );
         })()}
 
-        <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
-          <BattleScoreBar host={battle.scores.host} opponent={battle.scores.opponent} height={24} />
-        </View>
-
         {/* Resultado / agendada */}
         {battle.status === 'ended' ? <Result battle={battle} host={host} opponent={opponent} /> : null}
 
@@ -201,7 +202,7 @@ export default function BattleRoomScreen() {
               contentContainerStyle={{ paddingLeft: spacing.md, paddingRight: 92, paddingVertical: spacing.sm, gap: 6 }}
             />
             {/* Curtir, compartilhar e seguir (para quem está assistindo engajar) */}
-            <BattleActions battle={battle} host={host} opponent={opponent} meId={me.id} />
+            <BattleActions battle={battle} host={host} opponent={opponent} meId={me.id} side={side} />
           </View>
 
           {live && !isParticipant && side ? (
