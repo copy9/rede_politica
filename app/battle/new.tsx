@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
 import { UserName } from '@/components/UserName';
@@ -51,7 +52,8 @@ export default function NewBattleScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    // edges bottom: o botão fica acima da barra de navegação do Android, em qualquer celular
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       <FlatList
         data={candidates}
         keyExtractor={(u) => u.id}
@@ -132,7 +134,7 @@ export default function NewBattleScreen() {
           <Text style={styles.buttonText}>{whenHours ? 'Agendar batalha' : 'Começar batalha ao vivo'}</Text>
         </Pressable>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -157,7 +159,7 @@ const styles = themed(() => StyleSheet.create({
   person: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
   personSelected: { backgroundColor: colors.dangerBg },
   muted: { color: colors.textMuted, fontSize: 13 },
-  footer: { padding: spacing.lg, gap: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+  footer: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.lg, gap: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, backgroundColor: colors.background },
   error: { color: colors.like, textAlign: 'center' },
   note: { color: colors.textMuted, fontSize: 12, textAlign: 'center' },
   button: { flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.like, borderRadius: 12, paddingVertical: 14 },
