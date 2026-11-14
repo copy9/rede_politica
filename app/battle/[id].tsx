@@ -17,7 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Avatar } from '@/components/Avatar';
 import { BattleActions } from '@/components/BattleActions';
 import { BattleScoreBar } from '@/components/BattleScoreBar';
-import { BattleGuestsGrid, useBattleGuests } from '@/components/BattleGuests';
+import { BattleGuestsGrid, answerGuestInvite, useBattleGuests } from '@/components/BattleGuests';
 import { LiveCamera } from '@/components/LiveCamera';
 import { useOverlay } from '@/components/Overlay';
 import { MediaVideo } from '@/components/MediaVideo';
@@ -147,7 +147,7 @@ export default function BattleRoomScreen() {
           <BattleScoreBar host={battle.scores.host} opponent={battle.scores.opponent} height={24} />
         </View>
 
-        {battle.status === 'invited' ? (
+        {battle.status === 'invited' && isHost ? (
           <View style={styles.scheduled}>
             <Ionicons name="flash-outline" size={28} color="#fff" />
             {battle.opponentId === me.id ? (
@@ -197,6 +197,36 @@ export default function BattleRoomScreen() {
 
         {/* Os dois lados */}
         {(() => {
+          // quem foi desafiado ou convidado só entra no vídeo depois de aceitar
+          const myGuest = guests.find((g) => g.user_id === me.id);
+          const awaitingMyAnswer = (battle.status === 'invited' && battle.opponentId === me.id) || myGuest?.status === 'convidado';
+          if (awaitingMyAnswer) {
+            const challenged = battle.status === 'invited' && battle.opponentId === me.id;
+            const answerInvite = () => (challenged ? acceptBattle(battle.id) : answerGuestInvite(battle.id, me.id, 'accepted'));
+            const declineInvite = async () => {
+              if (challenged) declineBattle(battle.id);
+              else await answerGuestInvite(battle.id, me.id, 'declined');
+              router.back();
+            };
+            return (
+              <View style={styles.inviteBox}>
+                <Ionicons name="flash-outline" size={34} color="#fff" />
+                <Text style={styles.inviteTitle}>
+                  {challenged ? `${host.name} te desafiou` : `${host.name} te convidou para participar`}
+                </Text>
+                <Text style={styles.inviteTopic}>{battle.topic}</Text>
+                <Text style={styles.inviteNote}>Você só entra no vídeo depois de aceitar.</Text>
+                <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                  <Pressable style={styles.startButton} onPress={answerInvite}>
+                    <Text style={styles.startText}>Aceitar</Text>
+                  </Pressable>
+                  <Pressable style={[styles.startButton, { backgroundColor: '#374151' }]} onPress={declineInvite}>
+                    <Text style={styles.startText}>Recusar</Text>
+                  </Pressable>
+                </View>
+              </View>
+            );
+          }
           const stage = (
             <View>
               <View style={[styles.split, { height: halfHeight }]}>
@@ -244,7 +274,7 @@ export default function BattleRoomScreen() {
               data={[...messagesForBattle(battle.id)].reverse().slice(0, 80)}
               keyExtractor={(m) => m.id}
               renderItem={({ item }) => <ChatLine message={item} />}
-              contentContainerStyle={{ paddingLeft: spacing.md, paddingRight: 92, paddingVertical: spacing.sm, gap: 6 }}
+              contentContainerStyle={{ paddingLeft: spacing.md, paddingRight: 92, paddingVertical: spacing.sm, gap: 10, alignItems: 'flex-start' }}
             />
             {/* Curtir, compartilhar e seguir (para quem está assistindo engajar) */}
             <BattleActions battle={battle} host={host} opponent={opponent} meId={me.id} side={side} />
@@ -358,18 +388,17 @@ function ChatLine({ message }: { message: BattleMessage }) {
   if (!user) return null;
   const support = message.support;
   const gift = support ? SUPPORTS.find((s) => s.points === support.points) : undefined;
+  // estilo TikTok: foto pequena, nome em cinza e texto em branco, sem fundo
   return (
-    <View
-      style={[
-        styles.chatLine,
-        support && { backgroundColor: support.side === 'host' ? 'rgba(29,78,216,0.55)' : 'rgba(220,38,38,0.55)' },
-      ]}>
-      <Avatar uri={user.avatar} size={22} />
-      <Text style={styles.chatText}>
-        <Text style={styles.chatUser}>{user.username} </Text>
-        {message.text}
-        {support ? ` ${gift?.emoji ?? '⭐'} +${support.points}` : ''}
-      </Text>
+    <View style={styles.chatLine}>
+      <Avatar uri={user.avatar} size={30} />
+      <View style={styles.chatBody}>
+        <Text style={styles.chatUser} numberOfLines={1}>{user.username}</Text>
+        <Text style={[styles.chatText, support && { color: support.side === 'host' ? '#60A5FA' : '#F87171' }]}>
+          {message.text}
+          {support ? ` ${gift?.emoji ?? '⭐'} +${support.points}` : ''}
+        </Text>
+      </View>
     </View>
   );
 }
@@ -407,6 +436,10 @@ const styles = themed(() => StyleSheet.create({
   split: { flexDirection: 'row' },
   half: { flex: 1, backgroundColor: '#0B1020' },
   halfVideo: { flex: 1, overflow: 'hidden', backgroundColor: '#111827' },
+  inviteBox: { alignItems: 'center', justifyContent: 'center', gap: spacing.sm, padding: spacing.lg, minHeight: 280, backgroundColor: '#0B1020' },
+  inviteTitle: { color: '#fff', fontSize: 18, fontWeight: '800', textAlign: 'center' },
+  inviteTopic: { color: 'rgba(255,255,255,0.85)', fontSize: 15, textAlign: 'center' },
+  inviteNote: { color: 'rgba(255,255,255,0.6)', fontSize: 12, textAlign: 'center', marginBottom: spacing.xs },
   sideName: { color: '#fff', fontWeight: '700', fontSize: 14, paddingHorizontal: 8, paddingTop: 6, paddingBottom: 4 },
   divider: { width: 2, backgroundColor: '#0B1020' },
   waiting: { color: 'rgba(255,255,255,0.75)', fontSize: 12 },
@@ -420,9 +453,10 @@ const styles = themed(() => StyleSheet.create({
   result: { alignItems: 'center', gap: 6, padding: spacing.lg },
   resultTitle: { color: '#fff', fontSize: 20, fontWeight: '800' },
   resultText: { color: 'rgba(255,255,255,0.8)' },
-  chatLine: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start', maxWidth: '92%', borderRadius: 14, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: 'rgba(255,255,255,0.08)' },
-  chatText: { color: '#fff', flexShrink: 1 },
-  chatUser: { fontWeight: '700', color: 'rgba(255,255,255,0.85)' },
+  chatLine: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, alignSelf: 'flex-start', maxWidth: '85%' },
+  chatBody: { flexShrink: 1 },
+  chatUser: { color: 'rgba(255,255,255,0.72)', fontSize: 12, fontWeight: '600' },
+  chatText: { color: '#fff', fontSize: 14, fontWeight: '700', textShadowColor: 'rgba(0,0,0,0.75)', textShadowRadius: 4 },
   gifts: { paddingHorizontal: spacing.md, paddingTop: spacing.sm, gap: 6 },
   giftsTitle: { color: '#fff', fontWeight: '700' },
   giftRow: { flexDirection: 'row', gap: spacing.sm },

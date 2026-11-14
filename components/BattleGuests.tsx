@@ -11,6 +11,11 @@ import type { User } from '@/lib/types';
 export type GuestStatus = 'convidado' | 'pending' | 'accepted' | 'declined';
 export type GuestRow = { user_id: string; status: GuestStatus };
 
+/** Quem foi convidado responde ao convite: aceita (entra no vídeo) ou recusa. */
+export function answerGuestInvite(battleId: string, userId: string, status: 'accepted' | 'declined') {
+  return supabase.from('battle_guests').update({ status }).eq('battle_id', battleId).eq('user_id', userId);
+}
+
 /** Lista de convidados da batalha, atualizada em tempo real. */
 export function useBattleGuests(battleId: string): GuestRow[] {
   const [rows, setRows] = useState<GuestRow[]>([]);
