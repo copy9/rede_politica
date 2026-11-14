@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
@@ -39,6 +39,14 @@ export default function NewBattleScreen() {
   const candidates = (chosen ? [chosen, ...ordered.filter((u) => u.id !== chosen.id)] : ordered).filter(
     (u) => !q || u.username.includes(q) || u.name.toLowerCase().includes(q),
   );
+
+  const guestCandidates = candidates.filter((u) => u.id !== opponentId && canInteract(u.id, 'challenge')).slice(0, 30);
+  const toggleGuest = (id: string) => {
+    if (guestIds.includes(id)) return setGuestIds(guestIds.filter((g) => g !== id));
+    if (guestIds.length >= 6) return setError('No máximo 6 convidados ao vivo.');
+    setError(null);
+    setGuestIds([...guestIds, id]);
+  };
 
   const start = () => {
     if (!opponentId) return setError('Escolha quem você vai desafiar.');
@@ -85,6 +93,42 @@ export default function NewBattleScreen() {
                 <Chip key={w.label} label={w.label} active={whenHours === w.hours} onPress={() => setWhenHours(w.hours)} />
               ))}
             </View>
+
+            <Text style={styles.label}>Desafiar</Text>
+            <View style={styles.guestHead}>
+              <Text style={styles.label}>Convidados ao vivo</Text>
+              <Text style={styles.counter}>{guestIds.length}/6</Text>
+            </View>
+            <Text style={styles.muted}>Toque nas pessoas para convidar. Elas entram no vídeo quando aceitarem.</Text>
+            {guestCandidates.length > 0 ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.guestRow}>
+                {guestCandidates.map((u) => {
+                  const on = guestIds.includes(u.id);
+                  const full = !on && guestIds.length >= 6;
+                  return (
+                    <Pressable
+                      key={u.id}
+                      onPress={() => toggleGuest(u.id)}
+                      style={[styles.guestItem, full && { opacity: 0.35 }]}
+                      accessibilityLabel={`Convidar ${u.username}`}>
+                      <View style={[styles.guestRing, on && styles.guestRingOn]}>
+                        <Avatar uri={u.avatar} size={56} />
+                        {on ? (
+                          <View style={styles.guestCheck}>
+                            <Ionicons name="checkmark" size={12} color="#fff" />
+                          </View>
+                        ) : null}
+                      </View>
+                      <Text style={[styles.guestName, on && styles.guestNameOn]} numberOfLines={1}>
+                        {u.username}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            ) : (
+              <Text style={styles.muted}>Nenhuma pessoa disponível para convidar.</Text>
+            )}
 
             <Text style={styles.label}>Desafiar</Text>
             <Text style={styles.label}>Convidados ao vivo (até 6, opcional)</Text>
@@ -186,6 +230,15 @@ const styles = themed(() => StyleSheet.create({
   person: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
   personSelected: { backgroundColor: colors.dangerBg },
   muted: { color: colors.textMuted, fontSize: 13 },
+  guestHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm },
+  counter: { color: colors.textMuted, fontWeight: '700' },
+  guestRow: { gap: spacing.md, paddingVertical: spacing.xs },
+  guestItem: { width: 72, alignItems: 'center', gap: 4 },
+  guestRing: { borderRadius: 999, borderWidth: 2, borderColor: 'transparent', padding: 2 },
+  guestRingOn: { borderColor: colors.like },
+  guestCheck: { position: 'absolute', right: -2, bottom: -2, width: 20, height: 20, borderRadius: 10, backgroundColor: colors.like, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.background },
+  guestName: { color: colors.textMuted, fontSize: 12, maxWidth: 72 },
+  guestNameOn: { color: colors.text, fontWeight: '700' },
   footer: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.lg, gap: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, backgroundColor: colors.background },
   error: { color: colors.like, textAlign: 'center' },
   note: { color: colors.textMuted, fontSize: 12, textAlign: 'center' },
