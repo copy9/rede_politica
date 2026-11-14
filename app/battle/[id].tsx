@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Avatar } from '@/components/Avatar';
 import { BattleActions } from '@/components/BattleActions';
 import { BattleScoreBar } from '@/components/BattleScoreBar';
+import { BattleGuestsGrid, useBattleGuests } from '@/components/BattleGuests';
 import { LiveCamera } from '@/components/LiveCamera';
 import { useOverlay } from '@/components/Overlay';
 import { MediaVideo } from '@/components/MediaVideo';
@@ -50,6 +51,8 @@ export default function BattleRoomScreen() {
   const [now, setNow] = useState(Date.now());
   const [side, setSide] = useState<BattleSide | null>(null);
   const [text, setText] = useState('');
+  const guests = useBattleGuests(id);
+  const isGuestSpeaker = guests.some((g) => g.user_id === me.id && g.status === 'accepted');
 
   const battle = getBattle(id);
   const host = battle ? getUser(battle.hostId) : undefined;
@@ -169,16 +172,32 @@ export default function BattleRoomScreen() {
         {/* Os dois lados */}
         {(() => {
           const stage = (
-            <View style={[styles.split, { height: halfHeight }]}>
-              <Half user={host} battle={battle} sideKey="host" isMe={host.id === me.id} />
-              <View style={styles.divider} />
-              <Half user={opponent} battle={battle} sideKey="opponent" isMe={opponent.id === me.id} />
+            <View>
+              <View style={[styles.split, { height: halfHeight }]}>
+                <Half user={host} battle={battle} sideKey="host" isMe={host.id === me.id} />
+                <View style={styles.divider} />
+                <Half user={opponent} battle={battle} sideKey="opponent" isMe={opponent.id === me.id} />
+              </View>
+              <BattleGuestsGrid
+                battleId={battle.id}
+                live={live}
+                isHost={isHost}
+                isParticipant={isParticipant}
+                meId={me.id}
+                users={app.users}
+                guests={guests}
+                renderTile={(uid, isMe, fallback) => {
+                  const LVG = getLiveVideo();
+                  return LVG && live ? <LVG.SideVideo userId={uid} isMe={isMe} fallback={fallback} /> : fallback;
+                }}
+                onMessage={(t) => showBanner(t, { icon: 'people-outline', tone: 'success' })}
+              />
             </View>
           );
           // No app instalado: vídeo e áudio ao vivo de um celular para o outro (LiveKit)
           const LV = getLiveVideo();
           return LV && live ? (
-            <LV.BattleRoom battleId={battle.id} speaker={isParticipant}>
+            <LV.BattleRoom key={`${isParticipant}-${isGuestSpeaker}`} battleId={battle.id} speaker={isParticipant || isGuestSpeaker}>
               {stage}
             </LV.BattleRoom>
           ) : (
@@ -264,6 +283,7 @@ function Half({ user, battle, sideKey, isMe }: { user: User; battle: LiveBattle;
     battle.scores[sideKey] > battle.scores[sideKey === 'host' ? 'opponent' : 'host'];
   return (
     <Pressable style={styles.half} disabled={isMe} onPress={() => router.push(`/user/${user.username}`)}>
+      <View style={styles.halfVideo}>
       {live && LV ? (
         // App instalado: vídeo ao vivo de cada lado
         <LV.SideVideo
@@ -286,12 +306,11 @@ function Half({ user, battle, sideKey, isMe }: { user: User; battle: LiveBattle;
           <Avatar uri={user.avatar} size={72} />
         </View>
       )}
-      <View style={[styles.sideTag, { backgroundColor: sideKey === 'host' ? colors.primary : colors.accent }]}>
-        <Text style={styles.sideTagText} numberOfLines={1}>
-          {leading ? '👑 ' : ''}
-          {isMe ? 'Você' : user.name}
-        </Text>
       </View>
+      <Text style={styles.sideName} numberOfLines={1}>
+        {leading ? '👑 ' : ''}
+        {isMe ? 'Você' : user.name}
+      </Text>
     </Pressable>
   );
 }
@@ -360,7 +379,9 @@ const styles = themed(() => StyleSheet.create({
   close: { paddingTop: 2 },
   endText: { color: '#fff', fontWeight: '700', backgroundColor: colors.like, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, overflow: 'hidden' },
   split: { flexDirection: 'row' },
-  half: { flex: 1, overflow: 'hidden', backgroundColor: '#111827' },
+  half: { flex: 1, backgroundColor: '#0B1020' },
+  halfVideo: { flex: 1, overflow: 'hidden', backgroundColor: '#111827' },
+  sideName: { color: '#fff', fontWeight: '700', fontSize: 14, paddingHorizontal: 8, paddingTop: 6, paddingBottom: 4 },
   divider: { width: 2, backgroundColor: '#0B1020' },
   waiting: { color: 'rgba(255,255,255,0.75)', fontSize: 12 },
   placeholder: { alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#1E293B' },

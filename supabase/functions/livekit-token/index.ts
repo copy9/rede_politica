@@ -75,7 +75,9 @@ Deno.serve(async (req) => {
     if (battle.status === 'ended') return json({ error: 'A batalha já terminou.' }, 410);
 
     const { data: profile } = await supabase.from('profiles').select('username, name').eq('id', user.id).maybeSingle();
-    const speaker = user.id === battle.host_id || user.id === battle.opponent_id;
+    // convidado aceito por quem criou a batalha também transmite
+    const { data: guest } = await supabase.from('battle_guests').select('status').eq('battle_id', battle.id).eq('user_id', user.id).maybeSingle();
+    const speaker = user.id === battle.host_id || user.id === battle.opponent_id || guest?.status === 'accepted';
     const now = Math.floor(Date.now() / 1000);
     const token = await signJwt(
       {
