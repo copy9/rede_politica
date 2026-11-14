@@ -45,7 +45,7 @@ export default function BattleRoomScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const me = useMe();
   const app = useApp();
-  const { getBattle, getUser, messagesForBattle, supportBattle, sendBattleMessage, joinBattle, startBattle, endBattle, remindBattle } = app;
+  const { getBattle, getUser, messagesForBattle, supportBattle, sendBattleMessage, joinBattle, startBattle, endBattle, remindBattle, acceptBattle, declineBattle } = app;
   const { height } = useWindowDimensions();
   const { confirm, showBanner } = useOverlay();
   const [now, setNow] = useState(Date.now());
@@ -146,6 +146,32 @@ export default function BattleRoomScreen() {
         <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
           <BattleScoreBar host={battle.scores.host} opponent={battle.scores.opponent} height={24} />
         </View>
+
+        {battle.status === 'invited' ? (
+          <View style={styles.scheduled}>
+            <Ionicons name="flash-outline" size={28} color="#fff" />
+            {battle.opponentId === me.id ? (
+              <>
+                <Text style={styles.scheduledText}>{host.name} te desafiou: {battle.topic}</Text>
+                <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                  <Pressable style={styles.startButton} onPress={() => acceptBattle(battle.id)}>
+                    <Text style={styles.startText}>Aceitar</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.startButton, { backgroundColor: '#374151' }]}
+                    onPress={() => {
+                      declineBattle(battle.id);
+                      router.back();
+                    }}>
+                    <Text style={styles.startText}>Recusar</Text>
+                  </Pressable>
+                </View>
+              </>
+            ) : (
+              <Text style={styles.scheduledText}>Aguardando {opponent.name} aceitar o desafio…</Text>
+            )}
+          </View>
+        ) : null}
 
         {battle.status === 'scheduled' ? (
           <View style={styles.scheduled}>

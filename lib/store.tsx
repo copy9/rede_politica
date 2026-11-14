@@ -113,6 +113,8 @@ type AppState = {
   report: (targetType: ReportTarget, targetId: string | null, reason: string) => Promise<string | null>;
   /** avisa quando a batalha agendada começar */
   remindBattle: (battleId: string) => Promise<string | null>;
+  acceptBattle: (battleId: string) => void;
+  declineBattle: (battleId: string) => void;
   changePassword: (current: string, next: string) => Promise<string | null>;
   deleteAccount: () => Promise<void>;
   exportMyData: () => string;
@@ -1340,7 +1342,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         hostId: meId,
         opponentId,
         topic: topic.trim().slice(0, 90),
-        status: scheduleAt ? 'scheduled' : 'live',
+        status: scheduleAt ? 'scheduled' : 'invited',
         startsAt: scheduleAt ?? Date.now(),
         durationSec: Math.min(3600, Math.max(60, durationSec)),
         viewers: 0,
@@ -1428,6 +1430,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       };
     },
     [meId],
+  );
+
+  // o desafiado aceita (a batalha começa) ou recusa (a batalha é encerrada)
+  const acceptBattle = useCallback(
+    (battleId: string) => {
+      setBattles((prev) =>
+        prev.map((b) => (b.id === battleId && b.status === 'invited' ? { ...b, status: 'live', startsAt: Date.now() } : b)),
+      );
+      write(supabase.from('battles').update({ status: 'live' }).eq('id', battleId).eq('status', 'invited'));
+    },
+    [write],
+  );
+  const declineBattle = useCallback(
+    (battleId: string) => {
+      setBattles((prev) => prev.map((b) => (b.id === battleId && b.status === 'invited' ? { ...b, status: 'ended' } : b)));
+      write(supabase.from('battles').update({ status: 'ended' }).eq('id', battleId).eq('status', 'invited'));
+    },
+    [write],
   );
 
   const startBattle = useCallback(
@@ -1587,6 +1607,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     signOutOtherDevices,
     report,
     remindBattle,
+    acceptBattle,
+    declineBattle,
     changePassword,
     deleteAccount,
     exportMyData,

@@ -89,7 +89,7 @@ export type Message = {
 };
 
 export type BattleSide = 'host' | 'opponent';
-export type BattleStatus = 'live' | 'scheduled' | 'ended';
+export type BattleStatus = 'invited' | 'live' | 'scheduled' | 'ended';
 
 /** Batalha de lives: duas pessoas ao vivo, a plateia apoia um lado com pontos. */
 export type LiveBattle = {
