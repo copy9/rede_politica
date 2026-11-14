@@ -94,7 +94,6 @@ export default function NewBattleScreen() {
               ))}
             </View>
 
-            <Text style={styles.label}>Desafiar</Text>
             <View style={styles.guestHead}>
               <Text style={styles.label}>Convidados ao vivo</Text>
               <Text style={styles.counter}>{guestIds.length}/6</Text>
@@ -129,31 +128,6 @@ export default function NewBattleScreen() {
             ) : (
               <Text style={styles.muted}>Nenhuma pessoa disponível para convidar.</Text>
             )}
-
-            <Text style={styles.label}>Desafiar</Text>
-            <Text style={styles.label}>Convidados ao vivo (até 6, opcional)</Text>
-            <Text style={styles.muted}>Cada um recebe um convite e entra no vídeo quando aceitar. Toque para escolher ou desmarcar.</Text>
-            <View style={styles.row}>
-              <Chip label="Ninguém" active={guestIds.length === 0} onPress={() => setGuestIds([])} />
-              {candidates
-                .filter((u) => u.id !== opponentId && canInteract(u.id, 'challenge'))
-                .slice(0, 20)
-                .map((u) => {
-                  const on = guestIds.includes(u.id);
-                  return (
-                    <Chip
-                      key={u.id}
-                      label={`@${u.username}`}
-                      active={on}
-                      onPress={() => {
-                        if (on) setGuestIds(guestIds.filter((g) => g !== u.id));
-                        else if (guestIds.length < 6) setGuestIds([...guestIds, u.id]);
-                        else setError('No máximo 6 convidados ao vivo.');
-                      }}
-                    />
-                  );
-                })}
-            </View>
 
             <Text style={styles.label}>Desafiar</Text>
             <View style={styles.search}>
