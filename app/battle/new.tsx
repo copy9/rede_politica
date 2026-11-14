@@ -22,6 +22,7 @@ export default function NewBattleScreen() {
   // vindo do botão "Desafiar" no perfil: a pessoa já vem escolhida
   const { adversario } = useLocalSearchParams<{ adversario?: string }>();
   const [opponentId, setOpponentId] = useState<string | null>(adversario ?? null);
+  const [guestId, setGuestId] = useState<string | null>(null);
   const [topic, setTopic] = useState('');
   const [minutes, setMinutes] = useState(5);
   const [whenHours, setWhenHours] = useState(0);
@@ -47,6 +48,7 @@ export default function NewBattleScreen() {
       topic,
       durationSec: minutes * 60,
       scheduleAt: whenHours ? Date.now() + whenHours * 60 * 60 * 1000 : undefined,
+      guestId: guestId ?? undefined,
     });
     if (battle) router.replace(`/battle/${battle.id}`);
   };
@@ -82,6 +84,19 @@ export default function NewBattleScreen() {
               {WHEN.map((w) => (
                 <Chip key={w.label} label={w.label} active={whenHours === w.hours} onPress={() => setWhenHours(w.hours)} />
               ))}
+            </View>
+
+            <Text style={styles.label}>Desafiar</Text>
+            <Text style={styles.label}>Terceira pessoa (opcional)</Text>
+            <Text style={styles.muted}>Ela recebe um convite e entra no vídeo quando aceitar.</Text>
+            <View style={styles.row}>
+              <Chip label="Ninguém" active={!guestId} onPress={() => setGuestId(null)} />
+              {candidates
+                .filter((u) => u.id !== opponentId && canInteract(u.id, 'challenge'))
+                .slice(0, 12)
+                .map((u) => (
+                  <Chip key={u.id} label={`@${u.username}`} active={guestId === u.id} onPress={() => setGuestId(u.id)} />
+                ))}
             </View>
 
             <Text style={styles.label}>Desafiar</Text>

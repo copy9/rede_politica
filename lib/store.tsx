@@ -161,7 +161,7 @@ type AppState = {
   // batalhas de lives
   getBattle: (id: string) => LiveBattle | undefined;
   messagesForBattle: (battleId: string) => BattleMessage[];
-  createBattle: (input: { opponentId: string; topic: string; durationSec: number; scheduleAt?: number }) => LiveBattle | null;
+  createBattle: (input: { opponentId: string; topic: string; durationSec: number; scheduleAt?: number; guestId?: string }) => LiveBattle | null;
   supportBattle: (battleId: string, side: BattleSide, points: number) => void;
   sendBattleMessage: (battleId: string, text: string) => void;
   /** curtidas da plateia (o app junta vários toques num envio só) */
@@ -1335,7 +1335,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const createBattle = useCallback(
-    ({ opponentId, topic, durationSec, scheduleAt }: { opponentId: string; topic: string; durationSec: number; scheduleAt?: number }) => {
+    ({ opponentId, topic, durationSec, scheduleAt, guestId }: { opponentId: string; topic: string; durationSec: number; scheduleAt?: number; guestId?: string }) => {
       if (!meId || opponentId === meId || topic.trim().length < 3) return null;
       const battle: LiveBattle = {
         id: uuid(),
@@ -1350,16 +1350,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         media: {},
       };
       setBattles((prev) => [battle, ...prev]);
+      // a terceira pessoa é convidada logo depois que a batalha é criada
       write(
-        supabase.from('battles').insert({
-          id: battle.id,
-          host_id: meId,
-          opponent_id: opponentId,
-          topic: battle.topic,
-          status: battle.status,
-          starts_at: new Date(battle.startsAt).toISOString(),
-          duration_sec: battle.durationSec,
-        }),
+        supabase
+          .from('battles')
+          .insert({
+            id: battle.id,
+            host_id: meId,
+            opponent_id: opponentId,
+            topic: battle.topic,
+            status: battle.status,
+            starts_at: new Date(battle.startsAt).toISOString(),
+            duration_sec: battle.durationSec,
+          })
+          .then(async (res) => {
+            if (!res.error && guestId && guestId !== opponentId && guestId !== meId)
+              await supabase.from('battle_guests').insert({ battle_id: battle.id, user_id: guestId, status: 'convidado' });
+            return res;
+          }),
       );
       return battle;
     },

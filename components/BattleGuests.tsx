@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { colors, spacing, themed } from '@/lib/theme';
 import type { User } from '@/lib/types';
 
-export type GuestStatus = 'pending' | 'accepted' | 'declined';
+export type GuestStatus = 'convidado' | 'pending' | 'accepted' | 'declined';
 export type GuestRow = { user_id: string; status: GuestStatus };
 
 /** Lista de convidados da batalha, atualizada em tempo real. */
@@ -63,7 +63,14 @@ export function BattleGuestsGrid({ battleId, live, isHost, isParticipant, meId, 
   const userOf = (id: string) => users.find((u) => u.id === id);
 
   // quadradinho "Participar" aparece para quem assiste e ainda não está no vídeo
-  const showSlot = live && !isParticipant && !isHost && mine?.status !== 'accepted';
+  const showSlot = live && !isParticipant && !isHost && mine?.status !== 'accepted' && mine?.status !== 'convidado';
+  const invitedToJoin = !isHost && mine?.status === 'convidado';
+  const invitedWaiting = isHost ? guests.filter((g) => g.status === 'convidado') : [];
+
+  const respondInvite = async (status: 'accepted' | 'declined') => {
+    const { error } = await supabase.from('battle_guests').update({ status }).eq('battle_id', battleId).eq('user_id', meId);
+    onMessage(error ? 'Não foi possível responder agora.' : status === 'accepted' ? 'Você entrou na lista da batalha.' : 'Convite recusado.');
+  };
 
   const askToJoin = async () => {
     if (mine?.status === 'pending') return;
@@ -78,10 +85,30 @@ export function BattleGuestsGrid({ battleId, live, isHost, isParticipant, meId, 
     if (error) onMessage('Não foi possível responder agora.');
   };
 
-  if (!showSlot && accepted.length === 0 && !(isHost && pending.length > 0)) return null;
+  if (!showSlot && accepted.length === 0 && !(isHost && pending.length > 0) && !invitedToJoin && invitedWaiting.length === 0) return null;
 
   return (
     <View style={styles.wrap}>
+      {/* convite feito por quem criou a batalha */}
+      {invitedToJoin ? (
+        <View style={styles.pendingBox}>
+          <View style={styles.pendingRow}>
+            <Text style={styles.pendingName} numberOfLines={2}>Você foi convidado para participar da batalha</Text>
+            <Pressable onPress={() => respondInvite('accepted')} style={styles.yes} accessibilityLabel="Aceitar convite">
+              <Text style={styles.btnText}>Aceitar</Text>
+            </Pressable>
+            <Pressable onPress={() => respondInvite('declined')} style={styles.no} accessibilityLabel="Recusar convite">
+              <Text style={styles.btnText}>Recusar</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
+      {isHost && invitedWaiting.length > 0 ? (
+        <Text style={styles.waitingText}>
+          Aguardando {invitedWaiting.map((g) => userOf(g.user_id)?.name ?? 'convidado').join(', ')} aceitar participar
+        </Text>
+      ) : null}
+
       {/* quem criou a batalha decide os pedidos */}
       {isHost && pending.length > 0 ? (
         <View style={styles.pendingBox}>
@@ -146,6 +173,7 @@ const guestStyles = themed(() => StyleSheet.create({
   tile: { width: '33.33%', aspectRatio: 1, padding: 2 },
   fallback: { flex: 1, backgroundColor: '#111827', borderRadius: 10, alignItems: 'center', justifyContent: 'center', gap: 4, padding: 4 },
   tileName: { color: '#fff', fontSize: 11, maxWidth: '95%' },
+  waitingText: { color: 'rgba(255,255,255,0.7)', fontSize: 12, textAlign: 'center', paddingVertical: 4 },
   slot: { flex: 1, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
   slotPlus: { color: '#fff', fontSize: 22, fontWeight: '300', lineHeight: 24 },
   slotText: { color: '#fff', fontSize: 11, fontWeight: '600', textAlign: 'center', paddingHorizontal: 4 },
