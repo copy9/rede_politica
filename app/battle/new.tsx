@@ -22,7 +22,7 @@ export default function NewBattleScreen() {
   // vindo do botão "Desafiar" no perfil: a pessoa já vem escolhida
   const { adversario } = useLocalSearchParams<{ adversario?: string }>();
   const [opponentId, setOpponentId] = useState<string | null>(adversario ?? null);
-  const [guestId, setGuestId] = useState<string | null>(null);
+  const [guestIds, setGuestIds] = useState<string[]>([]);
   const [topic, setTopic] = useState('');
   const [minutes, setMinutes] = useState(5);
   const [whenHours, setWhenHours] = useState(0);
@@ -48,7 +48,7 @@ export default function NewBattleScreen() {
       topic,
       durationSec: minutes * 60,
       scheduleAt: whenHours ? Date.now() + whenHours * 60 * 60 * 1000 : undefined,
-      guestId: guestId ?? undefined,
+      guestIds,
     });
     if (battle) router.replace(`/battle/${battle.id}`);
   };
@@ -87,16 +87,28 @@ export default function NewBattleScreen() {
             </View>
 
             <Text style={styles.label}>Desafiar</Text>
-            <Text style={styles.label}>Terceira pessoa (opcional)</Text>
-            <Text style={styles.muted}>Ela recebe um convite e entra no vídeo quando aceitar.</Text>
+            <Text style={styles.label}>Convidados ao vivo (até 6, opcional)</Text>
+            <Text style={styles.muted}>Cada um recebe um convite e entra no vídeo quando aceitar. Toque para escolher ou desmarcar.</Text>
             <View style={styles.row}>
-              <Chip label="Ninguém" active={!guestId} onPress={() => setGuestId(null)} />
+              <Chip label="Ninguém" active={guestIds.length === 0} onPress={() => setGuestIds([])} />
               {candidates
                 .filter((u) => u.id !== opponentId && canInteract(u.id, 'challenge'))
-                .slice(0, 12)
-                .map((u) => (
-                  <Chip key={u.id} label={`@${u.username}`} active={guestId === u.id} onPress={() => setGuestId(u.id)} />
-                ))}
+                .slice(0, 20)
+                .map((u) => {
+                  const on = guestIds.includes(u.id);
+                  return (
+                    <Chip
+                      key={u.id}
+                      label={`@${u.username}`}
+                      active={on}
+                      onPress={() => {
+                        if (on) setGuestIds(guestIds.filter((g) => g !== u.id));
+                        else if (guestIds.length < 6) setGuestIds([...guestIds, u.id]);
+                        else setError('No máximo 6 convidados ao vivo.');
+                      }}
+                    />
+                  );
+                })}
             </View>
 
             <Text style={styles.label}>Desafiar</Text>

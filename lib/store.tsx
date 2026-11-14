@@ -161,7 +161,7 @@ type AppState = {
   // batalhas de lives
   getBattle: (id: string) => LiveBattle | undefined;
   messagesForBattle: (battleId: string) => BattleMessage[];
-  createBattle: (input: { opponentId: string; topic: string; durationSec: number; scheduleAt?: number; guestId?: string }) => LiveBattle | null;
+  createBattle: (input: { opponentId: string; topic: string; durationSec: number; scheduleAt?: number; guestIds?: string[] }) => LiveBattle | null;
   supportBattle: (battleId: string, side: BattleSide, points: number) => void;
   sendBattleMessage: (battleId: string, text: string) => void;
   /** curtidas da plateia (o app junta vários toques num envio só) */
@@ -1335,7 +1335,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const createBattle = useCallback(
-    ({ opponentId, topic, durationSec, scheduleAt, guestId }: { opponentId: string; topic: string; durationSec: number; scheduleAt?: number; guestId?: string }) => {
+    ({ opponentId, topic, durationSec, scheduleAt, guestIds }: { opponentId: string; topic: string; durationSec: number; scheduleAt?: number; guestIds?: string[] }) => {
       if (!meId || opponentId === meId || topic.trim().length < 3) return null;
       const battle: LiveBattle = {
         id: uuid(),
@@ -1364,8 +1364,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             duration_sec: battle.durationSec,
           })
           .then(async (res) => {
-            if (!res.error && guestId && guestId !== opponentId && guestId !== meId)
-              await supabase.from('battle_guests').insert({ battle_id: battle.id, user_id: guestId, status: 'convidado' });
+            // até 6 convidados ao vivo, além dos dois lados da batalha
+            const guests = [...new Set(guestIds ?? [])].filter((g) => g !== opponentId && g !== meId).slice(0, 6);
+            if (!res.error && guests.length)
+              await supabase
+                .from('battle_guests')
+                .insert(guests.map((user_id) => ({ battle_id: battle.id, user_id, status: 'convidado' })));
             return res;
           }),
       );
