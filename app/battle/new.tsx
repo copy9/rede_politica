@@ -40,7 +40,7 @@ export default function NewBattleScreen() {
 
   const start = () => {
     if (!opponentId) return setError('Escolha quem você vai desafiar.');
-    if (!topic.trim()) return setError('Escreva o tema do debate.');
+    if (!topic.trim()) return setError('Escreva o título da batalha.');
     const battle = createBattle({
       opponentId,
       topic,
@@ -58,7 +58,7 @@ export default function NewBattleScreen() {
         keyboardShouldPersistTaps="handled"
         ListHeaderComponent={
           <View style={styles.form}>
-            <Text style={styles.label}>Tema do debate</Text>
+            <Text style={styles.label}>Título</Text>
             <TextInput
               placeholder="Ex.: Passe livre estudantil: vale o custo?"
               placeholderTextColor={colors.textMuted}

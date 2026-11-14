@@ -139,47 +139,6 @@ export default function BattleRoomScreen() {
           </Pressable>
         </View>
 
-        {/* Os dois lados */}
-        {(() => {
-          // Palco: as duas telas e, por cima da parte de baixo, os comentários (como no app de referência)
-          const stage = (
-            <View style={{ height: halfHeight }}>
-              <View style={[styles.split, { height: halfHeight }]}>
-                <Half user={host} battle={battle} sideKey="host" isMe={host.id === me.id} />
-                <View style={styles.divider} />
-                <Half user={opponent} battle={battle} sideKey="opponent" isMe={opponent.id === me.id} />
-              </View>
-              <View style={styles.chatOverlay} pointerEvents="box-none">
-                <FlatList
-                  style={{ flex: 1 }}
-                  inverted
-                  data={[...messagesForBattle(battle.id)].reverse().slice(0, 80)}
-                  keyExtractor={(m) => m.id}
-                  renderItem={({ item }) => <ChatLine message={item} />}
-                  contentContainerStyle={{ paddingLeft: spacing.md, paddingRight: 92, paddingVertical: spacing.sm, gap: 6 }}
-                />
-                {/* Curtir, compartilhar e seguir (para quem está assistindo engajar) */}
-                <BattleActions battle={battle} host={host} opponent={opponent} meId={me.id} />
-              </View>
-            </View>
-          );
-          // No app instalado: vídeo e áudio ao vivo de um celular para o outro (LiveKit)
-          const LV = getLiveVideo();
-          return LV && live ? (
-            <LV.BattleRoom battleId={battle.id} speaker={isParticipant}>
-              {stage}
-            </LV.BattleRoom>
-          ) : (
-            stage
-          );
-        })()}
-
-        <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
-          <BattleScoreBar host={battle.scores.host} opponent={battle.scores.opponent} height={24} />
-        </View>
-
-        {/* Resultado / agendada */}
-        {battle.status === 'ended' ? <Result battle={battle} host={host} opponent={opponent} /> : null}
         {battle.status === 'scheduled' ? (
           <View style={styles.scheduled}>
             <Ionicons name="calendar-outline" size={28} color="#fff" />
@@ -202,8 +161,49 @@ export default function BattleRoomScreen() {
           </View>
         ) : null}
 
+        {/* Os dois lados */}
+        {(() => {
+          const stage = (
+            <View style={[styles.split, { height: halfHeight }]}>
+              <Half user={host} battle={battle} sideKey="host" isMe={host.id === me.id} />
+              <View style={styles.divider} />
+              <Half user={opponent} battle={battle} sideKey="opponent" isMe={opponent.id === me.id} />
+            </View>
+          );
+          // No app instalado: vídeo e áudio ao vivo de um celular para o outro (LiveKit)
+          const LV = getLiveVideo();
+          return LV && live ? (
+            <LV.BattleRoom battleId={battle.id} speaker={isParticipant}>
+              {stage}
+            </LV.BattleRoom>
+          ) : (
+            stage
+          );
+        })()}
+
+        <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
+          <BattleScoreBar host={battle.scores.host} opponent={battle.scores.opponent} height={24} />
+        </View>
+
+        {/* Resultado / agendada */}
+        {battle.status === 'ended' ? <Result battle={battle} host={host} opponent={opponent} /> : null}
+
         {/* Chat */}
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+          {/* Comentários embaixo do palco, mais recentes por último */}
+          <View style={{ flex: 1 }}>
+            <FlatList
+              style={{ flex: 1 }}
+              inverted
+              data={[...messagesForBattle(battle.id)].reverse().slice(0, 80)}
+              keyExtractor={(m) => m.id}
+              renderItem={({ item }) => <ChatLine message={item} />}
+              contentContainerStyle={{ paddingLeft: spacing.md, paddingRight: 92, paddingVertical: spacing.sm, gap: 6 }}
+            />
+            {/* Curtir, compartilhar e seguir (para quem está assistindo engajar) */}
+            <BattleActions battle={battle} host={host} opponent={opponent} meId={me.id} />
+          </View>
+
           {live && !isParticipant && side ? (
             <View style={styles.gifts}>
               <Text style={styles.giftsTitle}>
@@ -316,7 +316,7 @@ function ChatLine({ message }: { message: BattleMessage }) {
     <View
       style={[
         styles.chatLine,
-        support && { backgroundColor: support.side === 'host' ? 'rgba(29,78,216,0.55)' : 'rgba(245,158,11,0.55)' },
+        support && { backgroundColor: support.side === 'host' ? 'rgba(29,78,216,0.55)' : 'rgba(220,38,38,0.55)' },
       ]}>
       <Avatar uri={user.avatar} size={22} />
       <Text style={styles.chatText}>
@@ -363,7 +363,6 @@ const styles = themed(() => StyleSheet.create({
   divider: { width: 2, backgroundColor: '#0B1020' },
   waiting: { color: 'rgba(255,255,255,0.75)', fontSize: 12 },
   placeholder: { alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#1E293B' },
-  chatOverlay: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '45%' },
   sideTag: { position: 'absolute', bottom: 8, left: 8, right: 8, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, alignSelf: 'flex-start' },
   sideTagText: { color: '#fff', fontWeight: '700', fontSize: 12 },
   scheduled: { alignItems: 'center', gap: 10, padding: spacing.xl },

@@ -23,7 +23,6 @@ export default function BattlesScreen() {
   const sections = [
     { title: 'Ao vivo agora', data: visible.filter((b) => b.status === 'live').sort((a, b) => b.viewers - a.viewers) },
     { title: 'Agendadas', data: visible.filter((b) => b.status === 'scheduled').sort((a, b) => a.startsAt - b.startsAt) },
-    { title: 'Encerradas', data: visible.filter((b) => b.status === 'ended') },
   ].filter((s) => s.data.length > 0);
 
   return (

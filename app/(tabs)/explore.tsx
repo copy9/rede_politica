@@ -9,14 +9,11 @@ import { useSettings } from '@/lib/settings';
 import { useApp } from '@/lib/store';
 import { colors, spacing, themed } from '@/lib/theme';
 
-const TOPICS = ['Todos', 'Educação', 'Saúde', 'Mobilidade', 'Orçamento', 'Cultura', 'Obras'];
-
 export default function ExploreScreen() {
   const { users, posts, me } = useApp();
   const { settings } = useSettings();
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
-  const [topic, setTopic] = useState('Todos');
 
   const q = query.trim().toLowerCase().replace(/^@/, '');
   const searching = focused || q.length > 0;
@@ -32,12 +29,10 @@ export default function ExploreScreen() {
     [users, q, me, settings.blockedIds],
   );
 
-  const gridPosts = useMemo(() => {
-    const list = posts.filter((p) => !settings.blockedIds.includes(p.userId)).sort((a, b) => b.likes.length - a.likes.length || b.createdAt - a.createdAt);
-    if (topic === 'Todos') return list;
-    const t = topic.toLowerCase();
-    return list.filter((p) => p.caption.toLowerCase().includes(t.slice(0, 5)));
-  }, [posts, topic, settings.blockedIds]);
+  const gridPosts = useMemo(
+    () => posts.filter((p) => !settings.blockedIds.includes(p.userId)).sort((a, b) => b.likes.length - a.likes.length || b.createdAt - a.createdAt),
+    [posts, settings.blockedIds],
+  );
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -81,14 +76,7 @@ export default function ExploreScreen() {
         />
       ) : (
         <ScrollView>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.topics}>
-            {TOPICS.map((t) => (
-              <Pressable key={t} onPress={() => setTopic(t)} style={[styles.chip, topic === t && styles.chipActive]}>
-                <Text style={[styles.chipText, topic === t && styles.chipTextActive]}>{t}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-          <PostGrid posts={gridPosts} emptyText="Nada sobre esse tema ainda" />
+          <PostGrid posts={gridPosts} emptyText="Nenhuma publicação ainda" />
         </ScrollView>
       )}
     </SafeAreaView>
