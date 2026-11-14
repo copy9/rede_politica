@@ -1,5 +1,5 @@
-// Convidados da batalha: quem não é do debate pede para entrar, quem criou a batalha aceita,
-// e os aceitos transmitem câmera e microfone numa grade abaixo do palco.
+// Convidados da batalha: quem assiste toca no quadradinho "Participar" para pedir entrada.
+// Quem criou a batalha aceita ou recusa. Quem é aceito aparece no quadradinho com a câmera dela.
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -62,7 +62,11 @@ export function BattleGuestsGrid({ battleId, live, isHost, isParticipant, meId, 
   const pending = guests.filter((g) => g.status === 'pending');
   const userOf = (id: string) => users.find((u) => u.id === id);
 
+  // quadradinho "Participar" aparece para quem assiste e ainda não está no vídeo
+  const showSlot = live && !isParticipant && !isHost && mine?.status !== 'accepted';
+
   const askToJoin = async () => {
+    if (mine?.status === 'pending') return;
     const { error } = mine
       ? await supabase.from('battle_guests').update({ status: 'pending' }).eq('battle_id', battleId).eq('user_id', meId)
       : await supabase.from('battle_guests').insert({ battle_id: battleId, user_id: meId, status: 'pending' });
@@ -74,21 +78,10 @@ export function BattleGuestsGrid({ battleId, live, isHost, isParticipant, meId, 
     if (error) onMessage('Não foi possível responder agora.');
   };
 
+  if (!showSlot && accepted.length === 0 && !(isHost && pending.length > 0)) return null;
+
   return (
     <View style={styles.wrap}>
-      {/* ações de quem assiste: pedir para entrar */}
-      {live && !isParticipant && !isHost ? (
-        mine?.status === 'accepted' ? (
-          <Text style={styles.hint}>Você está no vídeo da batalha.</Text>
-        ) : mine?.status === 'pending' ? (
-          <Text style={styles.hint}>Pedido enviado. Aguardando aceitação.</Text>
-        ) : (
-          <Pressable onPress={askToJoin} style={styles.joinBtn} accessibilityLabel="Solicitar entrada na batalha">
-            <Text style={styles.joinText}>{mine?.status === 'declined' ? 'Pedir de novo' : 'Solicitar para entrar'}</Text>
-          </Pressable>
-        )
-      ) : null}
-
       {/* quem criou a batalha decide os pedidos */}
       {isHost && pending.length > 0 ? (
         <View style={styles.pendingBox}>
@@ -110,42 +103,50 @@ export function BattleGuestsGrid({ battleId, live, isHost, isParticipant, meId, 
         </View>
       ) : null}
 
-      {/* grade com quem está transmitindo */}
-      {accepted.length > 0 ? (
-        <View style={styles.grid}>
-          {accepted.map((g) => {
-            const u = userOf(g.user_id);
-            const fallback = (
-              <View style={styles.fallback}>
-                <Avatar uri={u?.avatar ?? ''} size={56} />
-                <Text style={styles.tileName} numberOfLines={1}>{u?.name ?? ''}</Text>
-              </View>
-            );
-            return (
-              <View key={g.user_id} style={styles.tile}>
-                {live ? renderTile(g.user_id, g.user_id === meId, fallback) : fallback}
-              </View>
-            );
-          })}
-        </View>
-      ) : null}
+      {/* fileira de quadradinhos: quem está no vídeo + o botão Participar */}
+      <View style={styles.grid}>
+        {accepted.map((g) => {
+          const u = userOf(g.user_id);
+          const fallback = (
+            <View style={styles.fallback}>
+              <Avatar uri={u?.avatar ?? ''} size={40} />
+              <Text style={styles.tileName} numberOfLines={1}>{u?.name ?? ''}</Text>
+            </View>
+          );
+          return (
+            <View key={g.user_id} style={styles.tile}>
+              {live ? renderTile(g.user_id, g.user_id === meId, fallback) : fallback}
+            </View>
+          );
+        })}
+        {showSlot ? (
+          <View style={styles.tile}>
+            <Pressable onPress={askToJoin} style={styles.slot} accessibilityLabel="Participar da batalha">
+              <Text style={styles.slotPlus}>+</Text>
+              <Text style={styles.slotText}>
+                {mine?.status === 'pending' ? 'Pedido enviado' : mine?.status === 'declined' ? 'Pedir de novo' : 'Participar'}
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
+      </View>
     </View>
   );
 }
 
 const guestStyles = themed(() => StyleSheet.create({
   wrap: { backgroundColor: '#0B1020', paddingBottom: spacing.xs },
-  hint: { color: 'rgba(255,255,255,0.7)', fontSize: 13, textAlign: 'center', paddingVertical: spacing.xs },
-  joinBtn: { alignSelf: 'center', backgroundColor: colors.accent, borderRadius: 999, paddingHorizontal: spacing.lg, paddingVertical: 8, marginVertical: spacing.xs },
-  joinText: { color: '#fff', fontWeight: '700', fontSize: 13 },
   pendingBox: { marginHorizontal: spacing.md, marginVertical: spacing.xs, gap: 6 },
   pendingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 6 },
   pendingName: { flex: 1, color: '#fff', fontSize: 13 },
   yes: { backgroundColor: '#2563EB', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
   no: { backgroundColor: '#DC2626', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
   btnText: { color: '#fff', fontWeight: '700', fontSize: 12 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap' },
-  tile: { width: '50%', aspectRatio: 4 / 3, padding: 2 },
-  fallback: { flex: 1, backgroundColor: '#111827', borderRadius: 10, alignItems: 'center', justifyContent: 'center', gap: 4 },
-  tileName: { color: '#fff', fontSize: 12, maxWidth: '90%' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 2 },
+  tile: { width: '33.33%', aspectRatio: 1, padding: 2 },
+  fallback: { flex: 1, backgroundColor: '#111827', borderRadius: 10, alignItems: 'center', justifyContent: 'center', gap: 4, padding: 4 },
+  tileName: { color: '#fff', fontSize: 11, maxWidth: '95%' },
+  slot: { flex: 1, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
+  slotPlus: { color: '#fff', fontSize: 22, fontWeight: '300', lineHeight: 24 },
+  slotText: { color: '#fff', fontSize: 11, fontWeight: '600', textAlign: 'center', paddingHorizontal: 4 },
 }));
