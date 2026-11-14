@@ -73,7 +73,6 @@ export function BattleCard({ battle }: { battle: LiveBattle }) {
             {host.role ?? ''}
           </Text>
         </View>
-        <Text style={styles.vs}>VS</Text>
         <View style={styles.person}>
           <Avatar uri={opponent.avatar} size={56} ring={live ? 'unseen' : 'none'} />
           <Text style={styles.name} numberOfLines={1}>

@@ -45,7 +45,7 @@ export default function BattleRoomScreen() {
   const me = useMe();
   const app = useApp();
   const { getBattle, getUser, messagesForBattle, supportBattle, sendBattleMessage, joinBattle, startBattle, endBattle, remindBattle } = app;
-  const { width } = useWindowDimensions();
+  const { height } = useWindowDimensions();
   const { confirm, showBanner } = useOverlay();
   const [now, setNow] = useState(Date.now());
   const [side, setSide] = useState<BattleSide | null>(null);
@@ -85,7 +85,8 @@ export default function BattleRoomScreen() {
   const isHost = battle.hostId === me.id;
   const isParticipant = isHost || battle.opponentId === me.id;
   const live = battle.status === 'live';
-  const halfHeight = Math.min(width * 0.62, 340);
+  // Palco ocupa metade da tela: as duas telas ficam grandes, como nas batalhas de 2
+  const halfHeight = Math.round(height * 0.5);
 
   const onClose = () => {
     if (isHost && live) {
@@ -140,13 +141,25 @@ export default function BattleRoomScreen() {
 
         {/* Os dois lados */}
         {(() => {
+          // Palco: as duas telas e, por cima da parte de baixo, os comentários (como no app de referência)
           const stage = (
-            <View style={[styles.split, { height: halfHeight }]}>
-              <Half user={host} battle={battle} sideKey="host" isMe={host.id === me.id} />
-              <View style={styles.divider} />
-              <Half user={opponent} battle={battle} sideKey="opponent" isMe={opponent.id === me.id} />
-              <View style={styles.vsWrap} pointerEvents="none">
-                <Text style={styles.vs}>VS</Text>
+            <View style={{ height: halfHeight }}>
+              <View style={[styles.split, { height: halfHeight }]}>
+                <Half user={host} battle={battle} sideKey="host" isMe={host.id === me.id} />
+                <View style={styles.divider} />
+                <Half user={opponent} battle={battle} sideKey="opponent" isMe={opponent.id === me.id} />
+              </View>
+              <View style={styles.chatOverlay} pointerEvents="box-none">
+                <FlatList
+                  style={{ flex: 1 }}
+                  inverted
+                  data={[...messagesForBattle(battle.id)].reverse().slice(0, 80)}
+                  keyExtractor={(m) => m.id}
+                  renderItem={({ item }) => <ChatLine message={item} />}
+                  contentContainerStyle={{ paddingLeft: spacing.md, paddingRight: 92, paddingVertical: spacing.sm, gap: 6 }}
+                />
+                {/* Curtir, compartilhar e seguir (para quem está assistindo engajar) */}
+                <BattleActions battle={battle} host={host} opponent={opponent} meId={me.id} />
               </View>
             </View>
           );
@@ -190,20 +203,7 @@ export default function BattleRoomScreen() {
         ) : null}
 
         {/* Chat */}
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-          <View style={{ flex: 1 }}>
-            <FlatList
-              style={{ flex: 1 }}
-              inverted
-              data={[...messagesForBattle(battle.id)].reverse().slice(0, 80)}
-              keyExtractor={(m) => m.id}
-              renderItem={({ item }) => <ChatLine message={item} />}
-              contentContainerStyle={{ paddingLeft: spacing.md, paddingRight: 92, paddingVertical: spacing.sm, gap: 6 }}
-            />
-            {/* Curtir, compartilhar e seguir (para quem está assistindo engajar) */}
-            <BattleActions battle={battle} host={host} opponent={opponent} meId={me.id} />
-          </View>
-
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
           {live && !isParticipant && side ? (
             <View style={styles.gifts}>
               <Text style={styles.giftsTitle}>
@@ -363,19 +363,7 @@ const styles = themed(() => StyleSheet.create({
   divider: { width: 2, backgroundColor: '#0B1020' },
   waiting: { color: 'rgba(255,255,255,0.75)', fontSize: 12 },
   placeholder: { alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#1E293B' },
-  vsWrap: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
-  vs: {
-    color: '#fff',
-    fontWeight: '900',
-    fontSize: 22,
-    backgroundColor: colors.like,
-    borderRadius: 22,
-    width: 44,
-    height: 44,
-    lineHeight: 44,
-    textAlign: 'center',
-    overflow: 'hidden',
-  },
+  chatOverlay: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '45%' },
   sideTag: { position: 'absolute', bottom: 8, left: 8, right: 8, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, alignSelf: 'flex-start' },
   sideTagText: { color: '#fff', fontWeight: '700', fontSize: 12 },
   scheduled: { alignItems: 'center', gap: 10, padding: spacing.xl },
