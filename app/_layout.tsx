@@ -142,6 +142,7 @@ function RootNavigator() {
         <Stack.Screen name="notifications" options={{ title: t('Notificações') }} />
         <Stack.Screen name="messages/index" options={{ title: t('Mensagens') }} />
         <Stack.Screen name="messages/[id]" options={{ title: '' }} />
+        <Stack.Screen name="messages/apoiadores" options={{ title: t('Apoiadores') }} />
         <Stack.Screen
           name="story/[userId]"
           options={{ headerShown: false, presentation: 'fullScreenModal', animation: 'fade' }}

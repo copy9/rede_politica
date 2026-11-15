@@ -5,7 +5,6 @@ import { FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
-import { SupportersToggle, useSupportersBroadcast } from '@/components/SupportersToggle';
 import { UserName } from '@/components/UserName';
 import { useApp, useMe } from '@/lib/store';
 import { colors, spacing, themed } from '@/lib/theme';
@@ -13,8 +12,7 @@ import { colors, spacing, themed } from '@/lib/theme';
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const me = useMe();
-  const { conversations, conversationMessages, getUser, sendMessage, canInteract, activityText, broadcastToSupporters } = useApp();
-  const broadcast = useSupportersBroadcast();
+  const { conversations, conversationMessages, getUser, sendMessage, canInteract, activityText } = useApp();
   const insets = useSafeAreaInsets();
   const [text, setText] = useState('');
 
@@ -25,8 +23,6 @@ export default function ChatScreen() {
   const send = () => {
     if (!text.trim()) return;
     sendMessage(id, text);
-    // modo Apoiadores ligado: a mesma mensagem vai por direct para todos os apoiadores
-    if (broadcast.on) broadcastToSupporters(text, other?.id);
     setText('');
   };
 
@@ -79,10 +75,6 @@ export default function ChatScreen() {
           @{other.username} não está recebendo mensagens de você.
         </Text>
       ) : (
-      <>
-      <View style={{ paddingHorizontal: spacing.md, paddingBottom: 6, flexDirection: 'row' }}>
-        <SupportersToggle />
-      </View>
       <View style={[styles.composer, { marginBottom: Math.max(insets.bottom, spacing.sm) }]}>
         <TextInput
           placeholder="Mensagem..."
@@ -98,7 +90,6 @@ export default function ChatScreen() {
           </Pressable>
         ) : null}
       </View>
-      </>
       )}
     </KeyboardAvoidingView>
   );

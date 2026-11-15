@@ -5,7 +5,7 @@ import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-na
 
 import { Avatar } from '@/components/Avatar';
 import { useOverlay } from '@/components/Overlay';
-import { SupportersToggle, useSupportersBroadcast } from '@/components/SupportersToggle';
+import { SupportersButton } from '@/components/SupportersToggle';
 import { UserName } from '@/components/UserName';
 import { timeAgo } from '@/lib/format';
 import { useApp, useMe } from '@/lib/store';
@@ -13,16 +13,8 @@ import { colors, spacing, themed } from '@/lib/theme';
 
 export default function InboxScreen() {
   const me = useMe();
-  const { conversations, conversationMessages, getUser, users, openConversationWith, activityText, broadcastToSupporters } = useApp();
-  const broadcast = useSupportersBroadcast();
-  const [draft, setDraft] = useState('');
-  const sendToSupporters = async () => {
-    const text = draft.trim();
-    if (!text) return;
-    setDraft('');
-    const n = await broadcastToSupporters(text);
-    showBanner(n ? `Enviada por direct para ${n} ${n === 1 ? 'apoiador' : 'apoiadores'}.` : 'Você ainda não tem apoiadores.', { icon: 'people', tone: n ? 'success' : 'warning' });
-  };
+  const { conversations, conversationMessages, getUser, users, openConversationWith, activityText } = useApp();
+
   const { showBanner } = useOverlay();
   const [query, setQuery] = useState('');
   const q = query.trim().toLowerCase();
@@ -65,7 +57,7 @@ export default function InboxScreen() {
       </View>
       <View style={styles.headRow}>
         <Text style={[styles.heading, { paddingHorizontal: 0 }]}>Mensagens</Text>
-        <SupportersToggle />
+        <SupportersButton />
       </View>
       <FlatList
         data={items}
@@ -103,23 +95,6 @@ export default function InboxScreen() {
           !people.length ? <Text style={styles.empty}>Nenhuma conversa. Pesquise alguém para começar.</Text> : undefined
         }
       />
-      {broadcast.on ? (
-        <View style={styles.composer}>
-          <TextInput
-            placeholder={`Mensagem para ${broadcast.count} ${broadcast.count === 1 ? 'apoiador' : 'apoiadores'}...`}
-            placeholderTextColor={colors.textMuted}
-            value={draft}
-            onChangeText={setDraft}
-            style={styles.input}
-            multiline
-          />
-          {draft.trim() ? (
-            <Pressable onPress={sendToSupporters} hitSlop={8} style={styles.send} accessibilityLabel="Enviar para apoiadores">
-              <Ionicons name="send" size={18} color={colors.white} />
-            </Pressable>
-          ) : null}
-        </View>
-      ) : null}
     </View>
   );
 }

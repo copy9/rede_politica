@@ -74,6 +74,8 @@ export type AccountSettings = {
   shareProfile?: ShareProfile;
   /** mensagens escritas também vão por direct para todos os apoiadores, até desligar */
   broadcastSupporters?: boolean;
+  /** mensagens já enviadas na caixa dos apoiadores */
+  supporterBroadcasts?: { text: string; at: number; count: number }[];
   /** quando aceitou os termos e confirmou ter 18+ */
   termsAcceptedAt?: number;
 };

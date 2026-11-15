@@ -180,7 +180,7 @@ export function ProfileView({ user }: { user: User }) {
           <Ionicons name={availableForDebate ? 'toggle' : 'toggle-outline'} size={34} color={availableForDebate ? colors.like : colors.textMuted} />
         </Pressable>
       ) : null}
-      {!isMe ? (
+      {!isMe && !consentFor(user.id) ? (
         <Pressable
           style={[styles.supportBtn, consentFor(user.id) && styles.supportBtnOn]}
           onPress={() => {
@@ -196,7 +196,7 @@ export function ProfileView({ user }: { user: User }) {
             const err = giveConsent(user.id, { fields, email, whatsapp, interests: sp?.interests.length ? sp.interests : me.interests ?? [] });
             if (!err)
               return showBanner(
-                `Pronto! Agora você é apoiador de ${user.name} e recebe as novidades. Toque de novo para alterar ou cancelar.`,
+                `Pronto! Agora você é apoiador de ${user.name} e recebe as novidades. Para cancelar: Configurações > Autorizações.`,
                 { icon: 'notifications', tone: 'success', durationMs: 6000 },
               );
             // se algo deu errado, abre o formulário para corrigir
