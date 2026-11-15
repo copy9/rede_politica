@@ -17,7 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Avatar } from '@/components/Avatar';
 import { BattleActions } from '@/components/BattleActions';
 import { BattleScoreBar } from '@/components/BattleScoreBar';
-import { BattleGuestsGrid, answerGuestInvite, useBattleGuests } from '@/components/BattleGuests';
+import { BattleGuestsControls, answerGuestInvite, requestToJoin, useBattleGuests, type GuestRow } from '@/components/BattleGuests';
 import { LiveCamera } from '@/components/LiveCamera';
 import { useOverlay } from '@/components/Overlay';
 import { MediaVideo } from '@/components/MediaVideo';
@@ -46,7 +46,7 @@ export default function BattleRoomScreen() {
   const me = useMe();
   const app = useApp();
   const { getBattle, getUser, messagesForBattle, supportBattle, sendBattleMessage, joinBattle, startBattle, endBattle, remindBattle, acceptBattle, declineBattle } = app;
-  const { height } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const { confirm, showBanner } = useOverlay();
   const [now, setNow] = useState(Date.now());
   const [side, setSide] = useState<BattleSide | null>(null);
@@ -227,27 +227,85 @@ export default function BattleRoomScreen() {
               </View>
             );
           }
+          // Todos os participantes num grid só, do mesmo tamanho (2 colunas até 4 pessoas, 3 colunas acima)
+          type Slot = { key: string; user?: User; isMe: boolean; kind: 'side' | 'accepted' | 'invited' | 'join' };
+          const guestSlots = (status: GuestRow['status'], kind: 'accepted' | 'invited'): Slot[] =>
+            guests
+              .filter((g) => g.status === status && g.user_id !== host.id && g.user_id !== opponent.id)
+              .map((g) => ({ key: g.user_id, user: app.users.find((u) => u.id === g.user_id), isMe: g.user_id === me.id, kind }));
+          const showJoin = live && !isParticipant && !isHost && myGuest?.status !== 'accepted' && myGuest?.status !== 'convidado';
+          const slots: Slot[] = [
+            { key: host.id, user: host, isMe: host.id === me.id, kind: 'side' },
+            { key: opponent.id, user: opponent, isMe: opponent.id === me.id, kind: 'side' },
+            ...guestSlots('accepted', 'accepted'),
+            ...guestSlots('convidado', 'invited'),
+            ...(showJoin ? [{ key: 'join', isMe: false, kind: 'join' as const }] : []),
+          ];
+          const cols = slots.length <= 4 ? 2 : 3;
+          const rows = Math.ceil(slots.length / cols);
+          const tileW = Math.floor(width / cols);
+          const tileH = Math.round((height * 0.55) / rows);
+          const LVx = getLiveVideo();
+          const leads = (side: 'host' | 'opponent') =>
+            battle.status !== 'scheduled' && battle.scores[side] > battle.scores[side === 'host' ? 'opponent' : 'host'];
+
+          const tile = (s: Slot) => {
+            if (s.kind === 'join') {
+              const label = myGuest?.status === 'pending' ? 'Pedido enviado' : myGuest?.status === 'declined' ? 'Pedir de novo' : 'Participar';
+              return (
+                <View key="join" style={{ width: tileW, height: tileH, padding: 3 }}>
+                  <Pressable
+                    style={styles.joinTile}
+                    accessibilityLabel="Participar da batalha"
+                    onPress={async () => {
+                      const msg = await requestToJoin(battle.id, me.id, myGuest?.status);
+                      if (msg) showBanner(msg, { icon: 'people-outline', tone: 'success' });
+                    }}>
+                    <Text style={styles.joinPlus}>+</Text>
+                    <Text style={styles.joinLabel}>{label}</Text>
+                  </Pressable>
+                </View>
+              );
+            }
+            const sideKey = s.key === host.id ? 'host' : s.key === opponent.id ? 'opponent' : null;
+            const crown = sideKey && leads(sideKey) ? '👑 ' : '';
+            const name = s.isMe ? 'Você' : s.user?.name ?? '';
+            const fallback = (
+              <View style={[StyleSheet.absoluteFill, styles.placeholder]}>
+                <Avatar uri={s.user?.avatar ?? ''} size={Math.min(56, Math.round(tileH * 0.35))} />
+                {s.kind === 'invited' ? <Text style={styles.waiting}>aguardando</Text> : null}
+              </View>
+            );
+            const canShowVideo = live && s.kind !== 'invited';
+            const video =
+              canShowVideo && LVx ? (
+                <LVx.SideVideo userId={s.key} isMe={s.isMe} fallback={fallback} />
+              ) : canShowVideo && s.isMe ? (
+                <LiveCamera />
+              ) : (
+                fallback
+              );
+            return (
+              <View key={s.key} style={{ width: tileW, height: tileH, padding: 3 }}>
+                <View style={styles.tileBox}>{video}</View>
+                <Text style={styles.tileName} numberOfLines={1}>
+                  {crown}
+                  {name}
+                </Text>
+              </View>
+            );
+          };
+
           const stage = (
             <View>
-              <View style={[styles.split, { height: halfHeight }]}>
-                <Half user={host} battle={battle} sideKey="host" isMe={host.id === me.id} />
-                <View style={styles.divider} />
-                <Half user={opponent} battle={battle} sideKey="opponent" isMe={opponent.id === me.id} />
-              </View>
-              <BattleGuestsGrid
+              <BattleGuestsControls
                 battleId={battle.id}
-                live={live}
                 isHost={isHost}
-                isParticipant={isParticipant}
-                meId={me.id}
                 users={app.users}
                 guests={guests}
-                renderTile={(uid, isMe, fallback) => {
-                  const LVG = getLiveVideo();
-                  return LVG && live ? <LVG.SideVideo userId={uid} isMe={isMe} fallback={fallback} /> : fallback;
-                }}
                 onMessage={(t) => showBanner(t, { icon: 'people-outline', tone: 'success' })}
               />
+              <View style={styles.tileGrid}>{slots.map(tile)}</View>
             </View>
           );
           // No app instalado: vídeo e áudio ao vivo de um celular para o outro (LiveKit)
@@ -440,6 +498,12 @@ const styles = themed(() => StyleSheet.create({
   inviteTitle: { color: '#fff', fontSize: 18, fontWeight: '800', textAlign: 'center' },
   inviteTopic: { color: 'rgba(255,255,255,0.85)', fontSize: 15, textAlign: 'center' },
   inviteNote: { color: 'rgba(255,255,255,0.6)', fontSize: 12, textAlign: 'center', marginBottom: spacing.xs },
+  tileGrid: { flexDirection: 'row', flexWrap: 'wrap', backgroundColor: '#0B1020' },
+  tileBox: { flex: 1, overflow: 'hidden', borderRadius: 10, backgroundColor: '#111827' },
+  tileName: { color: '#fff', fontWeight: '700', fontSize: 12, paddingTop: 3, paddingHorizontal: 4 },
+  joinTile: { flex: 1, borderRadius: 10, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.35)', alignItems: 'center', justifyContent: 'center' },
+  joinPlus: { color: '#fff', fontSize: 26, fontWeight: '300', lineHeight: 28 },
+  joinLabel: { color: '#fff', fontSize: 11, fontWeight: '600', textAlign: 'center', paddingHorizontal: 4 },
   sideName: { color: '#fff', fontWeight: '700', fontSize: 14, paddingHorizontal: 8, paddingTop: 6, paddingBottom: 4 },
   divider: { width: 2, backgroundColor: '#0B1020' },
   waiting: { color: 'rgba(255,255,255,0.75)', fontSize: 12 },
