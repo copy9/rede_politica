@@ -47,8 +47,7 @@ export default function EditProfileScreen() {
       avatar,
       name: name.trim(),
       username,
-      role: role.trim() || undefined,
-      party: party.trim() || undefined,
+      ...(me.accountType === 'politico' ? { role: role.trim() || undefined, party: party.trim() || undefined } : {}),
       bio: bio.trim(),
       website: website.trim().replace(/^https?:\/\//, '') || undefined,
     });
@@ -80,8 +79,13 @@ export default function EditProfileScreen() {
         {error ? <Text style={styles.error}>{error}</Text> : null}
         <Row label="Nome" value={name} onChange={setName} />
         <Row label="Usuário" value={username} onChange={setUsername} autoCapitalize="none" />
-        <Row label="Cargo" value={role} onChange={setRole} placeholder="Ex.: Vereadora, Eleitor, Jornalista" />
-        <Row label="Partido" value={party} onChange={setParty} placeholder="Opcional" />
+        {me.accountType === 'politico' ? (
+          <>
+            <Text style={styles.sectionTitle}>Dados de político</Text>
+            <Row label="Cargo" value={role} onChange={setRole} placeholder="Ex.: Vereadora, Pré-candidato a prefeito" />
+            <Row label="Partido" value={party} onChange={setParty} placeholder="Opcional" />
+          </>
+        ) : null}
         <Row label="Bio" value={bio} onChange={setBio} multiline />
         <Row label="Site" value={website} onChange={setWebsite} autoCapitalize="none" placeholder="seusite.com.br" />
 

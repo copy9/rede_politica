@@ -15,9 +15,6 @@ export default function SignUpScreen() {
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [accountType, setAccountType] = useState<'cidadao' | 'politico'>('cidadao');
-  const [role, setRole] = useState('');
-  const [party, setParty] = useState('');
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
   const [birthDate, setBirthDate] = useState('');
@@ -41,9 +38,8 @@ export default function SignUpScreen() {
         name,
         username,
         password,
-        accountType,
-        role,
-        party,
+        // todos entram como usuário normal; perfil de político só por verificação
+        accountType: 'cidadao',
         city,
         state,
         birthDate,
@@ -63,36 +59,13 @@ export default function SignUpScreen() {
           </View>
 
           <View style={styles.form}>
-            <Text style={styles.label}>Tipo de conta</Text>
-            <View style={styles.types}>
-              <TypeCard
-                icon="person-outline"
-                title="Cidadão"
-                text="Acompanhe, debata e fiscalize"
-                active={accountType === 'cidadao'}
-                onPress={() => setAccountType('cidadao')}
-              />
-              <TypeCard
-                icon="business-outline"
-                title="Político / candidato"
-                text="Painel com dados do seu público e apoiadores"
-                active={accountType === 'politico'}
-                onPress={() => setAccountType('politico')}
-              />
-            </View>
             <Field placeholder="E-mail" value={email} onChangeText={setEmail} keyboardType="email-address" autoComplete="email" />
             <Field placeholder="Nome completo" value={name} onChangeText={setName} autoCapitalize="words" />
             <Field placeholder="Nome de usuário" value={username} onChangeText={setUsername} autoCorrect={false} />
             <Field placeholder="Senha (mín. 6 caracteres)" value={password} onChangeText={setPassword} secureTextEntry />
             <Field placeholder="Data de nascimento (DD/MM/AAAA)" value={birthDate} onChangeText={onBirthDate} keyboardType="number-pad" maxLength={10} />
-            {accountType === 'politico' ? (
-              <>
-                <Field placeholder="Cargo ou pretensão (ex.: Vereador, Pré-candidata a prefeita)" value={role} onChangeText={setRole} autoCapitalize="sentences" />
-                <Field placeholder="Partido (opcional)" value={party} onChangeText={setParty} autoCapitalize="characters" />
-              </>
-            ) : null}
             <View style={{ flexDirection: 'row', gap: 8 }}>
-              <Field placeholder={accountType === 'politico' ? 'Cidade' : 'Cidade (opcional)'} value={city} onChangeText={setCity} autoCapitalize="words" style={{ flex: 1 }} />
+              <Field placeholder="Cidade (opcional)" value={city} onChangeText={setCity} autoCapitalize="words" style={{ flex: 1 }} />
               <Field placeholder="UF" value={state} onChangeText={setState} autoCapitalize="characters" maxLength={2} style={{ width: 70 }} />
             </View>
 
@@ -126,27 +99,6 @@ export default function SignUpScreen() {
   );
 }
 
-function TypeCard({
-  icon,
-  title,
-  text,
-  active,
-  onPress,
-}: {
-  icon: 'person-outline' | 'business-outline';
-  title: string;
-  text: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable onPress={onPress} style={[styles.type, active && styles.typeActive]}>
-      <Ionicons name={icon} size={22} color={active ? colors.primary : colors.textMuted} />
-      <Text style={styles.typeTitle}>{title}</Text>
-      <Text style={styles.typeText}>{text}</Text>
-    </Pressable>
-  );
-}
 
 const styles = themed(() => StyleSheet.create({
   check: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },

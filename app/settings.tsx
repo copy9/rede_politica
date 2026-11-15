@@ -23,19 +23,6 @@ export default function SettingsHome() {
 
   const { confirm } = useOverlay();
 
-  const toggleAccountType = () =>
-    confirm(
-      political ? 'Voltar para conta de cidadão?' : 'Ativar conta política?',
-      political
-        ? 'Você perde o acesso ao Painel do político.'
-        : 'Para candidatos e políticos. Libera o Painel com dados do seu público e o banco de apoiadores.',
-      political ? 'Voltar para cidadão' : 'Ativar conta política',
-      () => {
-        updateProfile({ accountType: political ? 'cidadao' : 'politico' });
-        if (!political) router.push('/painel');
-      },
-    );
-
   const logout = () => confirm('Sair da conta?', 'Você pode entrar de novo quando quiser.', 'Sair', signOut, true);
 
   // Busca: filtra as opções pelo nome
@@ -50,8 +37,7 @@ export default function SettingsHome() {
         { icon: 'person-circle-outline', label: 'Editar perfil', onPress: go('/edit-profile') },
         { icon: 'card-outline', label: 'Informações pessoais', onPress: go('/config/dados-pessoais') },
         { icon: 'key-outline', label: 'Senha e segurança', onPress: go('/config/seguranca') },
-        { icon: 'shield-checkmark-outline', label: 'Verificação de conta oficial', value: settings.verification.status === 'em_analise' ? t('Em análise') : undefined, onPress: go('/config/verificacao') },
-        { icon: political ? 'person-outline' : 'business-outline', label: political ? 'Conta política (ativa)' : 'Sou político ou candidato', onPress: toggleAccountType },
+        { icon: 'shield-checkmark-outline', label: political ? 'Perfil público verificado' : 'Solicitar perfil público (político)', value: settings.verification.status === 'em_analise' ? t('Em análise') : undefined, onPress: go('/config/verificacao') },
         ...(political ? [{ icon: 'bar-chart-outline' as const, label: 'Painel do político', onPress: go('/painel') }] : []),
       ],
     },
