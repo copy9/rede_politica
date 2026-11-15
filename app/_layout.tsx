@@ -160,6 +160,7 @@ function RootNavigator() {
         <Stack.Screen name="config/melhores-amigos" options={{ title: t('Melhores amigos') }} />
         <Stack.Screen name="config/idioma" options={{ title: t('Idioma') }} />
         <Stack.Screen name="config/verificacao" options={{ title: t('Verificação') }} />
+        <Stack.Screen name="admin" options={{ title: t('Administração') }} />
         <Stack.Screen name="config/ajuda" options={{ title: t('Ajuda') }} />
         <Stack.Screen name="config/sobre" options={{ title: t('Sobre') }} />
         <Stack.Screen name="battle/new" options={{ title: t('Debate'), presentation: 'modal' }} />

@@ -221,6 +221,7 @@ function toUser(p: Row): User {
     party: p.party ?? undefined,
     website: p.website ?? undefined,
     verified: !!p.verified,
+    isAdmin: !!p.is_admin,
     city: p.city ?? undefined,
     state: p.state ?? undefined,
     gender: p.gender ?? undefined,

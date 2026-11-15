@@ -14,6 +14,8 @@ export type User = {
   party?: string;
   website?: string;
   verified?: boolean;
+  /** conta de administrador da plataforma */
+  isAdmin?: boolean;
   /** Dados declarados pelo próprio usuário (usados só em estatísticas agregadas) */
   city?: string;
   state?: string;
