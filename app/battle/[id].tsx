@@ -88,6 +88,10 @@ export default function BattleRoomScreen() {
   const isHost = battle.hostId === me.id;
   const isParticipant = isHost || battle.opponentId === me.id;
   const live = battle.status === 'live';
+  // mais de 2 pessoas na batalha: some a barra de placar (curtidas) e o grid ganha o espaço
+  const multiPeople = guests.some(
+    (g) => (g.status === 'accepted' || g.status === 'convidado') && g.user_id !== battle.hostId && g.user_id !== battle.opponentId,
+  );
   // Palco ocupa metade da tela: as duas telas ficam grandes, como nas batalhas de 2
   const halfHeight = Math.round(height * 0.5);
 
@@ -143,9 +147,11 @@ export default function BattleRoomScreen() {
         </View>
 
         {/* Placar no topo: cresce para o lado com mais presentes e curtidas */}
-        <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
-          <BattleScoreBar host={battle.scores.host} opponent={battle.scores.opponent} height={24} />
-        </View>
+        {multiPeople ? null : (
+          <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
+            <BattleScoreBar host={battle.scores.host} opponent={battle.scores.opponent} height={24} />
+          </View>
+        )}
 
         {battle.status === 'invited' && isHost ? (
           <View style={styles.scheduled}>
@@ -244,7 +250,8 @@ export default function BattleRoomScreen() {
           const cols = slots.length <= 4 ? 2 : 3;
           const rows = Math.ceil(slots.length / cols);
           const tileW = Math.floor(width / cols);
-          const tileH = Math.round((height * 0.55) / rows);
+          // o grid ocupa até 42% da altura, para sobrar espaço para o chat e o campo de comentário
+          const tileH = Math.round((height * 0.42) / rows);
           const LVx = getLiveVideo();
           const leads = (side: 'host' | 'opponent') =>
             battle.status !== 'scheduled' && battle.scores[side] > battle.scores[side === 'host' ? 'opponent' : 'host'];
