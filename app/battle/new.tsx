@@ -126,7 +126,7 @@ export default function NewBattleScreen() {
               <View style={{ flex: 1 }}>
                 <UserName user={item} />
                 <Text style={styles.muted} numberOfLines={1}>
-                  {allowed ? [item.name, item.role].filter(Boolean).join(' • ') : 'Não aceita desafios de você'}
+                  {allowed ? [item.name, item.role].filter(Boolean).join(' • ') : 'Indisponível para debate'}
                 </Text>
               </View>
               {selected ? (

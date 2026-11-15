@@ -11,6 +11,7 @@ import { UsageTracker } from '@/components/UsageTracker';
 import { useT } from '@/lib/i18n';
 import { SettingsProvider, useSettings } from '@/lib/settings';
 import { AppProvider, useApp } from '@/lib/store';
+import { InvitePopup } from '@/components/InvitePopup';
 import { colors, schemeFrom, setScheme } from '@/lib/theme';
 
 export { ErrorBoundary } from 'expo-router';
@@ -79,6 +80,7 @@ function ThemedApp() {
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
       <UsageTracker />
       <SyncErrorBanner />
+      <InvitePopup />
       {/* key: troca de tema redesenha tudo; RestorePath volta para a tela onde a pessoa estava */}
       <RootNavigator key={scheme} />
       {changes.current > 0 ? <RestorePath key={`restore-${changes.current}`} path={pathAtChange.current} /> : null}

@@ -18,7 +18,8 @@ type Tab = 'posts' | 'videos' | 'saved';
 export function ProfileView({ user }: { user: User }) {
   const me = useMe();
   const { postsBy, posts, followersOf, followingOf, storyUsers, openConversationWith, consentFor, supportersFor, canSeeContent, canInteract, activityText, giveConsent, isFollowing } = useApp();
-  const { accountSettings, settings } = useSettings();
+  const { accountSettings, settings, update } = useSettings();
+  const availableForDebate = settings.whoCanChallenge !== 'ninguem';
   const { showBanner } = useOverlay();
   const [tab, setTab] = useState<Tab>('posts');
   const isMe = user.id === me.id;
@@ -140,7 +141,7 @@ export function ProfileView({ user }: { user: User }) {
         {isMe ? (
           <>
             <SecondaryButton flex label="Editar perfil" onPress={() => router.push('/edit-profile')} />
-            <SecondaryButton flex label="Compartilhar perfil" onPress={onShare} />
+            <SecondaryButton flex label="Compartilhar" onPress={onShare} />
           </>
         ) : (
           <>
@@ -148,15 +149,37 @@ export function ProfileView({ user }: { user: User }) {
               <FollowButton userId={user.id} />
             </View>
             <SecondaryButton flex label="Mensagem" onPress={onMessage} />
-            {following ? (
+            {canInteract(user.id, 'challenge') ? (
               <Pressable style={styles.challengeBtn} onPress={onChallenge} accessibilityLabel="Convidar para debate">
-                <Ionicons name="flash" size={15} color={colors.white} />
-                <Text style={styles.challengeText}>Convidar</Text>
+                <Ionicons name="flash" size={14} color={colors.white} />
+                <Text style={styles.challengeText} numberOfLines={1} adjustsFontSizeToFit maxFontSizeMultiplier={1.15}>
+                  Convidar
+                </Text>
               </Pressable>
-            ) : null}
+            ) : (
+              <View style={[styles.challengeBtn, styles.challengeOff]} accessibilityLabel="Indisponível para debate">
+                <Ionicons name="flash-off" size={14} color={colors.textMuted} />
+                <Text style={[styles.challengeText, { color: colors.textMuted }]} numberOfLines={1} adjustsFontSizeToFit maxFontSizeMultiplier={1.15}>
+                  Indisponível
+                </Text>
+              </View>
+            )}
           </>
         )}
       </View>
+      {isMe ? (
+        <Pressable
+          style={styles.availRow}
+          accessibilityRole="switch"
+          accessibilityState={{ checked: availableForDebate }}
+          onPress={() => update({ whoCanChallenge: availableForDebate ? 'ninguem' : 'todos' })}>
+          <Ionicons name={availableForDebate ? 'flash' : 'flash-off'} size={18} color={availableForDebate ? colors.like : colors.textMuted} />
+          <Text style={styles.availText} numberOfLines={1} maxFontSizeMultiplier={1.15}>
+            {availableForDebate ? 'Disponível para debate' : 'Indisponível para debate'}
+          </Text>
+          <Ionicons name={availableForDebate ? 'toggle' : 'toggle-outline'} size={34} color={availableForDebate ? colors.like : colors.textMuted} />
+        </Pressable>
+      ) : null}
       {!isMe ? (
         <Pressable
           style={[styles.supportBtn, consentFor(user.id) && styles.supportBtnOn]}
@@ -229,8 +252,10 @@ export function ProfileView({ user }: { user: User }) {
 function Stat({ value, label, onPress }: { value: number; label: string; onPress?: () => void }) {
   return (
     <Pressable style={styles.stat} onPress={onPress} disabled={!onPress}>
-      <Text style={styles.statValue}>{compactNumber(value)}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={styles.statValue} maxFontSizeMultiplier={1.2}>{compactNumber(value)}</Text>
+      <Text style={styles.statLabel} numberOfLines={1} adjustsFontSizeToFit maxFontSizeMultiplier={1.15}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -257,7 +282,7 @@ const styles = themed(() => StyleSheet.create({
   stats: { flex: 1, flexDirection: 'row', justifyContent: 'space-around' },
   stat: { alignItems: 'center' },
   statValue: { fontWeight: '700', fontSize: 17, color: colors.text },
-  statLabel: { fontSize: 13, color: colors.text },
+  statLabel: { fontSize: 12, color: colors.text },
   bio: { paddingHorizontal: spacing.lg, gap: 2 },
   name: { fontWeight: '600', color: colors.text },
   role: { color: colors.textMuted, fontSize: 13 },
@@ -273,8 +298,11 @@ const styles = themed(() => StyleSheet.create({
   panelCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginHorizontal: spacing.lg, marginTop: spacing.md, padding: spacing.md, borderRadius: 12, backgroundColor: colors.surface },
   panelTitle: { fontWeight: '700', color: colors.text },
   panelSub: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
-  challengeBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: colors.like },
-  challengeText: { color: colors.white, fontWeight: '700', fontSize: 14 },
+  challengeBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 8, paddingHorizontal: 6, borderRadius: 8, backgroundColor: colors.like },
+  challengeOff: { backgroundColor: colors.surface },
+  challengeText: { flexShrink: 1, color: colors.white, fontWeight: '700', fontSize: 14 },
+  availRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginHorizontal: spacing.lg, marginTop: -spacing.sm, marginBottom: spacing.md, paddingVertical: 10, paddingHorizontal: spacing.md, borderRadius: 8, backgroundColor: colors.surface },
+  availText: { flex: 1, color: colors.text, fontWeight: '700' },
   supportBtn: { flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', marginHorizontal: spacing.lg, marginTop: -spacing.sm, marginBottom: spacing.md, paddingVertical: 9, borderRadius: 8, backgroundColor: colors.primary },
   supportBtnOn: { backgroundColor: colors.selectedBg },
   supportText: { color: colors.white, fontWeight: '700' },

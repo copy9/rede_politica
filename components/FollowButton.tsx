@@ -12,7 +12,7 @@ export function FollowButton({ userId, compact }: { userId: string; compact?: bo
     <Pressable
       onPress={() => toggleFollow(userId)}
       style={[styles.btn, compact && styles.compact, following || requested ? styles.secondary : styles.primary]}>
-      <Text style={[styles.text, following || requested ? styles.textSecondary : styles.textPrimary]}>
+      <Text style={[styles.text, following || requested ? styles.textSecondary : styles.textPrimary]} numberOfLines={1} adjustsFontSizeToFit maxFontSizeMultiplier={1.15}>
         {following ? 'Seguindo' : requested ? 'Solicitado' : 'Seguir'}
       </Text>
     </Pressable>
@@ -22,13 +22,15 @@ export function FollowButton({ userId, compact }: { userId: string; compact?: bo
 export function SecondaryButton({ label, onPress, flex }: { label: string; onPress: () => void; flex?: boolean }) {
   return (
     <Pressable onPress={onPress} style={[styles.btn, styles.secondary, flex && { flex: 1 }]}>
-      <Text style={[styles.text, styles.textSecondary]}>{label}</Text>
+      <Text style={[styles.text, styles.textSecondary]} numberOfLines={1} adjustsFontSizeToFit maxFontSizeMultiplier={1.15}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
 
 const styles = themed(() => StyleSheet.create({
-  btn: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  btn: { paddingVertical: 8, paddingHorizontal: 8, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   compact: { paddingVertical: 6, paddingHorizontal: 14 },
   primary: { backgroundColor: colors.primary },
   secondary: { backgroundColor: colors.surface },

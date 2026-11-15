@@ -52,6 +52,7 @@ export default function BattleRoomScreen() {
   const [now, setNow] = useState(Date.now());
   const [side, setSide] = useState<BattleSide | null>(null);
   const [text, setText] = useState('');
+  const chatRef = useRef<FlatList<BattleMessage>>(null);
   const guests = useBattleGuests(id);
   const isGuestSpeaker = guests.some((g) => g.user_id === me.id && g.status === 'accepted');
 
@@ -94,8 +95,12 @@ export default function BattleRoomScreen() {
 
   const onClose = () => {
     if (isHost && live) {
-      confirm('Encerrar batalha?', 'A batalha termina agora e o placar atual define o resultado.', 'Encerrar', () => endBattle(battle.id), true);
-    } else router.back();
+      confirm('Encerrar debate?', 'O debate termina agora para todos.', 'Encerrar', () => endBattle(battle.id), true);
+      return;
+    }
+    // convidado ao vivo que sai: libera o lugar e desliga a câmera
+    if (guests.some((g) => g.user_id === me.id && g.status === 'accepted')) answerGuestInvite(battle.id, me.id, 'declined');
+    router.back();
   };
 
   const send = () => {
@@ -144,7 +149,13 @@ export default function BattleRoomScreen() {
             {battle.description ? <LinkText text={battle.description} style={styles.description} /> : null}
           </View>
           <Pressable onPress={onClose} hitSlop={12} style={styles.close}>
-            {isHost && live ? <Text style={styles.endText}>Encerrar</Text> : <Ionicons name="close" size={28} color="#fff" />}
+            {isHost && live ? (
+              <Text style={styles.endText}>Encerrar</Text>
+            ) : live ? (
+              <Text style={styles.endText}>Sair</Text>
+            ) : (
+              <Ionicons name="close" size={28} color="#fff" />
+            )}
           </Pressable>
         </View>
 
@@ -279,7 +290,7 @@ export default function BattleRoomScreen() {
               );
             }
             const sideKey = s.key === host.id ? 'host' : s.key === opponent.id ? 'opponent' : null;
-            const crown = sideKey && leads(sideKey) ? '👑 ' : '';
+            const crown = '';
             const name = s.isMe ? 'Você' : s.user?.name ?? '';
             const fallback = (
               <View style={[StyleSheet.absoluteFill, styles.placeholder]}>
@@ -339,9 +350,10 @@ export default function BattleRoomScreen() {
           {/* Comentários embaixo do palco, mais recentes por último */}
           <View style={{ flex: 1, minHeight: 0 }}>
             <FlatList
+              ref={chatRef}
               style={{ flex: 1 }}
-              inverted
-              data={[...messagesForBattle(battle.id)].reverse().slice(0, 80)}
+              data={messagesForBattle(battle.id).slice(-80)}
+              onContentSizeChange={() => chatRef.current?.scrollToEnd({ animated: true })}
               keyExtractor={(m) => m.id}
               renderItem={({ item }) => <ChatLine message={item} />}
               ListEmptyComponent={
@@ -349,7 +361,7 @@ export default function BattleRoomScreen() {
                   {live ? 'Seja o primeiro a comentar.' : 'Os comentários abrem quando a batalha começar.'}
                 </Text>
               }
-              contentContainerStyle={{ paddingLeft: spacing.md, paddingRight: 92, paddingVertical: spacing.sm, gap: 10, alignItems: 'flex-start' }}
+              contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end', paddingLeft: spacing.md, paddingRight: 96, paddingVertical: spacing.sm, gap: 10 }}
             />
             {/* Curtir, compartilhar e seguir (para quem está assistindo engajar) */}
             <BattleActions battle={battle} host={host} opponent={opponent} meId={me.id} side={side} />
@@ -439,7 +451,6 @@ function Half({ user, battle, sideKey, isMe }: { user: User; battle: LiveBattle;
       )}
       </View>
       <Text style={styles.sideName} numberOfLines={1}>
-        {leading ? '👑 ' : ''}
         {isMe ? 'Você' : user.name}
       </Text>
     </Pressable>
@@ -478,17 +489,13 @@ function ChatLine({ message }: { message: BattleMessage }) {
   );
 }
 
-function Result({ battle, host, opponent }: { battle: LiveBattle; host: User; opponent: User }) {
-  const { host: h, opponent: o } = battle.scores;
-  const winner = h === o ? null : h > o ? host : opponent;
+function Result({ battle }: { battle: LiveBattle; host: User; opponent: User }) {
   return (
     <View style={styles.result}>
-      <Text style={styles.resultTitle}>{winner ? `🏆 Vitória de ${winner.name}` : 'Empate!'}</Text>
-      <Text style={styles.resultText}>
-        {compactNumber(h)} x {compactNumber(o)} pontos
-      </Text>
+      <Text style={styles.resultTitle}>Debate encerrado</Text>
+      <Text style={styles.resultText}>{battle.topic}</Text>
       <Pressable style={styles.startButton} onPress={() => router.back()}>
-        <Text style={styles.startText}>Voltar para batalhas</Text>
+        <Text style={styles.startText}>Voltar</Text>
       </Pressable>
     </View>
   );
