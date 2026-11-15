@@ -72,6 +72,8 @@ export type AccountSettings = {
   verification: { status: 'nenhuma' | 'em_analise'; requestedAt?: number; office?: string };
   reports: Report[];
   shareProfile?: ShareProfile;
+  /** mensagens escritas também vão por direct para todos os apoiadores, até desligar */
+  broadcastSupporters?: boolean;
   /** quando aceitou os termos e confirmou ter 18+ */
   termsAcceptedAt?: number;
 };

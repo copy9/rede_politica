@@ -97,6 +97,8 @@ export type LiveBattle = {
   hostId: string;
   opponentId: string;
   topic: string;
+  /** descrição do debate (pode ter link) */
+  description?: string;
   status: BattleStatus;
   /** Início (ou horário agendado) em ms */
   startsAt: number;

@@ -10,12 +10,6 @@ import { useApp, useMe } from '@/lib/store';
 import { colors, spacing, themed } from '@/lib/theme';
 
 const MAX_PARTICIPANTS = 6;
-const DURATIONS = [3, 5, 10, 15];
-const WHEN = [
-  { label: 'Agora', hours: 0 },
-  { label: 'Em 1 hora', hours: 1 },
-  { label: 'Amanhã', hours: 24 },
-];
 
 export default function NewBattleScreen() {
   const me = useMe();
@@ -25,8 +19,7 @@ export default function NewBattleScreen() {
   // escolhidos na ordem: a primeira pessoa é a desafiada, as demais entram ao vivo como convidadas
   const [picked, setPicked] = useState<string[]>(adversario ? [adversario] : []);
   const [topic, setTopic] = useState('');
-  const [minutes, setMinutes] = useState(5);
-  const [whenHours, setWhenHours] = useState(0);
+  const [description, setDescription] = useState('');
   const [query, setQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -46,19 +39,20 @@ export default function NewBattleScreen() {
 
   const togglePick = (id: string) => {
     if (picked.includes(id)) return setPicked(picked.filter((p) => p !== id));
-    if (picked.length >= MAX_PARTICIPANTS) return setError(`No máximo ${MAX_PARTICIPANTS} pessoas na batalha.`);
+    if (picked.length >= MAX_PARTICIPANTS) return setError(`No máximo ${MAX_PARTICIPANTS} pessoas no debate.`);
     setError(null);
     setPicked([...picked, id]);
   };
 
   const start = () => {
     if (!opponentId) return setError('Escolha pelo menos uma pessoa.');
-    if (!topic.trim()) return setError('Escreva o título da batalha.');
+    if (!topic.trim()) return setError('Escreva o título do debate.');
     const battle = createBattle({
       opponentId,
       topic,
-      durationSec: minutes * 60,
-      scheduleAt: whenHours ? Date.now() + whenHours * 60 * 60 * 1000 : undefined,
+      description,
+      // sem tempo fixo: quem criou encerra no botão "Encerrar"
+      durationSec: 3600,
       guestIds,
     });
     if (battle) router.replace(`/battle/${battle.id}`);
@@ -83,19 +77,16 @@ export default function NewBattleScreen() {
               style={styles.input}
             />
 
-            <Text style={styles.label}>Duração</Text>
-            <View style={styles.row}>
-              {DURATIONS.map((m) => (
-                <Chip key={m} label={`${m} min`} active={minutes === m} onPress={() => setMinutes(m)} />
-              ))}
-            </View>
-
-            <Text style={styles.label}>Quando</Text>
-            <View style={styles.row}>
-              {WHEN.map((w) => (
-                <Chip key={w.label} label={w.label} active={whenHours === w.hours} onPress={() => setWhenHours(w.hours)} />
-              ))}
-            </View>
+            <Text style={styles.label}>Descrição</Text>
+            <TextInput
+              placeholder="Explique o debate. Pode colocar um link (ex.: https://...)"
+              placeholderTextColor={colors.textMuted}
+              value={description}
+              onChangeText={setDescription}
+              maxLength={1000}
+              multiline
+              style={[styles.input, { minHeight: 80, textAlignVertical: 'top' }]}
+            />
 
             <View style={styles.guestHead}>
               <Text style={styles.label}>Quem participa</Text>
@@ -104,10 +95,10 @@ export default function NewBattleScreen() {
               </Text>
             </View>
             <Text style={styles.muted}>
-              Toque nas bolinhas para escolher várias pessoas. O número 1 é a pessoa desafiada; as outras entram ao vivo como convidadas.
+              Toque nas bolinhas para escolher várias pessoas. O número 1 é o outro lado do debate; as outras entram ao vivo como convidadas.
             </Text>
 
-            <Text style={styles.label}>Desafiar</Text>
+            <Text style={styles.label}>Convidar</Text>
             <View style={styles.search}>
               <Ionicons name="search" size={16} color={colors.textMuted} />
               <TextInput
@@ -160,20 +151,13 @@ export default function NewBattleScreen() {
         </Text>
         <Pressable style={styles.button} onPress={start}>
           <Ionicons name="flash" size={18} color="#fff" />
-          <Text style={styles.buttonText}>{whenHours ? 'Agendar batalha' : 'Começar batalha ao vivo'}</Text>
+          <Text style={styles.buttonText}>Começar debate ao vivo</Text>
         </Pressable>
       </View>
     </SafeAreaView>
   );
 }
 
-function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress} style={[styles.chip, active && styles.chipActive]}>
-      <Text style={[styles.chipText, active && { color: '#fff' }]}>{label}</Text>
-    </Pressable>
-  );
-}
 
 const styles = themed(() => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },

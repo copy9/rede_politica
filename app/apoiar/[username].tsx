@@ -36,7 +36,7 @@ export default function SupportScreen() {
   const [agree, setAgree] = useState(!!existing);
   const [error, setError] = useState<string | null>(null);
 
-  if (!politician || politician.accountType !== 'politico') {
+  if (!politician) {
     return <Text style={styles.empty}>Perfil político não encontrado.</Text>;
   }
 

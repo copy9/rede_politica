@@ -20,6 +20,7 @@ import { BattleScoreBar } from '@/components/BattleScoreBar';
 import { BattleGuestsControls, answerGuestInvite, requestToJoin, useBattleGuests, type GuestRow } from '@/components/BattleGuests';
 import { LiveCamera } from '@/components/LiveCamera';
 import { useOverlay } from '@/components/Overlay';
+import { Linking } from 'react-native';
 import { MediaVideo } from '@/components/MediaVideo';
 import { compactNumber } from '@/lib/format';
 import { getLiveVideo } from '@/lib/livekit';
@@ -64,12 +65,8 @@ export default function BattleRoomScreen() {
     return () => clearInterval(t);
   }, []);
 
-  const remaining = battle ? (battle.startsAt + battle.durationSec * 1000 - now) / 1000 : 0;
-
-  // Fim do tempo
-  useEffect(() => {
-    if (battle?.status === 'live' && remaining <= 0) endBattle(battle.id);
-  }, [battle?.status, remaining <= 0]); // eslint-disable-line react-hooks/exhaustive-deps
+  // sem tempo fixo: mostra há quanto tempo o debate está no ar; quem criou encerra no botão
+  const elapsed = battle ? Math.max(0, (now - battle.startsAt) / 1000) : 0;
 
   // Conta quem está assistindo (tempo real)
   useEffect(() => joinBattle(id), [id, joinBattle]);
@@ -136,14 +133,15 @@ export default function BattleRoomScreen() {
               ) : null}
               {live ? (
                 <View style={styles.pill}>
-                  <Ionicons name="timer-outline" size={13} color="#fff" />
-                  <Text style={styles.pillText}>{fmtTime(remaining)}</Text>
+                  <Ionicons name="time-outline" size={13} color="#fff" />
+                  <Text style={styles.pillText}>{fmtTime(elapsed)}</Text>
                 </View>
               ) : null}
             </View>
             <Text style={styles.topic} numberOfLines={2}>
               {battle.topic}
             </Text>
+            {battle.description ? <LinkText text={battle.description} style={styles.description} /> : null}
           </View>
           <Pressable onPress={onClose} hitSlop={12} style={styles.close}>
             {isHost && live ? <Text style={styles.endText}>Encerrar</Text> : <Ionicons name="close" size={28} color="#fff" />}
@@ -507,6 +505,8 @@ const styles = themed(() => StyleSheet.create({
   badgeText: { color: '#fff', fontWeight: '800', fontSize: 11 },
   pill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
   pillText: { color: '#fff', fontWeight: '700', fontSize: 12 },
+  description: { color: 'rgba(255,255,255,0.8)', fontSize: 13 },
+  link: { color: '#60A5FA', textDecorationLine: 'underline' },
   topic: { color: '#fff', fontWeight: '700', fontSize: 15 },
   close: { paddingTop: 2 },
   endText: { color: '#fff', fontWeight: '700', backgroundColor: colors.like, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, overflow: 'hidden' },
@@ -552,3 +552,24 @@ const styles = themed(() => StyleSheet.create({
   sideButton: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1.5, borderRadius: 18, paddingHorizontal: 8, paddingVertical: 7, maxWidth: 88, flexShrink: 0 },
   sideButtonText: { fontWeight: '700', fontSize: 12, flexShrink: 1 },
 }));
+
+/** Texto da descrição com links que abrem no navegador. */
+function LinkText({ text, style }: { text: string; style: object }) {
+  const parts = text.split(/(https?:\/\/[^\s]+|www\.[^\s]+)/g);
+  return (
+    <Text style={style} numberOfLines={4}>
+      {parts.map((part, i) =>
+        /^(https?:\/\/|www\.)/.test(part) ? (
+          <Text
+            key={i}
+            style={styles.link}
+            onPress={() => Linking.openURL(part.startsWith('www.') ? `https://${part}` : part).catch(() => {})}>
+            {part}
+          </Text>
+        ) : (
+          part
+        ),
+      )}
+    </Text>
+  );
+}

@@ -149,15 +149,15 @@ export function ProfileView({ user }: { user: User }) {
             </View>
             <SecondaryButton flex label="Mensagem" onPress={onMessage} />
             {following ? (
-              <Pressable style={styles.challengeBtn} onPress={onChallenge} accessibilityLabel="Desafiar para debate">
+              <Pressable style={styles.challengeBtn} onPress={onChallenge} accessibilityLabel="Convidar para debate">
                 <Ionicons name="flash" size={15} color={colors.white} />
-                <Text style={styles.challengeText}>Desafiar</Text>
+                <Text style={styles.challengeText}>Convidar</Text>
               </Pressable>
             ) : null}
           </>
         )}
       </View>
-      {!isMe && user.accountType === 'politico' ? (
+      {!isMe ? (
         <Pressable
           style={[styles.supportBtn, consentFor(user.id) && styles.supportBtnOn]}
           onPress={() => {
@@ -173,7 +173,7 @@ export function ProfileView({ user }: { user: User }) {
             const err = giveConsent(user.id, { fields, email, whatsapp, interests: sp?.interests.length ? sp.interests : me.interests ?? [] });
             if (!err)
               return showBanner(
-                `Pronto! ${user.name} vai te enviar novidades e recebe seu nome, cidade, faixa etária, interesses e contato. Toque de novo para alterar ou cancelar.`,
+                `Pronto! Agora você é apoiador de ${user.name} e recebe as novidades. Toque de novo para alterar ou cancelar.`,
                 { icon: 'notifications', tone: 'success', durationMs: 6000 },
               );
             // se algo deu errado, abre o formulário para corrigir
@@ -205,7 +205,7 @@ export function ProfileView({ user }: { user: User }) {
         <TabIcon icon="grid" active={tab === 'posts'} onPress={() => setTab('posts')} />
         <TabIcon icon="play-circle" active={tab === 'videos'} onPress={() => setTab('videos')} />
         {isMe ? (
-          <Pressable onPress={() => router.push('/battle/new')} style={styles.tab} accessibilityLabel="Nova batalha">
+          <Pressable onPress={() => router.push('/battle/new')} style={styles.tab} accessibilityLabel="Debate">
             <Ionicons name="flash-outline" size={22} color={colors.text} />
           </Pressable>
         ) : null}

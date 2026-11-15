@@ -5,6 +5,7 @@ import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-na
 
 import { Avatar } from '@/components/Avatar';
 import { useOverlay } from '@/components/Overlay';
+import { SupportersToggle, useSupportersBroadcast } from '@/components/SupportersToggle';
 import { UserName } from '@/components/UserName';
 import { timeAgo } from '@/lib/format';
 import { useApp, useMe } from '@/lib/store';
@@ -12,7 +13,16 @@ import { colors, spacing, themed } from '@/lib/theme';
 
 export default function InboxScreen() {
   const me = useMe();
-  const { conversations, conversationMessages, getUser, users, openConversationWith, activityText } = useApp();
+  const { conversations, conversationMessages, getUser, users, openConversationWith, activityText, broadcastToSupporters } = useApp();
+  const broadcast = useSupportersBroadcast();
+  const [draft, setDraft] = useState('');
+  const sendToSupporters = async () => {
+    const text = draft.trim();
+    if (!text) return;
+    setDraft('');
+    const n = await broadcastToSupporters(text);
+    showBanner(n ? `Enviada por direct para ${n} ${n === 1 ? 'apoiador' : 'apoiadores'}.` : 'Você ainda não tem apoiadores.', { icon: 'people', tone: n ? 'success' : 'warning' });
+  };
   const { showBanner } = useOverlay();
   const [query, setQuery] = useState('');
   const q = query.trim().toLowerCase();
@@ -53,7 +63,10 @@ export default function InboxScreen() {
           autoCapitalize="none"
         />
       </View>
-      <Text style={styles.heading}>Mensagens</Text>
+      <View style={styles.headRow}>
+        <Text style={[styles.heading, { paddingHorizontal: 0 }]}>Mensagens</Text>
+        <SupportersToggle />
+      </View>
       <FlatList
         data={items}
         keyExtractor={(x) => x.conversation.id}
@@ -90,6 +103,23 @@ export default function InboxScreen() {
           !people.length ? <Text style={styles.empty}>Nenhuma conversa. Pesquise alguém para começar.</Text> : undefined
         }
       />
+      {broadcast.on ? (
+        <View style={styles.composer}>
+          <TextInput
+            placeholder={`Mensagem para ${broadcast.count} ${broadcast.count === 1 ? 'apoiador' : 'apoiadores'}...`}
+            placeholderTextColor={colors.textMuted}
+            value={draft}
+            onChangeText={setDraft}
+            style={styles.input}
+            multiline
+          />
+          {draft.trim() ? (
+            <Pressable onPress={sendToSupporters} hitSlop={8} style={styles.send} accessibilityLabel="Enviar para apoiadores">
+              <Ionicons name="send" size={18} color={colors.white} />
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -107,6 +137,9 @@ const styles = themed(() => StyleSheet.create({
     margin: spacing.lg,
   },
   input: { flex: 1, fontSize: 15, color: colors.text },
+  headRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, gap: spacing.sm },
+  composer: { flexDirection: 'row', alignItems: 'center', margin: spacing.md, marginBottom: spacing.lg, borderWidth: 1, borderColor: colors.border, borderRadius: 24, paddingLeft: spacing.lg, paddingRight: 6, minHeight: 46 },
+  send: { backgroundColor: colors.primary, borderRadius: 18, width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   heading: { fontWeight: '700', fontSize: 16, color: colors.text, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
   preview: { color: colors.textMuted, marginTop: 2 },

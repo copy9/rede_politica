@@ -161,7 +161,8 @@ type AppState = {
   // batalhas de lives
   getBattle: (id: string) => LiveBattle | undefined;
   messagesForBattle: (battleId: string) => BattleMessage[];
-  createBattle: (input: { opponentId: string; topic: string; durationSec: number; scheduleAt?: number; guestIds?: string[] }) => LiveBattle | null;
+  createBattle: (input: { opponentId: string; topic: string; description?: string; durationSec: number; scheduleAt?: number; guestIds?: string[] }) => LiveBattle | null;
+  broadcastToSupporters: (text: string, exceptUserId?: string) => Promise<number>;
   supportBattle: (battleId: string, side: BattleSide, points: number) => void;
   sendBattleMessage: (battleId: string, text: string) => void;
   /** curtidas da plateia (o app junta vários toques num envio só) */
@@ -234,6 +235,7 @@ function toBattle(b: Row, viewers = 0): LiveBattle {
     hostId: b.host_id,
     opponentId: b.opponent_id,
     topic: b.topic,
+    description: b.description ?? undefined,
     status: b.status,
     startsAt: ms(b.starts_at),
     durationSec: b.duration_sec,
@@ -1326,6 +1328,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [meId, write],
   );
 
+  // envia a mesma mensagem por direct para todos os apoiadores (quem tocou em "Quero receber novidades")
+  const broadcastToSupporters = useCallback(
+    async (text: string, exceptUserId?: string) => {
+      if (!meId || !text.trim()) return 0;
+      const targets = [...new Set(consents.filter((c) => c.politicianId === meId).map((c) => c.userId))].filter(
+        (u) => u !== exceptUserId && u !== meId,
+      );
+      let sent = 0;
+      for (const uid of targets) {
+        const conv = await openConversationWith(uid);
+        if (conv) {
+          sendMessage(conv, text);
+          sent++;
+        }
+      }
+      return sent;
+    },
+    [meId, consents, openConversationWith, sendMessage],
+  );
+
   // ---------- batalhas ----------
   const getBattle = useCallback((id: string) => battles.find((b) => b.id === id), [battles]);
 
@@ -1335,13 +1357,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const createBattle = useCallback(
-    ({ opponentId, topic, durationSec, scheduleAt, guestIds }: { opponentId: string; topic: string; durationSec: number; scheduleAt?: number; guestIds?: string[] }) => {
+    ({ opponentId, topic, description, durationSec, scheduleAt, guestIds }: { opponentId: string; topic: string; description?: string; durationSec: number; scheduleAt?: number; guestIds?: string[] }) => {
       if (!meId || opponentId === meId || topic.trim().length < 3) return null;
       const battle: LiveBattle = {
         id: uuid(),
         hostId: meId,
         opponentId,
         topic: topic.trim().slice(0, 90),
+        description: description?.trim().slice(0, 1000) || undefined,
         status: scheduleAt ? 'scheduled' : 'invited',
         startsAt: scheduleAt ?? Date.now(),
         durationSec: Math.min(3600, Math.max(60, durationSec)),
@@ -1362,6 +1385,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             status: battle.status,
             starts_at: new Date(battle.startsAt).toISOString(),
             duration_sec: battle.durationSec,
+            description: battle.description ?? null,
           })
           .then(async (res) => {
             // até 6 convidados ao vivo, além dos dois lados da batalha
@@ -1656,6 +1680,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     toggleFollow,
     openConversationWith,
     sendMessage,
+    broadcastToSupporters,
     getBattle,
     messagesForBattle,
     createBattle,

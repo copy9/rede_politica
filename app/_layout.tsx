@@ -162,7 +162,7 @@ function RootNavigator() {
         <Stack.Screen name="config/verificacao" options={{ title: t('Verificação') }} />
         <Stack.Screen name="config/ajuda" options={{ title: t('Ajuda') }} />
         <Stack.Screen name="config/sobre" options={{ title: t('Sobre') }} />
-        <Stack.Screen name="battle/new" options={{ title: t('Nova batalha'), presentation: 'modal' }} />
+        <Stack.Screen name="battle/new" options={{ title: t('Debate'), presentation: 'modal' }} />
         <Stack.Screen name="battle/[id]" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
       </Stack.Protected>
       {/* Termos: abre com ou sem login */}
