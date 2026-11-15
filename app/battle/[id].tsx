@@ -251,7 +251,7 @@ export default function BattleRoomScreen() {
           const rows = Math.ceil(slots.length / cols);
           const tileW = Math.floor(width / cols);
           // o grid ocupa até 42% da altura, para sobrar espaço para o chat e o campo de comentário
-          const tileH = Math.round((height * 0.42) / rows);
+          const tileH = Math.round((height * 0.38) / rows);
           const LVx = getLiveVideo();
           const leads = (side: 'host' | 'opponent') =>
             battle.status !== 'scheduled' && battle.scores[side] > battle.scores[side === 'host' ? 'opponent' : 'host'];
@@ -284,10 +284,11 @@ export default function BattleRoomScreen() {
               </View>
             );
             const canShowVideo = live && s.kind !== 'invited';
+            // ao vivo: vídeo da sala; antes de começar: a própria câmera de quem está na batalha
             const video =
               canShowVideo && LVx ? (
                 <LVx.SideVideo userId={s.key} isMe={s.isMe} fallback={fallback} />
-              ) : canShowVideo && s.isMe ? (
+              ) : s.isMe && s.kind !== 'invited' ? (
                 <LiveCamera />
               ) : (
                 fallback
@@ -332,13 +333,18 @@ export default function BattleRoomScreen() {
         {/* Chat */}
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
           {/* Comentários embaixo do palco, mais recentes por último */}
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1, minHeight: 150 }}>
             <FlatList
               style={{ flex: 1 }}
               inverted
               data={[...messagesForBattle(battle.id)].reverse().slice(0, 80)}
               keyExtractor={(m) => m.id}
               renderItem={({ item }) => <ChatLine message={item} />}
+              ListEmptyComponent={
+                <Text style={styles.chatHint}>
+                  {live ? 'Seja o primeiro a comentar.' : 'Os comentários abrem quando a batalha começar.'}
+                </Text>
+              }
               contentContainerStyle={{ paddingLeft: spacing.md, paddingRight: 92, paddingVertical: spacing.sm, gap: 10, alignItems: 'flex-start' }}
             />
             {/* Curtir, compartilhar e seguir (para quem está assistindo engajar) */}
@@ -506,6 +512,7 @@ const styles = themed(() => StyleSheet.create({
   inviteTopic: { color: 'rgba(255,255,255,0.85)', fontSize: 15, textAlign: 'center' },
   inviteNote: { color: 'rgba(255,255,255,0.6)', fontSize: 12, textAlign: 'center', marginBottom: spacing.xs },
   tileGrid: { flexDirection: 'row', flexWrap: 'wrap', backgroundColor: '#0B1020' },
+  chatHint: { color: 'rgba(255,255,255,0.6)', fontSize: 13, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   tileBox: { flex: 1, overflow: 'hidden', borderRadius: 10, backgroundColor: '#111827' },
   tileName: { color: '#fff', fontWeight: '700', fontSize: 12, paddingTop: 3, paddingHorizontal: 4 },
   joinTile: { flex: 1, borderRadius: 10, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.35)', alignItems: 'center', justifyContent: 'center' },
