@@ -103,6 +103,10 @@ export default function BattleRoomScreen() {
 
   const send = () => {
     if (!text.trim()) return;
+    if (!live) {
+      showBanner('Os comentários abrem quando a batalha começar.', { icon: 'chatbubble-outline', tone: 'warning' });
+      return;
+    }
     sendBattleMessage(battle.id, text);
     setText('');
   };
@@ -251,7 +255,9 @@ export default function BattleRoomScreen() {
           const rows = Math.ceil(slots.length / cols);
           const tileW = Math.floor(width / cols);
           // o grid ocupa até 42% da altura, para sobrar espaço para o chat e o campo de comentário
-          const tileH = Math.round((height * 0.38) / rows);
+          const reserved = 300 + (battle.status === 'invited' || battle.status === 'scheduled' ? 120 : 0);
+          const gridH = Math.max(150, Math.min(height * 0.42, height - reserved));
+          const tileH = Math.round(gridH / rows);
           const LVx = getLiveVideo();
           const leads = (side: 'host' | 'opponent') =>
             battle.status !== 'scheduled' && battle.scores[side] > battle.scores[side === 'host' ? 'opponent' : 'host'];
@@ -333,7 +339,7 @@ export default function BattleRoomScreen() {
         {/* Chat */}
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
           {/* Comentários embaixo do palco, mais recentes por último */}
-          <View style={{ flex: 1, minHeight: 150 }}>
+          <View style={{ flex: 1, minHeight: 0 }}>
             <FlatList
               style={{ flex: 1 }}
               inverted
@@ -370,7 +376,7 @@ export default function BattleRoomScreen() {
             </View>
           ) : null}
 
-          {live ? (
+          {battle.status !== 'ended' ? (
             <View style={styles.bottom}>
               <TextInput
                 placeholder="Comente..."
@@ -524,7 +530,7 @@ const styles = themed(() => StyleSheet.create({
   placeholder: { alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#1E293B' },
   sideTag: { position: 'absolute', bottom: 8, left: 8, right: 8, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, alignSelf: 'flex-start' },
   sideTagText: { color: '#fff', fontWeight: '700', fontSize: 12 },
-  scheduled: { alignItems: 'center', gap: 10, padding: spacing.xl },
+  scheduled: { alignItems: 'center', gap: 6, paddingVertical: spacing.sm, paddingHorizontal: spacing.lg },
   scheduledText: { color: '#fff', fontWeight: '600', textAlign: 'center' },
   startButton: { backgroundColor: colors.like, borderRadius: 10, paddingHorizontal: 18, paddingVertical: 10, marginTop: 4 },
   startText: { color: '#fff', fontWeight: '700' },

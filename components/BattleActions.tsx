@@ -78,9 +78,9 @@ export function BattleActions({
   }, [battle.likes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const like = () => {
+    spawn(1);
     if (!live) return;
     pending.current += 1;
-    spawn(1);
   };
 
   const share = () =>
@@ -130,9 +130,7 @@ export function BattleActions({
         ))}
       </View>
 
-      {live ? (
-        <Action icon="heart" color="#F43F5E" label={compactNumber(battle.likes ?? 0)} onPress={like} a11y="Curtir" />
-      ) : null}
+      <Action icon="heart" color="#F43F5E" label={compactNumber(battle.likes ?? 0)} onPress={like} a11y="Curtir" />
       <Action icon="arrow-redo" label="Compartilhar" onPress={share} a11y="Compartilhar" />
       {!participant ? <Action icon="person-add" label="Seguir" onPress={follow} a11y="Seguir" /> : null}
     </View>
