@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Logo } from '@/components/Logo';
@@ -43,8 +43,10 @@ export default function FeedScreen() {
             <Ionicons name="notifications-outline" size={26} color={colors.text} />
             {hasNotifications ? <View style={styles.dot} /> : null}
           </Pressable>
-          <Pressable onPress={() => router.push('/messages')} hitSlop={8}>
-            <Ionicons name="paper-plane-outline" size={25} color={colors.text} />
+          {/* Live: abre os debates ao vivo (mensagens já estão no menu de baixo) */}
+          <Pressable onPress={() => router.push('/battles')} hitSlop={8} style={styles.liveBtn} accessibilityLabel="Lives e debates">
+            <View style={styles.liveDot} />
+            <Text style={styles.liveText}>LIVE</Text>
           </Pressable>
         </View>
       </View>
@@ -72,6 +74,9 @@ const styles = themed(() => StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
   },
-  headerIcons: { flexDirection: 'row', gap: 20 },
+  headerIcons: { flexDirection: 'row', alignItems: 'center', gap: 20 },
+  liveBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1.5, borderColor: colors.like, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3 },
+  liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.like },
+  liveText: { color: colors.like, fontWeight: '900', fontSize: 13, letterSpacing: 0.5 },
   dot: { position: 'absolute', top: 0, right: 0, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.like },
 }));
