@@ -50,14 +50,14 @@ export default function PainelScreen() {
     [me, posts, supporters.length, period, followers, commentsFor],
   );
 
-  if (me.accountType !== 'politico') {
+  if (me.accountType !== 'politico' || !me.verified) {
     return (
       <View style={styles.locked}>
         <Ionicons name="bar-chart-outline" size={48} color={colors.textMuted} />
-        <Text style={styles.lockedTitle}>Painel exclusivo para contas políticas</Text>
-        <Text style={styles.muted}>Candidatos e políticos podem ativar a conta política em Configurações.</Text>
-        <Pressable style={styles.primaryBtn} onPress={() => router.replace('/settings')}>
-          <Text style={styles.primaryBtnText}>Ir para Configurações</Text>
+        <Text style={styles.lockedTitle}>Painel liberado só para perfis verificados</Text>
+        <Text style={styles.muted}>Peça o perfil público em Configurações. Depois da aprovação, o painel completo é liberado.</Text>
+        <Pressable style={styles.primaryBtn} onPress={() => router.replace('/config/verificacao')}>
+          <Text style={styles.primaryBtnText}>Solicitar verificação</Text>
         </Pressable>
       </View>
     );

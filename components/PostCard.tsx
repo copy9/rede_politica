@@ -133,12 +133,15 @@ export function PostCard({ post, active = false }: { post: Post; active?: boolea
 
       {/* Ações */}
       <View style={styles.actions}>
-        <Pressable onPress={() => toggleLike(post.id)} hitSlop={8} style={styles.action} accessibilityLabel="Curtir">
-          <Ionicons name={liked ? 'thumbs-up' : 'thumbs-up-outline'} size={24} color={liked ? colors.like : colors.text} />
+        <Pressable onPress={() => toggleLike(post.id)} hitSlop={8} style={styles.thumb} accessibilityLabel="Curtir" accessibilityState={{ selected: liked }}>
+          <Image source={liked ? THUMB.like : THUMB.likeOff} style={styles.thumbIcon} contentFit="contain" />
+          {post.likes.length && !settings.hideLikeCounts ? (
+            <Text style={[styles.countText, liked && { color: '#16A34A' }]}>{post.likes.length}</Text>
+          ) : null}
         </Pressable>
-        <Pressable onPress={() => toggleDislike(post.id)} hitSlop={8} style={styles.action} accessibilityLabel="Não curti">
-          <Ionicons name={post.dislikedByMe ? 'thumbs-down' : 'thumbs-down-outline'} size={23} color={post.dislikedByMe ? colors.primary : colors.text} />
-          {post.dislikes ? <Text style={styles.countText}>{post.dislikes}</Text> : null}
+        <Pressable onPress={() => toggleDislike(post.id)} hitSlop={8} style={styles.thumb} accessibilityLabel="Não curti" accessibilityState={{ selected: !!post.dislikedByMe }}>
+          <Image source={post.dislikedByMe ? THUMB.dislike : THUMB.dislikeOff} style={styles.thumbIcon} contentFit="contain" />
+          {post.dislikes ? <Text style={[styles.countText, post.dislikedByMe && { color: '#DC2626' }]}>{post.dislikes}</Text> : null}
         </Pressable>
         <Pressable onPress={openComments} hitSlop={8} style={styles.action} accessibilityLabel="Comentar">
           <Ionicons name="chatbubble-outline" size={24} color={colors.text} />
@@ -177,7 +180,17 @@ export function PostCard({ post, active = false }: { post: Post; active?: boolea
   );
 }
 
+// mãos de curtir / não curtir (coloridas quando escolhidas, cinza quando não)
+const THUMB = {
+  like: require('@/assets/images/like.png'),
+  likeOff: require('@/assets/images/like-off.png'),
+  dislike: require('@/assets/images/dislike.png'),
+  dislikeOff: require('@/assets/images/dislike-off.png'),
+};
+
 const styles = themed(() => StyleSheet.create({
+  thumb: { flexDirection: 'row', alignItems: 'center', marginRight: spacing.xl },
+  thumbIcon: { width: 26, height: 26 },
   countText: { color: colors.text, fontWeight: '600', fontSize: 13, marginLeft: 3 },
   card: { backgroundColor: colors.background, paddingBottom: spacing.md },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: spacing.sm },

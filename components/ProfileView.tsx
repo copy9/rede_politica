@@ -177,7 +177,7 @@ export function ProfileView({ user }: { user: User }) {
         ) : null}
       </View>
 
-      {isMe && user.accountType === 'politico' ? (
+      {isMe && user.accountType === 'politico' && user.verified ? (
         <Pressable style={styles.panelCard} onPress={() => router.push('/painel')}>
           <Ionicons name="bar-chart" size={20} color={colors.primary} />
           <View style={{ flex: 1 }}>

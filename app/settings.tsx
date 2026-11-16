@@ -39,7 +39,7 @@ export default function SettingsHome() {
         { icon: 'key-outline', label: 'Senha e segurança', onPress: go('/config/seguranca') },
         { icon: 'shield-checkmark-outline', label: political ? 'Perfil público verificado' : 'Solicitar perfil público (político)', value: settings.verification.status === 'em_analise' ? t('Em análise') : undefined, onPress: go('/config/verificacao') },
         ...(me.isAdmin ? [{ icon: 'construct-outline' as const, label: 'Administração', onPress: go('/admin') }] : []),
-        ...(political ? [{ icon: 'bar-chart-outline' as const, label: 'Painel do político', onPress: go('/painel') }] : []),
+        ...(political && me.verified ? [{ icon: 'bar-chart-outline' as const, label: 'Painel do político', onPress: go('/painel') }] : []),
       ],
     },
     {
