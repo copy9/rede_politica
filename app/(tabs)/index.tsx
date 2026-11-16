@@ -43,10 +43,9 @@ export default function FeedScreen() {
             <Ionicons name="notifications-outline" size={26} color={colors.text} />
             {hasNotifications ? <View style={styles.dot} /> : null}
           </Pressable>
-          {/* Live: abre os debates ao vivo (mensagens já estão no menu de baixo) */}
-          <Pressable onPress={() => router.push('/battles')} hitSlop={8} style={styles.liveBtn} accessibilityLabel="Lives e debates">
-            <View style={styles.liveDot} />
-            <Text style={styles.liveText}>LIVE</Text>
+          {/* raio: abre as batalhas */}
+          <Pressable onPress={() => router.push('/battles')} hitSlop={8} accessibilityLabel="Batalhas">
+            <Ionicons name="flash-outline" size={25} color={colors.text} />
           </Pressable>
         </View>
       </View>
