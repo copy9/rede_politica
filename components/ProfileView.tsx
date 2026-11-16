@@ -107,12 +107,14 @@ export function ProfileView({ user }: { user: User }) {
               <Text style={styles.bigName} numberOfLines={2} maxFontSizeMultiplier={1.15}>
                 {user.name}
               </Text>
-              {user.verified ? <Ionicons name="checkmark-circle" size={22} color={colors.primary} /> : null}
             </View>
-            <Text style={styles.handle} maxFontSizeMultiplier={1.15}>
-              @{user.username}
-              {isPrivate ? '  🔒' : ''}
-            </Text>
+            <View style={styles.handleRow}>
+              <Text style={styles.handle} maxFontSizeMultiplier={1.15}>
+                @{user.username}
+                {isPrivate ? '  🔒' : ''}
+              </Text>
+              {user.verified ? <Ionicons name="checkmark-circle" size={16} color={colors.primary} /> : null}
+            </View>
             {activity ? <Text style={styles.activity}>● {activity}</Text> : null}
             <View style={styles.statsRow}>
               <Stat
@@ -327,6 +329,7 @@ const styles = themed(() => StyleSheet.create({
   coverAddText: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
   heroRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg, paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.md },
   bigName: { flexShrink: 1, color: colors.text, fontSize: 26, fontWeight: '800', letterSpacing: -0.3, textShadowColor: 'rgba(0,0,0,0.45)', textShadowRadius: 8 },
+  handleRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   handle: { color: colors.textMuted, fontSize: 14, fontWeight: '600', marginTop: -2, textShadowColor: 'rgba(0,0,0,0.35)', textShadowRadius: 6 },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm, marginTop: spacing.md, paddingRight: spacing.xs },
   bioRow: { flexDirection: 'row', alignItems: 'flex-start', paddingRight: spacing.lg, gap: spacing.sm },

@@ -16,9 +16,7 @@ export default function MyProfileScreen() {
         <Pressable onPress={() => router.push('/settings')} hitSlop={8} accessibilityLabel="Configurações" style={styles.side}>
           <Ionicons name="menu" size={26} color={colors.text} />
         </Pressable>
-        <View style={styles.title}>
-          <Text style={styles.username}>{me.username}</Text>
-        </View>
+        <View style={{ flex: 1 }} />
         <View style={[styles.icons, styles.side, { justifyContent: 'flex-end' }]}>
           <Pressable onPress={() => router.push('/notifications')} hitSlop={8} accessibilityLabel="Notificações">
             <Ionicons name="notifications-outline" size={25} color={colors.text} />
