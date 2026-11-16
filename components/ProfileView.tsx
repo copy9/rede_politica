@@ -3,6 +3,8 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Image, Linking, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { shareText } from '@/lib/share';
+import { LinearGradient } from 'expo-linear-gradient';
+import { ScoreGauge } from './ScoreGauge';
 
 import { compactNumber } from '@/lib/format';
 import { useSettings } from '@/lib/settings';
@@ -33,6 +35,7 @@ export function ProfileView({ user }: { user: User }) {
         ? userPosts.filter((p) => p.type === 'video')
         : posts.filter((p) => p.savedBy.includes(me.id));
   const story = storyUsers().find((s) => s.user.id === user.id);
+  const totalLikes = userPosts.reduce((t, p) => t + p.likes.length, 0);
   // Score do candidato: seguidores, curtidas, comentários, apoiadores e debates (o "não curti" desconta)
   const score = (() => {
     if (user.accountType !== 'politico') return 0;
@@ -73,76 +76,83 @@ export function ProfileView({ user }: { user: User }) {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
-      {/* capa do perfil */}
-      {user.cover ? (
-        <Image source={{ uri: user.cover }} style={styles.cover} resizeMode="cover" />
-      ) : isMe ? (
-        <Pressable style={[styles.cover, styles.coverEmpty]} onPress={() => router.push('/edit-profile')}>
-          <Ionicons name="image-outline" size={18} color={colors.textMuted} />
-          <Text style={{ color: colors.textMuted, fontWeight: '600' }}>Adicionar capa</Text>
-        </Pressable>
-      ) : null}
-      <View style={[styles.top, user.cover || isMe ? { paddingTop: spacing.sm } : null]}>
-        <View>
-          <Pressable onPress={() => story && router.push(`/story/${user.id}`)}>
-            <Avatar uri={user.avatar} size={84} ring={story ? (story.seen ? 'seen' : story.closeFriends ? 'close' : 'unseen') : 'none'} />
+      {/* topo: capa que vai escurecendo para baixo; nome e números à esquerda, foto à direita */}
+      <View style={styles.hero}>
+        {user.cover ? (
+          <>
+            <Image source={{ uri: user.cover }} style={styles.cover} resizeMode="cover" />
+            <LinearGradient
+              colors={['rgba(0,0,0,0)', colors.background]}
+              locations={[0.15, 0.95]}
+              style={styles.cover}
+              pointerEvents="none"
+            />
+          </>
+        ) : null}
+        {isMe && !user.cover ? (
+          <Pressable style={styles.coverAdd} onPress={() => router.push('/edit-profile')} accessibilityLabel="Adicionar capa">
+            <Ionicons name="image-outline" size={14} color={colors.textMuted} />
+            <Text style={styles.coverAddText}>Adicionar capa</Text>
           </Pressable>
-          {isMe ? (
-            <Pressable style={styles.addBadge} onPress={() => router.push('/create')} accessibilityLabel="Nova publicação">
-              <Ionicons name="add" size={16} color={colors.white} />
+        ) : null}
+
+        <View style={styles.heroRow}>
+          <View style={{ flex: 1, gap: 4 }}>
+            <View style={styles.nameRow}>
+              <Text style={styles.bigName} numberOfLines={2} maxFontSizeMultiplier={1.15}>
+                {user.name}
+              </Text>
+              {user.verified ? <Ionicons name="checkmark-circle" size={22} color={colors.primary} /> : null}
+            </View>
+            <Text style={styles.handle} maxFontSizeMultiplier={1.15}>
+              @{user.username}
+              {isPrivate ? '  🔒' : ''}
+            </Text>
+            {activity ? <Text style={styles.activity}>● {activity}</Text> : null}
+            <View style={styles.statsRow}>
+              <Stat
+                value={followingOf(user.id).length}
+                label="Seguindo"
+                onPress={() => router.push(`/follows/${user.username}?tab=following`)}
+              />
+              <Stat
+                value={followersOf(user.id).length}
+                label="Seguidores"
+                onPress={() => router.push(`/follows/${user.username}?tab=followers`)}
+              />
+              <Stat value={totalLikes} label="Curtidas" />
+            </View>
+          </View>
+          <View>
+            <Pressable onPress={() => story && router.push(`/story/${user.id}`)}>
+              <Avatar uri={user.avatar} size={104} ring={story ? (story.seen ? 'seen' : story.closeFriends ? 'close' : 'unseen') : 'none'} />
             </Pressable>
-          ) : null}
-        </View>
-        <View style={styles.stats}>
-          <Stat value={userPosts.length} label="publicações" />
-          <Stat
-            value={followersOf(user.id).length}
-            label="seguidores"
-            onPress={() => router.push(`/follows/${user.username}?tab=followers`)}
-          />
-          <Stat
-            value={followingOf(user.id).length}
-            label="seguindo"
-            onPress={() => router.push(`/follows/${user.username}?tab=following`)}
-          />
+            {isMe ? (
+              <Pressable style={styles.addBadge} onPress={() => router.push('/create')} accessibilityLabel="Nova publicação">
+                <Ionicons name="add" size={18} color={colors.white} />
+              </Pressable>
+            ) : null}
+          </View>
         </View>
       </View>
 
       <View style={styles.bioRow}>
-      <View style={[styles.bio, { flex: 1 }]}>
-        <View style={styles.nameRow}>
-          <Text style={styles.name}>{user.name}</Text>
-          {user.verified ? <Ionicons name="checkmark-circle" size={16} color={colors.primary} /> : null}
-          {isPrivate ? <Text style={styles.role}>🔒 conta privada</Text> : null}
+        <View style={[styles.bio, { flex: 1 }]}>
+          {user.role || user.party ? (
+            <Text style={styles.role}>{[user.role, user.party].filter(Boolean).join(' • ')}</Text>
+          ) : null}
+          {user.accountType === 'politico' ? (
+            <View style={styles.politicalBadge}>
+              <Ionicons name="business-outline" size={12} color={colors.infoText} />
+              <Text style={styles.politicalText}>
+                Conta política{user.city ? ` · ${user.city}${user.state ? `/${user.state}` : ''}` : ''}
+              </Text>
+            </View>
+          ) : null}
+          {user.bio ? <Text style={styles.bioText}>{user.bio}</Text> : null}
         </View>
-        {activity ? <Text style={styles.activity}>● {activity}</Text> : null}
-        {user.role || user.party ? (
-          <Text style={styles.role}>{[user.role, user.party].filter(Boolean).join(' • ')}</Text>
-        ) : null}
-        {user.accountType === 'politico' ? (
-          <View style={styles.politicalBadge}>
-            <Ionicons name="business-outline" size={12} color={colors.infoText} />
-            <Text style={styles.politicalText}>
-              Conta política{user.city ? ` · ${user.city}${user.state ? `/${user.state}` : ''}` : ''}
-            </Text>
-          </View>
-        ) : null}
-        {user.bio ? <Text style={styles.bioText}>{user.bio}</Text> : null}
-      </View>
-      {/* score de engajamento: só para candidatos e políticos */}
-      {user.accountType === 'politico' ? (
-        <View style={styles.scoreBox} accessibilityLabel={`Score ${score}`}>
-          <Text style={styles.scoreLabel} maxFontSizeMultiplier={1.15}>
-            ⭐ SCORE
-          </Text>
-          <Text style={styles.scoreValue} numberOfLines={1} adjustsFontSizeToFit maxFontSizeMultiplier={1.15}>
-            {compactNumber(score)}
-          </Text>
-          <Text style={styles.scoreHint} maxFontSizeMultiplier={1.1}>
-            engajamento
-          </Text>
-        </View>
-      ) : null}
+        {/* score de engajamento: só para candidatos e políticos */}
+        {user.accountType === 'politico' ? <ScoreGauge points={score} /> : null}
       </View>
 
       <View style={styles.pills}>
@@ -315,17 +325,23 @@ function TabIcon({
 const styles = themed(() => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   top: { flexDirection: 'row', alignItems: 'center', padding: spacing.lg, gap: spacing.xl },
-  cover: { width: '100%', height: 130, backgroundColor: colors.surface },
-  coverEmpty: { height: 70, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center' },
+  hero: { minHeight: 150 },
+  cover: { position: 'absolute', top: 0, left: 0, right: 0, height: 230 },
+  coverAdd: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: spacing.lg, marginTop: spacing.sm, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: colors.surface },
+  coverAddText: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
+  heroRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.md },
+  bigName: { flexShrink: 1, color: colors.text, fontSize: 28, fontWeight: '800', textShadowColor: 'rgba(0,0,0,0.35)', textShadowRadius: 6 },
+  handle: { color: colors.textMuted, fontSize: 15 },
+  statsRow: { flexDirection: 'row', gap: spacing.xl, marginTop: spacing.sm },
   bioRow: { flexDirection: 'row', alignItems: 'flex-start', paddingRight: spacing.lg, gap: spacing.sm },
   scoreBox: { minWidth: 92, maxWidth: 130, alignItems: 'center', borderRadius: 12, paddingVertical: 8, paddingHorizontal: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.like },
   scoreLabel: { color: colors.like, fontWeight: '800', fontSize: 11, letterSpacing: 0.5 },
   scoreValue: { color: colors.text, fontWeight: '800', fontSize: 24 },
   scoreHint: { color: colors.textMuted, fontSize: 10 },
   stats: { flex: 1, flexDirection: 'row', justifyContent: 'space-around' },
-  stat: { alignItems: 'center' },
-  statValue: { fontWeight: '700', fontSize: 17, color: colors.text },
-  statLabel: { fontSize: 12, color: colors.text },
+  stat: { alignItems: 'flex-start' },
+  statValue: { fontWeight: '800', fontSize: 20, color: colors.text },
+  statLabel: { fontSize: 13, color: colors.textMuted },
   bio: { paddingHorizontal: spacing.lg, gap: 2 },
   name: { fontWeight: '600', color: colors.text },
   role: { color: colors.textMuted, fontSize: 13 },
@@ -353,7 +369,7 @@ const styles = themed(() => StyleSheet.create({
   tab: { flex: 1, alignItems: 'center', paddingVertical: spacing.md },
   tabActive: { borderBottomWidth: 1.5, borderBottomColor: colors.text },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
-  addBadge: { position: 'absolute', right: 0, bottom: 0, width: 26, height: 26, borderRadius: 13, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.background },
+  addBadge: { position: 'absolute', right: 0, bottom: 0, width: 30, height: 30, borderRadius: 15, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.background },
   pills: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, paddingHorizontal: spacing.lg, marginTop: spacing.md },
   pill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1, borderColor: colors.border },
   pillText: { color: colors.text, fontWeight: '600', fontSize: 13 },

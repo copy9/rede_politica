@@ -127,14 +127,14 @@ export function PostCard({ post, active = false }: { post: Post; active?: boolea
         <Animated.View
           pointerEvents="none"
           style={[styles.bigHeart, { opacity: heart, transform: [{ scale: heart.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1.2] }) }] }]}>
-          <Ionicons name="heart" size={96} color="#fff" />
+          <Ionicons name="thumbs-up" size={96} color="#fff" />
         </Animated.View>
       </View>
 
       {/* Ações */}
       <View style={styles.actions}>
         <Pressable onPress={() => toggleLike(post.id)} hitSlop={8} style={styles.action} accessibilityLabel="Curtir">
-          <Ionicons name={liked ? 'heart' : 'heart-outline'} size={26} color={liked ? colors.like : colors.text} />
+          <Ionicons name={liked ? 'thumbs-up' : 'thumbs-up-outline'} size={24} color={liked ? colors.like : colors.text} />
         </Pressable>
         <Pressable onPress={() => toggleDislike(post.id)} hitSlop={8} style={styles.action} accessibilityLabel="Não curti">
           <Ionicons name={post.dislikedByMe ? 'thumbs-down' : 'thumbs-down-outline'} size={23} color={post.dislikedByMe ? colors.primary : colors.text} />
