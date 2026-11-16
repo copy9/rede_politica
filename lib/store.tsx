@@ -148,6 +148,7 @@ type AppState = {
   // ações
   toggleLike: (postId: string) => void;
   toggleDislike: (postId: string) => void;
+  syncConversation: (conversationId: string) => Promise<void>;
   refreshBattle: (id: string) => Promise<void>;
   toggleSave: (postId: string) => void;
   toggleCommentLike: (commentId: string) => void;
@@ -394,7 +395,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         supabase.from('stories').select('*'),
         supabase.from('story_views').select('*'),
         supabase.from('conversation_members').select('*'),
-        supabase.from('messages').select('*').order('created_at').limit(3000),
+        supabase.from('messages').select('*').order('created_at', { ascending: false }).limit(3000),
         supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(200),
         supabase.from('battles').select('*').order('created_at', { ascending: false }).limit(100),
         supabase.from('battle_events').select('*').order('created_at', { ascending: false }).limit(1500),
@@ -455,7 +456,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       );
       const members = group(cm, 'conversation_id', 'user_id');
       setConversations([...members.entries()].map(([id, participantIds]) => ({ id, participantIds })));
-      setMessages(me_.map(toMessage));
+      setMessages([...me_].reverse().map(toMessage));
       setNotifications(no.map(toNotification));
 
       const battleList = ba.map((b) => toBattle(b));
@@ -1373,6 +1374,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [meId, conversations, canInteract],
   );
 
+  // relê as mensagens de uma conversa (caso o tempo real falhe, a conversa aberta se atualiza sozinha)
+  const syncConversation = useCallback(async (conversationId: string) => {
+    const { data } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: false })
+      .limit(200);
+    if (!data?.length) return;
+    setMessages((prev) => {
+      const known = new Set(prev.map((m) => m.id));
+      const fresh = (data as Row[]).filter((m) => !known.has(m.id)).map(toMessage);
+      return fresh.length ? [...prev, ...fresh].sort((a, b) => a.createdAt - b.createdAt) : prev;
+    });
+  }, []);
+
   const sendMessage = useCallback(
     (conversationId: string, text: string) => {
       const body = text.trim().slice(0, 2000);
@@ -1738,6 +1755,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     respondFollowRequest,
     toggleLike,
     toggleDislike,
+    syncConversation,
     refreshBattle,
     toggleSave,
     toggleCommentLike,

@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -12,13 +12,20 @@ import { colors, spacing, themed } from '@/lib/theme';
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const me = useMe();
-  const { conversations, conversationMessages, getUser, sendMessage, canInteract, activityText } = useApp();
+  const { conversations, conversationMessages, getUser, sendMessage, canInteract, activityText, syncConversation } = useApp();
   const insets = useSafeAreaInsets();
   const [text, setText] = useState('');
 
   const conversation = conversations.find((c) => c.id === id);
   const other = getUser(conversation?.participantIds.find((p) => p !== me.id) ?? '');
   const messages = [...conversationMessages(id)].reverse();
+  // conversa aberta: busca mensagens novas a cada 4 segundos
+  useEffect(() => {
+    if (!id) return;
+    syncConversation(id);
+    const t = setInterval(() => syncConversation(id), 4000);
+    return () => clearInterval(t);
+  }, [id, syncConversation]);
 
   const send = () => {
     if (!text.trim()) return;

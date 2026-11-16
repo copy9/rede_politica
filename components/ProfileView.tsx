@@ -1,10 +1,11 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useState } from 'react';
+import { Image as FitImage } from 'expo-image';
 import { Image, Linking, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { shareText } from '@/lib/share';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ScoreGauge } from './ScoreGauge';
+import { ScoreLevel, ScoreRing } from './ScoreRing';
 
 import { compactNumber } from '@/lib/format';
 import { useSettings } from '@/lib/settings';
@@ -35,6 +36,10 @@ export function ProfileView({ user }: { user: User }) {
         ? userPosts.filter((p) => p.type === 'video')
         : posts.filter((p) => p.savedBy.includes(me.id));
   const story = storyUsers().find((s) => s.user.id === user.id);
+  const [rowY, setRowY] = useState(0);
+  const [avatarBottom, setAvatarBottom] = useState(130);
+  const [colY, setColY] = useState(0);
+  const coverH = rowY + colY + avatarBottom;
   const totalLikes = userPosts.reduce((t, p) => t + p.likes.length, 0);
   // Score do candidato: seguidores, curtidas, comentários, apoiadores e debates (o "não curti" desconta)
   const score = (() => {
@@ -80,11 +85,11 @@ export function ProfileView({ user }: { user: User }) {
       <View style={styles.hero}>
         {user.cover ? (
           <>
-            <Image source={{ uri: user.cover }} style={styles.cover} resizeMode="cover" />
+            <Image source={{ uri: user.cover }} style={[styles.cover, { height: coverH }]} resizeMode="cover" />
             <LinearGradient
               colors={['rgba(0,0,0,0)', colors.background]}
-              locations={[0.15, 0.95]}
-              style={styles.cover}
+              locations={[0.2, 1]}
+              style={[styles.cover, { height: coverH }]}
               pointerEvents="none"
             />
           </>
@@ -96,7 +101,7 @@ export function ProfileView({ user }: { user: User }) {
           </Pressable>
         ) : null}
 
-        <View style={styles.heroRow}>
+        <View style={styles.heroRow} onLayout={(e) => setRowY(e.nativeEvent.layout.y)}>
           <View style={{ flex: 1, gap: 4 }}>
             <View style={styles.nameRow}>
               <Text style={styles.bigName} numberOfLines={2} maxFontSizeMultiplier={1.15}>
@@ -123,15 +128,25 @@ export function ProfileView({ user }: { user: User }) {
               <Stat value={totalLikes} label="Curtidas" />
             </View>
           </View>
-          <View>
-            <Pressable onPress={() => story && router.push(`/story/${user.id}`)}>
-              <Avatar uri={user.avatar} size={104} ring={story ? (story.seen ? 'seen' : story.closeFriends ? 'close' : 'unseen') : 'none'} />
-            </Pressable>
-            {isMe ? (
-              <Pressable style={styles.addBadge} onPress={() => router.push('/create')} accessibilityLabel="Nova publicação">
-                <Ionicons name="add" size={18} color={colors.white} />
+          <View style={{ alignItems: 'center' }} onLayout={(e) => setColY(e.nativeEvent.layout.y)}>
+            {/* a capa termina na base da foto */}
+            <View onLayout={(e) => setAvatarBottom(e.nativeEvent.layout.y + e.nativeEvent.layout.height)}>
+              <Pressable onPress={() => story && router.push(`/story/${user.id}`)}>
+                {user.accountType === 'politico' ? (
+                  <ScoreRing points={score} size={96}>
+                    <ProfilePhoto uri={user.avatar} size={96} />
+                  </ScoreRing>
+                ) : (
+                  <ProfilePhoto uri={user.avatar} size={104} ring={!!story} />
+                )}
               </Pressable>
-            ) : null}
+              {isMe ? (
+                <Pressable style={styles.addBadge} onPress={() => router.push('/create')} accessibilityLabel="Nova publicação">
+                  <Ionicons name="add" size={18} color={colors.white} />
+                </Pressable>
+              ) : null}
+            </View>
+            {user.accountType === 'politico' ? <ScoreLevel points={score} /> : null}
           </View>
         </View>
       </View>
@@ -151,8 +166,6 @@ export function ProfileView({ user }: { user: User }) {
           ) : null}
           {user.bio ? <Text style={styles.bioText}>{user.bio}</Text> : null}
         </View>
-        {/* score de engajamento: só para candidatos e políticos */}
-        {user.accountType === 'politico' ? <ScoreGauge points={score} /> : null}
       </View>
 
       <View style={styles.pills}>
@@ -162,12 +175,6 @@ export function ProfileView({ user }: { user: User }) {
             <Text style={styles.pillText}>{user.website}</Text>
           </Pressable>
         ) : null}
-        {isMe ? (
-          <Pressable style={styles.pill} onPress={() => router.push('/edit-profile')}>
-            <Ionicons name="add" size={16} color={colors.text} />
-            <Text style={styles.pillText}>Adicionar</Text>
-          </Pressable>
-        ) : null}
       </View>
 
       {isMe && user.accountType === 'politico' ? (
@@ -175,7 +182,7 @@ export function ProfileView({ user }: { user: User }) {
           <Ionicons name="bar-chart" size={20} color={colors.primary} />
           <View style={{ flex: 1 }}>
             <Text style={styles.panelTitle}>Painel do político</Text>
-            <Text style={styles.panelSub}>
+            <Text style={styles.panelSub} numberOfLines={1}>
               Público, desempenho e {supportersFor(user.id).length} apoiadores cadastrados
             </Text>
           </View>
@@ -326,7 +333,7 @@ const styles = themed(() => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   top: { flexDirection: 'row', alignItems: 'center', padding: spacing.lg, gap: spacing.xl },
   hero: { minHeight: 150 },
-  cover: { position: 'absolute', top: 0, left: 0, right: 0, height: 230 },
+  cover: { position: 'absolute', top: 0, left: 0, right: 0 },
   coverAdd: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: spacing.lg, marginTop: spacing.sm, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: colors.surface },
   coverAddText: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
   heroRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.md },
@@ -354,9 +361,9 @@ const styles = themed(() => StyleSheet.create({
   privateText: { color: colors.textMuted, textAlign: 'center' },
   politicalBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', backgroundColor: colors.infoBg, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginVertical: 2 },
   politicalText: { color: colors.infoText, fontSize: 12, fontWeight: '600' },
-  panelCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginHorizontal: spacing.lg, marginTop: spacing.md, padding: spacing.md, borderRadius: 12, backgroundColor: colors.surface },
+  panelCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginHorizontal: spacing.lg, marginTop: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: 7, borderRadius: 10, backgroundColor: colors.surface },
   panelTitle: { fontWeight: '700', color: colors.text },
-  panelSub: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
+  panelSub: { color: colors.textMuted, fontSize: 11 },
   challengeBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 8, paddingHorizontal: 6, borderRadius: 8, backgroundColor: colors.like },
   challengeOff: { backgroundColor: colors.surface },
   challengeText: { flexShrink: 1, color: colors.white, fontWeight: '700', fontSize: 14 },
@@ -378,3 +385,19 @@ const styles = themed(() => StyleSheet.create({
   highlightCircle: { width: 72, height: 72, borderRadius: 36, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   highlightLabel: { color: colors.text, fontSize: 12 },
 }));
+
+/** Foto do perfil sempre preenchendo o círculo (corte centralizado). */
+function ProfilePhoto({ uri, size, ring }: { uri: string; size: number; ring?: boolean }) {
+  if (!uri) return <Avatar uri="" size={size} />;
+  return (
+    <View style={{ borderRadius: size, padding: ring ? 3 : 0, borderWidth: ring ? 2 : 0, borderColor: colors.like }}>
+      <FitImage
+        source={{ uri }}
+        style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.surface }}
+        contentFit="cover"
+        contentPosition="center"
+        transition={150}
+      />
+    </View>
+  );
+}
