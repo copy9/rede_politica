@@ -106,8 +106,8 @@ export function ScoreLevel({ points }: { points: number }) {
 
 const styles = themed(() => StyleSheet.create({
   level: { alignItems: 'center', gap: 2, marginTop: 6 },
-  levelPill: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 2 },
+  levelPill: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 1 },
   dot: { width: 8, height: 8, borderRadius: 4 },
-  levelText: { fontWeight: '800', fontSize: 13 },
+  levelText: { fontWeight: '800', fontSize: 12 },
   levelPct: { color: colors.textMuted, fontWeight: '700', fontSize: 12 },
 }));
