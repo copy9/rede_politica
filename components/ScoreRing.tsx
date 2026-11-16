@@ -9,10 +9,11 @@ import { colors, themed } from '@/lib/theme';
 /** Nota de 0 a 100 a partir dos pontos de engajamento (escala logarítmica: 10 mil pontos = 100). */
 export const scorePercent = (points: number) => Math.max(0, Math.min(100, (Math.log10(points + 1) / 4) * 100));
 
+// níveis (nota de 0 a 100): Positivo é o melhor (verde), Regular (laranja), Negativo (vermelho)
 export function scoreLevel(pct: number) {
-  if (pct >= 75) return { label: 'Excelente', color: '#22C55E' };
-  if (pct >= 40) return { label: 'Positivo', color: '#F59E0B' };
-  return { label: 'Regular', color: '#EF4444' };
+  if (pct >= 70) return { label: 'Positivo', color: '#22C55E' };
+  if (pct >= 40) return { label: 'Regular', color: '#F97316' };
+  return { label: 'Negativo', color: '#EF4444' };
 }
 
 const SEGMENTS = 20;
@@ -90,19 +91,22 @@ export function ScoreLevel({ points }: { points: number }) {
   const level = scoreLevel(pct);
   return (
     <View style={styles.level} accessibilityLabel={`Nível ${level.label}, score ${Math.round(pct)} de 100`}>
-      <View style={[styles.dot, { backgroundColor: level.color }]} />
-      <Text style={[styles.levelText, { color: level.color }]} maxFontSizeMultiplier={1.15}>
-        {level.label}
-      </Text>
+      <View style={[styles.levelPill, { borderColor: level.color }]}>
+        <View style={[styles.dot, { backgroundColor: level.color }]} />
+        <Text style={[styles.levelText, { color: level.color }]} numberOfLines={1} maxFontSizeMultiplier={1.15}>
+          {level.label}
+        </Text>
+      </View>
       <Text style={styles.levelPct} maxFontSizeMultiplier={1.1}>
-        {Math.round(pct)}
+        {Math.round(pct)}/100
       </Text>
     </View>
   );
 }
 
 const styles = themed(() => StyleSheet.create({
-  level: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 4 },
+  level: { alignItems: 'center', gap: 2, marginTop: 6 },
+  levelPill: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 2 },
   dot: { width: 8, height: 8, borderRadius: 4 },
   levelText: { fontWeight: '800', fontSize: 13 },
   levelPct: { color: colors.textMuted, fontWeight: '700', fontSize: 12 },

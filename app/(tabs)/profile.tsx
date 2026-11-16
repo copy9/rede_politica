@@ -17,7 +17,6 @@ export default function MyProfileScreen() {
         </Pressable>
         <View style={styles.title}>
           <Text style={styles.username}>{me.username}</Text>
-          <Ionicons name="chevron-down" size={14} color={colors.text} />
         </View>
         <View style={styles.icons}>
           <Pressable onPress={() => router.push('/notifications')} hitSlop={8}>

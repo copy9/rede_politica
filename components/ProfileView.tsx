@@ -128,7 +128,7 @@ export function ProfileView({ user }: { user: User }) {
               <Stat value={totalLikes} label="Curtidas" />
             </View>
           </View>
-          <View style={{ alignItems: 'center' }} onLayout={(e) => setColY(e.nativeEvent.layout.y)}>
+          <View style={{ alignItems: 'center', minWidth: 118 }} onLayout={(e) => setColY(e.nativeEvent.layout.y)}>
             {/* a capa termina na base da foto */}
             <View onLayout={(e) => setAvatarBottom(e.nativeEvent.layout.y + e.nativeEvent.layout.height)}>
               <Pressable onPress={() => story && router.push(`/story/${user.id}`)}>
@@ -264,17 +264,6 @@ export function ProfileView({ user }: { user: User }) {
             {consentFor(user.id) ? 'Você recebe novidades · alterar' : 'Quero receber novidades'}
           </Text>
         </Pressable>
-      ) : null}
-
-      {isMe ? (
-        <View style={styles.highlights}>
-          <Pressable style={styles.highlight} onPress={() => router.push('/create')}>
-            <View style={styles.highlightCircle}>
-              <Ionicons name="add" size={32} color={colors.text} />
-            </View>
-            <Text style={styles.highlightLabel}>Novo</Text>
-          </Pressable>
-        </View>
       ) : null}
 
       <View style={styles.tabs}>
