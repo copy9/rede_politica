@@ -33,8 +33,7 @@ import type {
   Story,
   Supporter,
   SupporterConsent,
-  User,
-} from './types';
+  User, PostType } from './types';
 
 type SignUpInput = {
   name: string;
@@ -153,7 +152,7 @@ type AppState = {
   toggleSave: (postId: string) => void;
   toggleCommentLike: (commentId: string) => void;
   addComment: (postId: string, text: string) => string | null;
-  createPost: (input: { type: MediaType; uri: string; caption: string; location?: string }) => Post | string | null;
+  createPost: (input: { type: PostType; uri: string; caption: string; location?: string }) => Post | string | null;
   deletePost: (postId: string) => void;
   addStory: (uri: string, closeFriends?: boolean) => void;
   markStorySeen: (storyId: string) => void;
@@ -428,7 +427,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           id: p.id,
           userId: p.user_id,
           type: p.type,
-          uri: p.media_url,
+          uri: p.media_url ?? '',
           thumbnail: p.thumbnail_url ?? undefined,
           caption: p.caption ?? '',
           location: p.location ?? undefined,
@@ -1248,11 +1247,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const createPost = useCallback(
-    ({ type, uri, caption, location }: { type: MediaType; uri: string; caption: string; location?: string }) => {
+    ({ type, uri, caption, location }: { type: PostType; uri: string; caption: string; location?: string }) => {
       if (!meId) return null;
       const err = mentionError(caption);
       if (err) return err;
       if (caption.length > 2200) return 'Legenda muito longa (máx. 2200 caracteres).';
+      if (type === 'text' && !caption.trim()) return 'Escreva alguma coisa para publicar.';
       const post: Post = {
         id: uuid(),
         userId: meId,
@@ -1269,11 +1269,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setPosts((prev) => [post, ...prev]);
       write(
         (async () => {
-          const url = await uploadMedia(meId, uri, type);
+          // publicação só de texto não tem arquivo para enviar
+          const url = type === 'text' ? null : await uploadMedia(meId, uri, type);
           const r = await supabase
             .from('posts')
             .insert({ id: post.id, user_id: meId, type, media_url: url, caption: post.caption, location: post.location ?? null });
-          if (!r.error) setPosts((prev) => prev.map((p) => (p.id === post.id ? { ...p, uri: url } : p)));
+          if (!r.error && url) setPosts((prev) => prev.map((p) => (p.id === post.id ? { ...p, uri: url } : p)));
           return r;
         })(),
       );

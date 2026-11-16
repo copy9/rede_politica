@@ -115,7 +115,12 @@ export function PostCard({ post, active = false }: { post: Post; active?: boolea
         </Pressable>
       </View>
 
-      {/* Mídia */}
+      {/* Mídia (ou o texto, quando a publicação é só texto) */}
+      {post.type === 'text' ? (
+        <Pressable onPress={onMediaPress} style={styles.textPost}>
+          <Text style={[styles.textPostText, post.caption.length > 140 && { fontSize: 16 }]}>{post.caption}</Text>
+        </Pressable>
+      ) : (
       <View style={{ width: mediaSize, height: mediaSize, alignSelf: 'center', backgroundColor: colors.surface }}>
         {post.type === 'video' ? (
           <MediaVideo uri={post.uri} active={active && autoplay} style={StyleSheet.absoluteFill} onPress={onMediaPress} />
@@ -130,6 +135,7 @@ export function PostCard({ post, active = false }: { post: Post; active?: boolea
           <Ionicons name="thumbs-up" size={96} color="#fff" />
         </Animated.View>
       </View>
+      )}
 
       {/* Ações */}
       <View style={styles.actions}>
@@ -158,7 +164,7 @@ export function PostCard({ post, active = false }: { post: Post; active?: boolea
             <Text style={styles.bold}>{pluralize(post.likes.length, 'curtida', 'curtidas')}</Text>
           </Pressable>
         ) : null}
-        {caption ? (
+        {caption && post.type !== 'text' ? (
           <Text style={styles.caption} onPress={() => setExpanded(true)}>
             <Text style={styles.bold} onPress={openProfile}>
               {author.username}{' '}
@@ -190,6 +196,8 @@ const THUMB = {
 
 const styles = themed(() => StyleSheet.create({
   thumb: { flexDirection: 'row', alignItems: 'center', marginRight: spacing.xl },
+  textPost: { marginHorizontal: spacing.md, padding: spacing.lg, borderRadius: 14, backgroundColor: colors.surface },
+  textPostText: { color: colors.text, fontSize: 19, lineHeight: 26, fontWeight: '600' },
   thumbIcon: { width: 26, height: 26 },
   countText: { color: colors.text, fontWeight: '600', fontSize: 13, marginLeft: 3 },
   card: { backgroundColor: colors.background, paddingBottom: spacing.md },

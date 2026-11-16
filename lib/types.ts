@@ -27,11 +27,13 @@ export type User = {
 };
 
 export type MediaType = 'image' | 'video';
+/** tipo da publicação: foto, vídeo ou só texto */
+export type PostType = MediaType | 'text';
 
 export type Post = {
   id: string;
   userId: string;
-  type: MediaType;
+  type: PostType;
   uri: string;
   /** Miniatura usada nas grades (para vídeos) */
   thumbnail?: string;

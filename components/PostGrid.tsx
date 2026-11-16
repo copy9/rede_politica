@@ -11,7 +11,7 @@ import type { Post } from '@/lib/types';
 /** Grade de 3 colunas (perfil e explorar). Não rola sozinha: fica dentro de outra lista. */
 export function PostGrid({ posts, emptyText = 'Nenhuma publicação ainda' }: { posts: Post[]; emptyText?: string }) {
   const { width } = useWindowDimensions();
-  const size = (Math.min(width, 640) - 4) / 3;
+  const size = Math.floor((Math.min(width, 640) - 4) / 3);
   const { settings } = useSettings();
 
   if (posts.length === 0) {
@@ -27,7 +27,13 @@ export function PostGrid({ posts, emptyText = 'Nenhuma publicação ainda' }: { 
     <View style={styles.grid}>
       {posts.map((p) => (
         <Pressable key={p.id} onPress={() => router.push(`/post/${p.id}`)} style={{ width: size, height: size }}>
-          {p.type === 'video' && !p.thumbnail ? (
+          {p.type === 'text' ? (
+            <View style={[StyleSheet.absoluteFill, styles.textTile]}>
+              <Text style={styles.textTileText} numberOfLines={5}>
+                {p.caption}
+              </Text>
+            </View>
+          ) : p.type === 'video' && !p.thumbnail ? (
             <View style={[StyleSheet.absoluteFill, { backgroundColor: '#111' }]} />
           ) : (
             <Image
@@ -48,6 +54,8 @@ export function PostGrid({ posts, emptyText = 'Nenhuma publicação ainda' }: { 
 
 const styles = themed(() => StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 2 },
+  textTile: { backgroundColor: colors.surface, padding: 8, justifyContent: 'center' },
+  textTileText: { color: colors.text, fontSize: 12, fontWeight: '600' },
   icon: { position: 'absolute', top: 6, right: 6, textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 4 },
   empty: { alignItems: 'center', paddingVertical: 48, gap: 8 },
   emptyText: { color: colors.textMuted, fontSize: 15 },

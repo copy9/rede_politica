@@ -12,7 +12,7 @@ import { useApp, useMe } from '@/lib/store';
 import { colors, spacing, themed } from '@/lib/theme';
 import type { MediaType } from '@/lib/types';
 
-type Picked = { uri: string; type: MediaType };
+type Picked = { uri: string; type: MediaType | 'text' };
 
 export default function CreateScreen() {
   const me = useMe();
@@ -81,7 +81,7 @@ export default function CreateScreen() {
       {!media ? (
         <View style={styles.empty}>
           <Ionicons name="images-outline" size={72} color={colors.text} />
-          <Text style={styles.emptyTitle}>Compartilhe fotos e vídeos</Text>
+          <Text style={styles.emptyTitle}>Compartilhe fotos, vídeos ou texto</Text>
           <Text style={styles.emptyText}>Mostre o que acontece na sua cidade, fiscalize, proponha.</Text>
           <Pressable style={styles.primary} onPress={() => pick(false)}>
             <Text style={styles.primaryText}>Escolher da galeria</Text>
@@ -90,10 +90,15 @@ export default function CreateScreen() {
             <Ionicons name="camera-outline" size={18} color={colors.text} />
             <Text style={styles.secondaryText}>Usar a câmera</Text>
           </Pressable>
+          <Pressable style={styles.textOnly} onPress={() => setMedia({ uri: '', type: 'text' })}>
+            <Ionicons name="text-outline" size={18} color={colors.text} />
+            <Text style={styles.secondaryText}>Escrever só texto</Text>
+          </Pressable>
         </View>
       ) : (
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
           <ScrollView keyboardShouldPersistTaps="handled">
+            {media.type === 'text' ? null : (
             <View style={styles.preview}>
               {media.type === 'video' ? (
                 <MediaVideo uri={media.uri} active style={StyleSheet.absoluteFill} />
@@ -101,16 +106,18 @@ export default function CreateScreen() {
                 <Image source={{ uri: media.uri }} style={StyleSheet.absoluteFill} contentFit="cover" />
               )}
             </View>
+            )}
             <View style={styles.captionRow}>
               <Image source={{ uri: me.avatar }} style={styles.avatar} />
               <TextInput
-                placeholder="Escreva uma legenda..."
+                placeholder={media.type === 'text' ? 'O que você quer dizer?' : 'Escreva uma legenda...'}
                 placeholderTextColor={colors.textMuted}
                 value={caption}
                 onChangeText={setCaption}
                 multiline
+                autoFocus={media.type === 'text'}
                 maxLength={2200}
-                style={styles.caption}
+                style={[styles.caption, media.type === 'text' && { minHeight: 160, fontSize: 18 }]}
               />
             </View>
             <View style={styles.option}>
@@ -153,6 +160,7 @@ const styles = themed(() => StyleSheet.create({
   primaryText: { color: colors.white, fontWeight: '700' },
   secondary: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10 },
   secondaryText: { color: colors.text, fontWeight: '600' },
+  textOnly: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 18, borderRadius: 10, borderWidth: 1, borderColor: colors.border },
   preview: { width: '100%', aspectRatio: 1, backgroundColor: colors.surface },
   captionRow: { flexDirection: 'row', padding: spacing.lg, gap: spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   avatar: { width: 32, height: 32, borderRadius: 16 },
