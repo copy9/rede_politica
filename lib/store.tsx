@@ -426,7 +426,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         po.map((p) => ({
           id: p.id,
           userId: p.user_id,
-          type: p.type,
+          // publicação só de texto: sem arquivo (funciona com ou sem a migração do tipo "text")
+          type: p.type === 'text' || !p.media_url ? 'text' : p.type,
           uri: p.media_url ?? '',
           thumbnail: p.thumbnail_url ?? undefined,
           caption: p.caption ?? '',
@@ -1273,7 +1274,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const url = type === 'text' ? null : await uploadMedia(meId, uri, type);
           const r = await supabase
             .from('posts')
-            .insert({ id: post.id, user_id: meId, type, media_url: url, caption: post.caption, location: post.location ?? null });
+            .insert({
+              id: post.id,
+              user_id: meId,
+              // texto vai como publicação sem arquivo, aceita pelo banco mesmo sem a migração do tipo "text"
+              type: type === 'text' ? 'image' : type,
+              media_url: url ?? '',
+              caption: post.caption,
+              location: post.location ?? null,
+            });
           if (!r.error && url) setPosts((prev) => prev.map((p) => (p.id === post.id ? { ...p, uri: url } : p)));
           return r;
         })(),
