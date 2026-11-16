@@ -3,7 +3,8 @@ import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardView } from '@/components/KeyboardView';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MediaVideo } from '@/components/MediaVideo';
@@ -96,7 +97,7 @@ export default function CreateScreen() {
           </Pressable>
         </View>
       ) : (
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <KeyboardView style={{ flex: 1 }}>
           <ScrollView keyboardShouldPersistTaps="handled">
             {media.type === 'text' ? null : (
             <View style={styles.preview}>
@@ -134,7 +135,7 @@ export default function CreateScreen() {
               <Text style={styles.primaryText}>Compartilhar</Text>
             </Pressable>
           </ScrollView>
-        </KeyboardAvoidingView>
+        </KeyboardView>
       )}
     </SafeAreaView>
   );

@@ -26,17 +26,21 @@ export function StoriesBar() {
     const uri = !result.canceled ? result.assets[0]?.uri : undefined;
     if (!uri) return;
     const friends = settings.closeFriendIds.length;
+    const publish = (close: boolean) => {
+      addStory(uri, close);
+      showBanner(close ? 'Story publicado para os melhores amigos.' : 'Story publicado.', { icon: 'checkmark-circle', tone: 'success' });
+    };
+    // sem lista de melhores amigos: publica direto para todos
+    if (!friends) return publish(false);
+    await new Promise((r) => setTimeout(r, 350));
     showSheet({
       title: 'Compartilhar story com',
       options: [
-        { label: 'Todos', icon: 'people-outline', onPress: () => addStory(uri) },
+        { label: 'Todos', icon: 'people-outline', onPress: () => publish(false) },
         {
           label: friends ? `Melhores amigos (${friends})` : 'Melhores amigos (lista vazia)',
           icon: 'star-outline',
-          onPress: () => {
-            if (!friends) return showBanner('Adicione pessoas em Configurações › Melhores amigos.', { icon: 'star-outline' });
-            addStory(uri, true);
-          },
+          onPress: () => publish(true),
         },
       ],
     });

@@ -3,7 +3,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardView } from '@/components/KeyboardView';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
@@ -139,7 +140,7 @@ export function SupportersBox() {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
+    <KeyboardView style={styles.container} withHeader>
       <View style={styles.tabs}>
         {(
           [
@@ -187,7 +188,7 @@ export function SupportersBox() {
           ) : null}
         </View>
       ) : null}
-    </KeyboardAvoidingView>
+    </KeyboardView>
   );
 }
 

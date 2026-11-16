@@ -45,10 +45,9 @@ export default function NewBattleScreen() {
   };
 
   const start = () => {
-    if (!opponentId) return setError('Escolha pelo menos uma pessoa.');
     if (!topic.trim()) return setError('Escreva o título do debate.');
     const battle = createBattle({
-      opponentId,
+      opponentId: opponentId ?? '',
       topic,
       description,
       // sem tempo fixo: quem criou encerra no botão "Encerrar"
@@ -95,7 +94,7 @@ export default function NewBattleScreen() {
               </Text>
             </View>
             <Text style={styles.muted}>
-              Toque nas bolinhas para escolher várias pessoas. O número 1 é o outro lado do debate; as outras entram ao vivo como convidadas.
+              Pode fazer live sozinho: não escolha ninguém. Ou toque nas bolinhas para chamar pessoas (o número 1 é o outro lado do debate). Quem assiste pode pedir para entrar.
             </Text>
 
             <Text style={styles.label}>Convidar</Text>
@@ -151,7 +150,7 @@ export default function NewBattleScreen() {
         </Text>
         <Pressable style={styles.button} onPress={start}>
           <Ionicons name="flash" size={18} color="#fff" />
-          <Text style={styles.buttonText}>Começar debate ao vivo</Text>
+          <Text style={styles.buttonText}>{picked.length ? 'Começar debate ao vivo' : 'Começar live sozinho'}</Text>
         </Pressable>
       </View>
     </SafeAreaView>

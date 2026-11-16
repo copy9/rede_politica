@@ -3,7 +3,6 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   FlatList,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   StyleSheet,
@@ -21,6 +20,7 @@ import { BattleGuestsControls, answerGuestInvite, requestToJoin, useBattleGuests
 import { LiveCamera } from '@/components/LiveCamera';
 import { useOverlay } from '@/components/Overlay';
 import { Linking } from 'react-native';
+import { KeyboardView } from '@/components/KeyboardView';
 import { MediaVideo } from '@/components/MediaVideo';
 import { compactNumber } from '@/lib/format';
 import { getLiveVideo } from '@/lib/livekit';
@@ -44,6 +44,11 @@ const fmtTime = (sec: number) => {
 
 export default function BattleRoomScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  return <BattleView id={id} />;
+}
+
+/** Tela da live/debate (usada também no feed de lives, que rola como o TikTok). */
+export function BattleView({ id }: { id: string }) {
   const me = useMe();
   const app = useApp();
   const { getBattle, getUser, messagesForBattle, supportBattle, sendBattleMessage, joinBattle, startBattle, endBattle, remindBattle, acceptBattle, declineBattle, refreshBattle } = app;
@@ -65,7 +70,9 @@ export default function BattleRoomScreen() {
 
   const battle = getBattle(id);
   const host = battle ? getUser(battle.hostId) : undefined;
-  const opponent = battle ? getUser(battle.opponentId) : undefined;
+  // live sozinho: não tem o outro lado (as outras pessoas podem pedir para entrar)
+  const solo = !!battle && !battle.opponentId;
+  const opponent = battle ? (battle.opponentId ? getUser(battle.opponentId) : host) : undefined;
 
   // Relógio
   useEffect(() => {
@@ -167,7 +174,7 @@ export default function BattleRoomScreen() {
         </View>
 
         {/* Placar no topo: cresce para o lado com mais presentes e curtidas */}
-        {multiPeople ? null : (
+        {multiPeople || solo ? null : (
           <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
             <BattleScoreBar host={battle.scores.host} opponent={battle.scores.opponent} height={24} />
           </View>
@@ -262,12 +269,12 @@ export default function BattleRoomScreen() {
           const showJoin = live && !isParticipant && !isHost && myGuest?.status !== 'accepted' && myGuest?.status !== 'convidado';
           const slots: Slot[] = [
             { key: host.id, user: host, isMe: host.id === me.id, kind: 'side' },
-            { key: opponent.id, user: opponent, isMe: opponent.id === me.id, kind: 'side' },
+            ...(solo ? [] : [{ key: opponent.id, user: opponent, isMe: opponent.id === me.id, kind: 'side' as const }]),
             ...guestSlots('accepted', 'accepted'),
             ...guestSlots('convidado', 'invited'),
             ...(showJoin ? [{ key: 'join', isMe: false, kind: 'join' as const }] : []),
           ];
-          const cols = slots.length <= 4 ? 2 : 3;
+          const cols = slots.length === 1 ? 1 : slots.length <= 4 ? 2 : 3;
           const rows = Math.ceil(slots.length / cols);
           const tileW = Math.floor(width / cols);
           // o grid ocupa até 42% da altura, para sobrar espaço para o chat e o campo de comentário
@@ -353,7 +360,7 @@ export default function BattleRoomScreen() {
         {battle.status === 'ended' ? <Result battle={battle} host={host} opponent={opponent} /> : null}
 
         {/* Chat */}
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <KeyboardView style={{ flex: 1 }}>
           {/* Comentários embaixo do palco, mais recentes por último */}
           <View style={{ flex: 1, minHeight: 0 }}>
             <FlatList
@@ -374,7 +381,7 @@ export default function BattleRoomScreen() {
             <BattleActions battle={battle} host={host} opponent={opponent} meId={me.id} side={side} />
           </View>
 
-          {live && !isParticipant && side ? (
+          {live && !isParticipant && side && !solo ? (
             <View style={styles.gifts}>
               <Text style={styles.giftsTitle}>
                 Apoiar {side === 'host' ? host.name : opponent.name}
@@ -404,7 +411,7 @@ export default function BattleRoomScreen() {
                 returnKeyType="send"
                 style={styles.input}
               />
-              {!isParticipant ? (
+              {!isParticipant && !solo ? (
                 <>
                   <SideButton label={firstName(host)} color={colors.primary} active={side === 'host'} onPress={() => setSide(side === 'host' ? null : 'host')} />
                   <SideButton label={firstName(opponent)} color={colors.accent} active={side === 'opponent'} onPress={() => setSide(side === 'opponent' ? null : 'opponent')} />
@@ -416,7 +423,7 @@ export default function BattleRoomScreen() {
               )}
             </View>
           ) : null}
-        </KeyboardAvoidingView>
+        </KeyboardView>
       </SafeAreaView>
     </View>
   );

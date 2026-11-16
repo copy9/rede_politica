@@ -1,6 +1,7 @@
 import { Link } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { KeyboardView } from '@/components/KeyboardView';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Field } from '@/components/Field';
@@ -82,7 +83,7 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.container}>
+      <KeyboardView style={styles.container}>
         <View style={styles.logo}>
           <Logo size={30} />
           <Text style={styles.tagline}>{t('Participe, debata, fiscalize.')}</Text>
@@ -105,7 +106,7 @@ export default function LoginScreen() {
             </Link>
           </Text>
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardView>
     </SafeAreaView>
   );
 }

@@ -21,7 +21,8 @@ function scheduleLabel(ts: number) {
 export function BattleCard({ battle }: { battle: LiveBattle }) {
   const { getUser } = useApp();
   const host = getUser(battle.hostId);
-  const opponent = getUser(battle.opponentId);
+  const solo = !battle.opponentId;
+  const opponent = solo ? host : getUser(battle.opponentId);
   if (!host || !opponent) return null;
 
   const live = battle.status === 'live';
@@ -73,6 +74,7 @@ export function BattleCard({ battle }: { battle: LiveBattle }) {
             {host.role ?? ''}
           </Text>
         </View>
+        {solo ? null : (
         <View style={styles.person}>
           <Avatar uri={opponent.avatar} size={56} ring={live ? 'unseen' : 'none'} />
           <Text style={styles.name} numberOfLines={1}>
@@ -82,13 +84,12 @@ export function BattleCard({ battle }: { battle: LiveBattle }) {
             {opponent.role ?? ''}
           </Text>
         </View>
+        )}
       </View>
 
-      {battle.status !== 'scheduled' ? (
+      {battle.status !== 'scheduled' && !solo ? (
         <BattleScoreBar host={battle.scores.host} opponent={battle.scores.opponent} />
       ) : null}
-      {winner ? <Text style={styles.winner}>🏆 Vitória de {winner.name}</Text> : null}
-      {ended && !winner ? <Text style={styles.winner}>Empate</Text> : null}
     </Pressable>
   );
 }

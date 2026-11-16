@@ -1,7 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { KeyboardView } from '@/components/KeyboardView';
 
 import { Avatar } from '@/components/Avatar';
 import { INTERESTS } from '@/lib/analytics';
@@ -51,7 +52,7 @@ export default function SupportScreen() {
   };
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+    <KeyboardView style={{ flex: 1 }} withHeader>
       <Stack.Screen options={{ title: existing ? 'Sua autorização' : 'Receber novidades' }} />
       <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.head}>
@@ -132,7 +133,7 @@ export default function SupportScreen() {
           </Pressable>
         ) : null}
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardView>
   );
 }
 

@@ -1,7 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardView } from '@/components/KeyboardView';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
@@ -36,10 +37,7 @@ export default function ChatScreen() {
   if (!conversation || !other) return null;
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
+    <KeyboardView style={styles.container} withHeader>
       <Stack.Screen
         options={{
           headerTitle: () => (
@@ -98,7 +96,7 @@ export default function ChatScreen() {
         ) : null}
       </View>
       )}
-    </KeyboardAvoidingView>
+    </KeyboardView>
   );
 }
 

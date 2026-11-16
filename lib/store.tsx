@@ -238,7 +238,7 @@ function toBattle(b: Row, viewers = 0): LiveBattle {
   return {
     id: b.id,
     hostId: b.host_id,
-    opponentId: b.opponent_id,
+    opponentId: b.opponent_id ?? '',
     topic: b.topic,
     description: b.description ?? undefined,
     status: b.status,
@@ -1444,13 +1444,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const createBattle = useCallback(
     ({ opponentId, topic, description, durationSec, scheduleAt, guestIds }: { opponentId: string; topic: string; description?: string; durationSec: number; scheduleAt?: number; guestIds?: string[] }) => {
       if (!meId || opponentId === meId || topic.trim().length < 3) return null;
+      const solo = !opponentId;
       const battle: LiveBattle = {
         id: uuid(),
         hostId: meId,
         opponentId,
         topic: topic.trim().slice(0, 90),
         description: description?.trim().slice(0, 1000) || undefined,
-        status: scheduleAt ? 'scheduled' : 'invited',
+        status: scheduleAt ? 'scheduled' : solo ? 'live' : 'invited',
         startsAt: scheduleAt ?? Date.now(),
         durationSec: Math.min(3600, Math.max(60, durationSec)),
         viewers: 0,
@@ -1465,7 +1466,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           .insert({
             id: battle.id,
             host_id: meId,
-            opponent_id: opponentId,
+            opponent_id: opponentId || null,
             topic: battle.topic,
             status: battle.status,
             starts_at: new Date(battle.startsAt).toISOString(),
