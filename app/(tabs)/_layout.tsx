@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Tabs } from 'expo-router';
+import { router, Tabs } from 'expo-router';
 import type { ColorValue } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
@@ -26,6 +26,16 @@ export default function TabLayout() {
         tabBarStyle: { backgroundColor: colors.background, borderTopColor: colors.border },
       }}>
       <Tabs.Screen name="index" options={{ title: 'Início', tabBarIcon: icon('home', 'home-outline') }} />
+      <Tabs.Screen
+        name="mensagens"
+        options={{ title: 'Mensagens', tabBarIcon: icon('paper-plane', 'paper-plane-outline') }}
+        listeners={{
+          tabPress: (e) => {
+            e.preventDefault();
+            router.push('/messages');
+          },
+        }}
+      />
       <Tabs.Screen name="create" options={{ title: 'Postar', tabBarIcon: icon('add-circle', 'add-circle-outline') }} />
       <Tabs.Screen name="explore" options={{ title: 'Explorar', tabBarIcon: icon('search', 'search-outline') }} />
       <Tabs.Screen
