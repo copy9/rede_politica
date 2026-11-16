@@ -65,7 +65,7 @@ export function ScoreRing({ points, size, children }: { points: number; size: nu
   const c = outer / 2;
   const step = (Math.PI * 2) / SEGMENTS;
   const gap = step * 0.22;
-  const start = Math.PI; // começa na esquerda e acende para a direita, passando por cima
+  const start = Math.PI / 2; // começa embaixo (6 horas) e acende em sentido horário: sobe pela esquerda, passa por cima e desce pela direita
 
   return (
     <View style={{ width: outer, height: outer, alignItems: 'center', justifyContent: 'center' }}>
