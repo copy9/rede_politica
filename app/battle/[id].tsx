@@ -46,7 +46,7 @@ export default function BattleRoomScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const me = useMe();
   const app = useApp();
-  const { getBattle, getUser, messagesForBattle, supportBattle, sendBattleMessage, joinBattle, startBattle, endBattle, remindBattle, acceptBattle, declineBattle } = app;
+  const { getBattle, getUser, messagesForBattle, supportBattle, sendBattleMessage, joinBattle, startBattle, endBattle, remindBattle, acceptBattle, declineBattle, refreshBattle } = app;
   const { width, height } = useWindowDimensions();
   const { confirm, showBanner } = useOverlay();
   const [now, setNow] = useState(Date.now());
@@ -54,6 +54,13 @@ export default function BattleRoomScreen() {
   const [text, setText] = useState('');
   const chatRef = useRef<FlatList<BattleMessage>>(null);
   const guests = useBattleGuests(id);
+  const battleStatus = getBattle(id)?.status;
+  useEffect(() => {
+    if (!id || battleStatus === 'ended') return;
+    refreshBattle(id);
+    const t = setInterval(() => refreshBattle(id), battleStatus === 'live' ? 10000 : 3000);
+    return () => clearInterval(t);
+  }, [id, battleStatus, refreshBattle]);
   const isGuestSpeaker = guests.some((g) => g.user_id === me.id && g.status === 'accepted');
 
   const battle = getBattle(id);

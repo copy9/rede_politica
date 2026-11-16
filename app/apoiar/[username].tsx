@@ -14,7 +14,6 @@ const FIELDS: { key: ShareField; label: string; hint: string }[] = [
   { key: 'nome', label: 'Nome e foto', hint: 'Seu nome e @usuário' },
   { key: 'cidade', label: 'Cidade', hint: 'Cidade e estado do seu perfil' },
   { key: 'faixaEtaria', label: 'Faixa etária', hint: 'Só a faixa, nunca a data de nascimento' },
-  { key: 'interesses', label: 'Temas de interesse', hint: 'Para receber só o que importa para você' },
   { key: 'whatsapp', label: 'WhatsApp', hint: 'Para receber mensagens' },
   { key: 'email', label: 'E-mail', hint: 'Para receber e-mails' },
 ];
@@ -29,7 +28,7 @@ export default function SupportScreen() {
   const [remember, setRemember] = useState(!settings.shareProfile);
   const existing = politician ? consentFor(politician.id) : undefined;
 
-  const [fields, setFields] = useState<ShareField[]>(existing?.fields ?? ['nome', 'cidade', 'interesses']);
+  const [fields, setFields] = useState<ShareField[]>(existing?.fields ?? ['nome', 'cidade']);
   const [interests, setInterests] = useState<string[]>(existing?.interests ?? me.interests ?? []);
   const [whatsapp, setWhatsapp] = useState(existing?.whatsapp ?? settings.phone);
   const [email, setEmail] = useState(existing?.email ?? settings.email);
@@ -101,18 +100,6 @@ export default function SupportScreen() {
           />
         ) : null}
 
-        {fields.includes('interesses') ? (
-          <>
-            <Text style={styles.section}>Temas que interessam a você</Text>
-            <View style={styles.chips}>
-              {INTERESTS.map((i) => (
-                <Pressable key={i} onPress={() => toggleInterest(i)} style={[styles.chip, interests.includes(i) && styles.chipActive]}>
-                  <Text style={[styles.chipText, interests.includes(i) && { color: colors.white }]}>{i}</Text>
-                </Pressable>
-              ))}
-            </View>
-          </>
-        ) : null}
 
         <Pressable style={styles.agree} onPress={() => setAgree((a) => !a)}>
           <Ionicons name={agree ? 'checkbox' : 'square-outline'} size={22} color={agree ? colors.primary : colors.textMuted} />

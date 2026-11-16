@@ -12,8 +12,8 @@ import { colors, spacing, themed } from '@/lib/theme';
 export default function VerificationScreen() {
   const me = useMe();
   const { settings, update } = useSettings();
-  const [office, setOffice] = useState(me.role ?? '');
-  const [party, setParty] = useState(me.party ?? '');
+  const [office, setOffice] = useState('');
+  const [party, setParty] = useState('');
   const [doc, setDoc] = useState('');
   const pending = settings.verification.status === 'em_analise';
   const { showBanner } = useOverlay();

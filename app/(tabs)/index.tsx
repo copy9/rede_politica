@@ -40,7 +40,7 @@ export default function FeedScreen() {
             <Ionicons name="add-outline" size={28} color={colors.text} />
           </Pressable>
           <Pressable onPress={() => router.push('/notifications')} hitSlop={8}>
-            <Ionicons name="heart-outline" size={26} color={colors.text} />
+            <Ionicons name="notifications-outline" size={26} color={colors.text} />
             {hasNotifications ? <View style={styles.dot} /> : null}
           </Pressable>
           <Pressable onPress={() => router.push('/messages')} hitSlop={8}>

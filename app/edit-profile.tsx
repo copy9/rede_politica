@@ -1,10 +1,9 @@
 import * as ImagePicker from 'expo-image-picker';
 import { router, Stack } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
-import { INTERESTS } from '@/lib/analytics';
 import type { Gender } from '@/lib/types';
 import { useApp, useMe } from '@/lib/store';
 import { colors, spacing, themed } from '@/lib/theme';
@@ -23,12 +22,17 @@ export default function EditProfileScreen() {
   const [uf, setUf] = useState(me.state ?? '');
   const [gender, setGender] = useState<Gender | undefined>(me.gender);
   const [birthYear, setBirthYear] = useState(me.birthYear ? String(me.birthYear) : '');
-  const [interests, setInterests] = useState<string[]>(me.interests ?? []);
+  const [cover, setCover] = useState(me.cover ?? '');
   const [error, setError] = useState<string | null>(null);
 
   const pickAvatar = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8 });
     if (!result.canceled && result.assets[0]) setAvatar(result.assets[0].uri);
+  };
+
+  const pickCover = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [3, 1], quality: 0.8 });
+    if (!result.canceled && result.assets[0]) setCover(result.assets[0].uri);
   };
 
   const save = () => {
@@ -43,8 +47,8 @@ export default function EditProfileScreen() {
       state: uf.trim().toUpperCase() || undefined,
       gender,
       birthYear: year,
-      interests,
       avatar,
+      cover,
       name: name.trim(),
       username,
       ...(me.accountType === 'politico' ? { role: role.trim() || undefined, party: party.trim() || undefined } : {}),
@@ -59,19 +63,32 @@ export default function EditProfileScreen() {
     <>
       <Stack.Screen
         options={{
+          headerTitleAlign: 'center',
           headerLeft: () => (
-            <Pressable onPress={() => router.back()} hitSlop={8}>
+            <Pressable onPress={() => router.back()} hitSlop={8} style={{ paddingRight: 16 }}>
               <Text style={styles.cancel}>Cancelar</Text>
             </Pressable>
           ),
           headerRight: () => (
-            <Pressable onPress={save} hitSlop={8}>
+            <Pressable onPress={save} hitSlop={8} style={{ paddingLeft: 16 }}>
               <Text style={styles.done}>Concluir</Text>
             </Pressable>
           ),
         }}
       />
       <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
+        {/* capa do perfil, como no Twitter */}
+        <Pressable style={styles.coverBox} onPress={pickCover} accessibilityLabel="Alterar capa">
+          {cover ? <Image source={{ uri: cover }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
+          <View style={styles.coverHint}>
+            <Text style={styles.coverHintText}>{cover ? 'Alterar capa' : 'Adicionar capa'}</Text>
+          </View>
+        </Pressable>
+        {cover ? (
+          <Pressable onPress={() => setCover('')} style={{ alignSelf: 'center', marginTop: 6 }}>
+            <Text style={{ color: colors.textMuted }}>Remover capa</Text>
+          </Pressable>
+        ) : null}
         <Pressable style={styles.avatarBox} onPress={pickAvatar}>
           <Avatar uri={avatar} size={90} />
           <Text style={styles.changePhoto}>Alterar foto</Text>
@@ -109,19 +126,6 @@ export default function EditProfileScreen() {
             ).map(([g, label]) => (
               <Pressable key={g} onPress={() => setGender(gender === g ? undefined : g)} style={[styles.chip, gender === g && styles.chipActive]}>
                 <Text style={[styles.chipText, gender === g && { color: colors.white }]}>{label}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-        <View style={[styles.row, { flexDirection: 'column', gap: 8 }]}>
-          <Text style={styles.label}>Interesses</Text>
-          <View style={styles.chips}>
-            {INTERESTS.map((i) => (
-              <Pressable
-                key={i}
-                onPress={() => setInterests((prev) => (prev.includes(i) ? prev.filter((x) => x !== i) : [...prev, i]))}
-                style={[styles.chip, interests.includes(i) && styles.chipActive]}>
-                <Text style={[styles.chipText, interests.includes(i) && { color: colors.white }]}>{i}</Text>
               </Pressable>
             ))}
           </View>
@@ -166,6 +170,9 @@ function Row({
 const styles = themed(() => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   cancel: { color: colors.text, fontSize: 16 },
+  coverBox: { height: 130, backgroundColor: colors.surface, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  coverHint: { backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 },
+  coverHintText: { color: '#fff', fontWeight: '700' },
   done: { color: colors.primary, fontSize: 16, fontWeight: '700' },
   avatarBox: { alignItems: 'center', paddingVertical: spacing.xl, gap: spacing.sm },
   changePhoto: { color: colors.primary, fontWeight: '600' },

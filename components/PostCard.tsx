@@ -12,12 +12,13 @@ import { colors, spacing, themed } from '@/lib/theme';
 import type { Post } from '@/lib/types';
 import { Avatar } from './Avatar';
 import { MediaVideo } from './MediaVideo';
+import { shareText } from '@/lib/share';
 import { useOverlay } from './Overlay';
 import { useReport } from './useReport';
 import { UserName } from './UserName';
 
 export function PostCard({ post, active = false }: { post: Post; active?: boolean }) {
-  const { me, getUser, commentsFor, toggleLike, toggleSave, deletePost, storyUsers } = useApp();
+  const { me, getUser, commentsFor, toggleLike, toggleDislike, deletePost, storyUsers } = useApp();
   const { width } = useWindowDimensions();
   const { settings } = useSettings();
   const { showSheet, confirm, showBanner } = useOverlay();
@@ -31,7 +32,6 @@ export function PostCard({ post, active = false }: { post: Post; active?: boolea
   if (!author || !me) return null;
 
   const liked = post.likes.includes(me.id);
-  const saved = post.savedBy.includes(me.id);
   const comments = commentsFor(post.id);
   const hasStory = storyUsers().find((s) => s.user.id === author.id);
   const mediaSize = Math.min(width, 640);
@@ -54,7 +54,7 @@ export function PostCard({ post, active = false }: { post: Post; active?: boolea
   };
 
   const onShare = () => {
-    Share.share({ message: `Veja a publicação de @${author.username} na Rede Política: ${post.caption}` }).catch(() => {});
+    Share.share({ message: shareText(`Veja a publicação de @${author.username} na Rede Política${post.caption ? `: ${post.caption}` : ''}`, `post/${post.id}`) }).catch(() => {});
   };
 
   const onMore = () => {
@@ -136,15 +136,15 @@ export function PostCard({ post, active = false }: { post: Post; active?: boolea
         <Pressable onPress={() => toggleLike(post.id)} hitSlop={8} style={styles.action} accessibilityLabel="Curtir">
           <Ionicons name={liked ? 'heart' : 'heart-outline'} size={26} color={liked ? colors.like : colors.text} />
         </Pressable>
+        <Pressable onPress={() => toggleDislike(post.id)} hitSlop={8} style={styles.action} accessibilityLabel="Não curti">
+          <Ionicons name={post.dislikedByMe ? 'thumbs-down' : 'thumbs-down-outline'} size={23} color={post.dislikedByMe ? colors.primary : colors.text} />
+          {post.dislikes ? <Text style={styles.countText}>{post.dislikes}</Text> : null}
+        </Pressable>
         <Pressable onPress={openComments} hitSlop={8} style={styles.action} accessibilityLabel="Comentar">
           <Ionicons name="chatbubble-outline" size={24} color={colors.text} />
         </Pressable>
         <Pressable onPress={onShare} hitSlop={8} style={styles.action} accessibilityLabel="Compartilhar">
           <Ionicons name="paper-plane-outline" size={24} color={colors.text} />
-        </Pressable>
-        <View style={{ flex: 1 }} />
-        <Pressable onPress={() => toggleSave(post.id)} hitSlop={8} accessibilityLabel="Salvar">
-          <Ionicons name={saved ? 'bookmark' : 'bookmark-outline'} size={24} color={colors.text} />
         </Pressable>
       </View>
 
@@ -178,6 +178,7 @@ export function PostCard({ post, active = false }: { post: Post; active?: boolea
 }
 
 const styles = themed(() => StyleSheet.create({
+  countText: { color: colors.text, fontWeight: '600', fontSize: 13, marginLeft: 3 },
   card: { backgroundColor: colors.background, paddingBottom: spacing.md },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: spacing.sm },
   headerLeft: {},
@@ -185,7 +186,7 @@ const styles = themed(() => StyleSheet.create({
   location: { fontSize: 12, color: colors.text, marginTop: 1 },
   bigHeart: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
   actions: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingTop: spacing.sm },
-  action: { marginRight: spacing.lg },
+  action: { marginRight: spacing.lg, flexDirection: 'row', alignItems: 'center' },
   body: { paddingHorizontal: spacing.md, paddingTop: spacing.xs, gap: 4 },
   bold: { fontWeight: '600', color: colors.text },
   caption: { color: colors.text, lineHeight: 19 },

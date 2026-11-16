@@ -45,7 +45,6 @@ export default function SettingsHome() {
     {
       title: 'Como você usa a Rede Política',
       rows: [
-        { icon: 'bookmark-outline', label: 'Salvos', onPress: go('/salvos') },
         { icon: 'time-outline', label: 'Sua atividade', onPress: go('/atividade') },
         { icon: 'notifications-outline', label: 'Notificações', value: settings.notifications.pauseAll ? t('Pausadas') : undefined, onPress: go('/config/notificacoes') },
         { icon: 'hourglass-outline', label: 'Tempo de uso', value: settings.dailyLimitMin ? `${settings.dailyLimitMin} ${t('min/dia')}` : undefined, onPress: go('/atividade?tab=tempo') },

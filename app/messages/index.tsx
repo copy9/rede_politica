@@ -5,7 +5,7 @@ import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-na
 
 import { Avatar } from '@/components/Avatar';
 import { useOverlay } from '@/components/Overlay';
-import { SupportersButton } from '@/components/SupportersToggle';
+import { SupportersBox } from '@/components/SupportersBox';
 import { UserName } from '@/components/UserName';
 import { timeAgo } from '@/lib/format';
 import { useApp, useMe } from '@/lib/store';
@@ -13,10 +13,12 @@ import { colors, spacing, themed } from '@/lib/theme';
 
 export default function InboxScreen() {
   const me = useMe();
-  const { conversations, conversationMessages, getUser, users, openConversationWith, activityText } = useApp();
+  const { conversations, conversationMessages, getUser, users, openConversationWith, activityText, supportersFor } = useApp();
 
   const { showBanner } = useOverlay();
   const [query, setQuery] = useState('');
+  const [box, setBox] = useState<'mensagens' | 'apoiadores'>('mensagens');
+  const supporters = supportersFor(me.id).length;
   const q = query.trim().toLowerCase();
 
   const items = conversations
@@ -55,10 +57,22 @@ export default function InboxScreen() {
           autoCapitalize="none"
         />
       </View>
+      {/* duas caixas: mensagens normais e a caixa dos apoiadores */}
       <View style={styles.headRow}>
-        <Text style={[styles.heading, { paddingHorizontal: 0 }]}>Mensagens</Text>
-        <SupportersButton />
+        {(
+          [
+            ['mensagens', 'Mensagens'],
+            ['apoiadores', `Apoiadores${supporters ? ` · ${supporters}` : ''}`],
+          ] as const
+        ).map(([k, label]) => (
+          <Pressable key={k} onPress={() => setBox(k)} style={[styles.boxTab, box === k && styles.boxTabOn]}>
+            <Text style={[styles.boxTabText, box === k && styles.boxTabTextOn]} maxFontSizeMultiplier={1.15}>
+              {label}
+            </Text>
+          </Pressable>
+        ))}
       </View>
+      {box === 'apoiadores' ? <SupportersBox /> : (
       <FlatList
         data={items}
         keyExtractor={(x) => x.conversation.id}
@@ -95,6 +109,7 @@ export default function InboxScreen() {
           !people.length ? <Text style={styles.empty}>Nenhuma conversa. Pesquise alguém para começar.</Text> : undefined
         }
       />
+      )}
     </View>
   );
 }
@@ -112,7 +127,11 @@ const styles = themed(() => StyleSheet.create({
     margin: spacing.lg,
   },
   input: { flex: 1, fontSize: 15, color: colors.text },
-  headRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, gap: spacing.sm },
+  headRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, gap: spacing.sm },
+  boxTab: { borderRadius: 18, paddingHorizontal: 14, paddingVertical: 7, borderWidth: 1, borderColor: colors.border },
+  boxTabOn: { backgroundColor: colors.text, borderColor: colors.text },
+  boxTabText: { color: colors.text, fontWeight: '700' },
+  boxTabTextOn: { color: colors.background },
   composer: { flexDirection: 'row', alignItems: 'center', margin: spacing.md, marginBottom: spacing.lg, borderWidth: 1, borderColor: colors.border, borderRadius: 24, paddingLeft: spacing.lg, paddingRight: 6, minHeight: 46 },
   send: { backgroundColor: colors.primary, borderRadius: 18, width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   heading: { fontWeight: '700', fontSize: 16, color: colors.text, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },

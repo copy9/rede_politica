@@ -10,11 +10,18 @@ import { useApp } from '@/lib/store';
 import { colors, spacing, themed } from '@/lib/theme';
 
 type Invite = { battleId: string; kind: 'lado' | 'convidado' };
+// o pop-up só aparece na hora do convite (até 2 minutos depois), não fica voltando depois
+const FRESH_MS = 2 * 60 * 1000;
 
 export function InvitePopup() {
   const { me, battles, getUser, acceptBattle, declineBattle } = useApp();
   const meId = me?.id;
-  const [guestInvites, setGuestInvites] = useState<string[]>([]);
+  const [guestInvites, setGuestInvites] = useState<{ id: string; at: number }[]>([]);
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => tick((n) => n + 1), 15000);
+    return () => clearInterval(t);
+  }, []);
   const [dismissed, setDismissed] = useState<string[]>([]);
 
   // convites como participante ao vivo (tabela battle_guests), em tempo real
@@ -22,8 +29,9 @@ export function InvitePopup() {
     if (!meId) return;
     let alive = true;
     const load = async () => {
-      const { data } = await supabase.from('battle_guests').select('battle_id').eq('user_id', meId).eq('status', 'convidado');
-      if (alive) setGuestInvites((data ?? []).map((r: { battle_id: string }) => r.battle_id));
+      const { data } = await supabase.from('battle_guests').select('battle_id, created_at').eq('user_id', meId).eq('status', 'convidado');
+      if (alive)
+        setGuestInvites((data ?? []).map((r: { battle_id: string; created_at: string }) => ({ id: r.battle_id, at: new Date(r.created_at).getTime() })));
     };
     load();
     const ch = supabase
@@ -38,11 +46,14 @@ export function InvitePopup() {
 
   if (!meId) return null;
 
+  const now = Date.now();
   const invites: Invite[] = [
-    ...battles.filter((b) => b.status === 'invited' && b.opponentId === meId).map((b) => ({ battleId: b.id, kind: 'lado' as const })),
+    ...battles
+      .filter((b) => b.status === 'invited' && b.opponentId === meId && now - b.startsAt < FRESH_MS)
+      .map((b) => ({ battleId: b.id, kind: 'lado' as const })),
     ...guestInvites
-      .filter((id) => battles.some((b) => b.id === id && b.status !== 'ended'))
-      .map((id) => ({ battleId: id, kind: 'convidado' as const })),
+      .filter((g) => now - g.at < FRESH_MS && battles.some((b) => b.id === g.id && b.status !== 'ended'))
+      .map((g) => ({ battleId: g.id, kind: 'convidado' as const })),
   ].filter((i) => !dismissed.includes(i.battleId));
 
   const current = invites[0];
@@ -64,7 +75,7 @@ export function InvitePopup() {
   };
 
   return (
-    <Modal transparent animationType="fade" visible onRequestClose={close}>
+    <Modal transparent animationType="fade" visible onRequestClose={decline}>
       <View style={styles.backdrop}>
         <View style={styles.card}>
           <Ionicons name="flash" size={28} color={colors.like} />
@@ -82,9 +93,6 @@ export function InvitePopup() {
               <Text style={styles.btnText}>Aceitar</Text>
             </Pressable>
           </View>
-          <Pressable onPress={close} hitSlop={8}>
-            <Text style={styles.later}>Decidir depois</Text>
-          </Pressable>
         </View>
       </View>
     </Modal>

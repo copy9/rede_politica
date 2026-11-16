@@ -13,6 +13,8 @@ export type User = {
   role?: string;
   party?: string;
   website?: string;
+  /** foto de capa do perfil */
+  cover?: string;
   verified?: boolean;
   /** conta de administrador da plataforma */
   isAdmin?: boolean;
@@ -38,6 +40,10 @@ export type Post = {
   createdAt: number;
   likes: string[];
   savedBy: string[];
+  /** total de "não curti" (ninguém vê quem deu) */
+  dislikes?: number;
+  /** se eu dei "não curti" */
+  dislikedByMe?: boolean;
 };
 
 export type Comment = {

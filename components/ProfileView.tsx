@@ -1,7 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Linking, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Image, Linking, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { shareText } from '@/lib/share';
 
 import { compactNumber } from '@/lib/format';
 import { useSettings } from '@/lib/settings';
@@ -17,7 +18,7 @@ type Tab = 'posts' | 'videos' | 'saved';
 
 export function ProfileView({ user }: { user: User }) {
   const me = useMe();
-  const { postsBy, posts, followersOf, followingOf, storyUsers, openConversationWith, consentFor, supportersFor, canSeeContent, canInteract, activityText, giveConsent, isFollowing } = useApp();
+  const { postsBy, posts, followersOf, followingOf, storyUsers, openConversationWith, consentFor, supportersFor, canSeeContent, canInteract, activityText, giveConsent, isFollowing, commentsFor, battles } = useApp();
   const { accountSettings, settings, update } = useSettings();
   const availableForDebate = settings.whoCanChallenge !== 'ninguem';
   const { showBanner } = useOverlay();
@@ -32,6 +33,16 @@ export function ProfileView({ user }: { user: User }) {
         ? userPosts.filter((p) => p.type === 'video')
         : posts.filter((p) => p.savedBy.includes(me.id));
   const story = storyUsers().find((s) => s.user.id === user.id);
+  // Score do candidato: seguidores, curtidas, comentários, apoiadores e debates (o "não curti" desconta)
+  const score = (() => {
+    if (user.accountType !== 'politico') return 0;
+    const likes = userPosts.reduce((t, p) => t + p.likes.length, 0);
+    const dislikes = userPosts.reduce((t, p) => t + (p.dislikes ?? 0), 0);
+    const comments = userPosts.reduce((t, p) => t + commentsFor(p.id).length, 0);
+    const debates = battles.filter((b) => b.status !== 'invited' && (b.hostId === user.id || b.opponentId === user.id)).length;
+    const raw = followersOf(user.id).length * 3 + likes * 2 + comments * 3 + supportersFor(user.id).length * 10 + debates * 15 - dislikes;
+    return Math.max(0, raw);
+  })();
 
   const visible = canSeeContent(user.id);
   const isPrivate = accountSettings(user.id).privateAccount;
@@ -57,12 +68,21 @@ export function ProfileView({ user }: { user: User }) {
   };
 
   const onShare = () => {
-    Share.share({ message: `Siga @${user.username} na Rede Política` }).catch(() => {});
+    Share.share({ message: shareText(`Siga @${user.username} na Rede Política`, `user/${user.username}`) }).catch(() => {});
   };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
-      <View style={styles.top}>
+      {/* capa do perfil */}
+      {user.cover ? (
+        <Image source={{ uri: user.cover }} style={styles.cover} resizeMode="cover" />
+      ) : isMe ? (
+        <Pressable style={[styles.cover, styles.coverEmpty]} onPress={() => router.push('/edit-profile')}>
+          <Ionicons name="image-outline" size={18} color={colors.textMuted} />
+          <Text style={{ color: colors.textMuted, fontWeight: '600' }}>Adicionar capa</Text>
+        </Pressable>
+      ) : null}
+      <View style={[styles.top, user.cover || isMe ? { paddingTop: spacing.sm } : null]}>
         <View>
           <Pressable onPress={() => story && router.push(`/story/${user.id}`)}>
             <Avatar uri={user.avatar} size={84} ring={story ? (story.seen ? 'seen' : story.closeFriends ? 'close' : 'unseen') : 'none'} />
@@ -88,7 +108,8 @@ export function ProfileView({ user }: { user: User }) {
         </View>
       </View>
 
-      <View style={styles.bio}>
+      <View style={styles.bioRow}>
+      <View style={[styles.bio, { flex: 1 }]}>
         <View style={styles.nameRow}>
           <Text style={styles.name}>{user.name}</Text>
           {user.verified ? <Ionicons name="checkmark-circle" size={16} color={colors.primary} /> : null}
@@ -107,6 +128,21 @@ export function ProfileView({ user }: { user: User }) {
           </View>
         ) : null}
         {user.bio ? <Text style={styles.bioText}>{user.bio}</Text> : null}
+      </View>
+      {/* score de engajamento: só para candidatos e políticos */}
+      {user.accountType === 'politico' ? (
+        <View style={styles.scoreBox} accessibilityLabel={`Score ${score}`}>
+          <Text style={styles.scoreLabel} maxFontSizeMultiplier={1.15}>
+            ⭐ SCORE
+          </Text>
+          <Text style={styles.scoreValue} numberOfLines={1} adjustsFontSizeToFit maxFontSizeMultiplier={1.15}>
+            {compactNumber(score)}
+          </Text>
+          <Text style={styles.scoreHint} maxFontSizeMultiplier={1.1}>
+            engajamento
+          </Text>
+        </View>
+      ) : null}
       </View>
 
       <View style={styles.pills}>
@@ -279,6 +315,13 @@ function TabIcon({
 const styles = themed(() => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   top: { flexDirection: 'row', alignItems: 'center', padding: spacing.lg, gap: spacing.xl },
+  cover: { width: '100%', height: 130, backgroundColor: colors.surface },
+  coverEmpty: { height: 70, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center' },
+  bioRow: { flexDirection: 'row', alignItems: 'flex-start', paddingRight: spacing.lg, gap: spacing.sm },
+  scoreBox: { minWidth: 92, maxWidth: 130, alignItems: 'center', borderRadius: 12, paddingVertical: 8, paddingHorizontal: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.like },
+  scoreLabel: { color: colors.like, fontWeight: '800', fontSize: 11, letterSpacing: 0.5 },
+  scoreValue: { color: colors.text, fontWeight: '800', fontSize: 24 },
+  scoreHint: { color: colors.textMuted, fontSize: 10 },
   stats: { flex: 1, flexDirection: 'row', justifyContent: 'space-around' },
   stat: { alignItems: 'center' },
   statValue: { fontWeight: '700', fontSize: 17, color: colors.text },

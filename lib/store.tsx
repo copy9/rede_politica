@@ -68,6 +68,7 @@ type ProfileUpdate = Partial<
     | 'party'
     | 'website'
     | 'avatar'
+    | 'cover'
     | 'accountType'
     | 'city'
     | 'state'
@@ -146,6 +147,8 @@ type AppState = {
 
   // ações
   toggleLike: (postId: string) => void;
+  toggleDislike: (postId: string) => void;
+  refreshBattle: (id: string) => Promise<void>;
   toggleSave: (postId: string) => void;
   toggleCommentLike: (commentId: string) => void;
   addComment: (postId: string, text: string) => string | null;
@@ -222,6 +225,7 @@ function toUser(p: Row): User {
     website: p.website ?? undefined,
     verified: !!p.verified,
     isAdmin: !!p.is_admin,
+    cover: p.cover_url || undefined,
     city: p.city ?? undefined,
     state: p.state ?? undefined,
     gender: p.gender ?? undefined,
@@ -414,6 +418,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return m;
       };
       const likesBy = group(li, 'post_id', 'user_id');
+      // "não curti": só os meus (o banco não mostra de mais ninguém); se a tabela ainda não existir, segue sem
+      const dis = await supabase.from('post_dislikes').select('post_id');
+      const myDislikes = new Set(((dis.data ?? []) as Row[]).map((d) => d.post_id as string));
       const savesBy = group(sa, 'post_id', 'user_id');
       setPosts(
         po.map((p) => ({
@@ -427,6 +434,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           createdAt: ms(p.created_at),
           likes: likesBy.get(p.id) ?? [],
           savedBy: savesBy.get(p.id) ?? [],
+          dislikes: p.dislikes ?? 0,
+          dislikedByMe: myDislikes.has(p.id),
         })),
       );
       const commentLikes = group(cl, 'comment_id', 'user_id');
@@ -950,7 +959,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         changes = { ...changes, username: clean };
       }
       setUsers((prev) => prev.map((u) => (u.id === meId ? { ...u, ...changes } : u)));
-      const { avatar, accountType, birthYear, ...rest } = changes;
+      const { avatar, cover, accountType, birthYear, ...rest } = changes;
       const row: Row = { ...rest };
       if (accountType !== undefined) row.account_type = accountType;
       if (birthYear !== undefined) row.birth_year = birthYear;
@@ -960,8 +969,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       write(
         (async () => {
           if (avatar !== undefined) row.avatar_url = avatar ? await uploadMedia(meId, avatar, 'image') : null;
+          if (cover !== undefined) row.cover_url = cover ? await uploadMedia(meId, cover, 'image') : null;
           const r = await supabase.from('profiles').update(row).eq('id', meId);
-          if (!r.error && row.avatar_url) setUsers((prev) => prev.map((u) => (u.id === meId ? { ...u, avatar: row.avatar_url } : u)));
+          if (!r.error && (row.avatar_url || row.cover_url))
+            setUsers((prev) =>
+              prev.map((u) => (u.id === meId ? { ...u, avatar: row.avatar_url ?? u.avatar, cover: row.cover_url ?? u.cover } : u)),
+            );
           return r;
         })(),
       );
@@ -1129,13 +1142,53 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const post = posts.find((p) => p.id === postId);
       if (!post) return;
       const liked = post.likes.includes(meId);
+      const undoDislike = !liked && post.dislikedByMe;
       setPosts((prev) =>
-        prev.map((p) => (p.id === postId ? { ...p, likes: liked ? p.likes.filter((id) => id !== meId) : [...p.likes, meId] } : p)),
+        prev.map((p) =>
+          p.id === postId
+            ? {
+                ...p,
+                likes: liked ? p.likes.filter((id) => id !== meId) : [...p.likes, meId],
+                ...(undoDislike ? { dislikedByMe: false, dislikes: Math.max(0, (p.dislikes ?? 0) - 1) } : {}),
+              }
+            : p,
+        ),
       );
+      if (undoDislike) write(supabase.from('post_dislikes').delete().eq('post_id', postId).eq('user_id', meId));
       write(
         liked
           ? supabase.from('likes').delete().eq('post_id', postId).eq('user_id', meId)
           : supabase.from('likes').upsert({ post_id: postId, user_id: meId }, { ignoreDuplicates: true }),
+      );
+    },
+    [meId, posts, write],
+  );
+
+  // "não curti": tira a curtida, se houver; ninguém vê quem deu
+  const toggleDislike = useCallback(
+    (postId: string) => {
+      if (!meId) return;
+      const post = posts.find((p) => p.id === postId);
+      if (!post) return;
+      const on = !post.dislikedByMe;
+      const hadLike = on && post.likes.includes(meId);
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === postId
+            ? {
+                ...p,
+                dislikedByMe: on,
+                dislikes: Math.max(0, (p.dislikes ?? 0) + (on ? 1 : -1)),
+                likes: hadLike ? p.likes.filter((id) => id !== meId) : p.likes,
+              }
+            : p,
+        ),
+      );
+      if (hadLike) write(supabase.from('likes').delete().eq('post_id', postId).eq('user_id', meId));
+      write(
+        on
+          ? supabase.from('post_dislikes').upsert({ post_id: postId, user_id: meId }, { ignoreDuplicates: true })
+          : supabase.from('post_dislikes').delete().eq('post_id', postId).eq('user_id', meId),
       );
     },
     [meId, posts, write],
@@ -1209,6 +1262,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         createdAt: Date.now(),
         likes: [],
         savedBy: [],
+        dislikes: 0,
+        dislikedByMe: false,
       };
       setPosts((prev) => [post, ...prev]);
       write(
@@ -1351,6 +1406,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // ---------- batalhas ----------
   const getBattle = useCallback((id: string) => battles.find((b) => b.id === id), [battles]);
+  // relê o debate do banco (caso o tempo real não tenha avisado do aceite)
+  const refreshBattle = useCallback(async (id: string) => {
+    const { data } = await supabase.from('battles').select('*').eq('id', id).maybeSingle();
+    if (!data) return;
+    setBattles((prev) => {
+      const old = prev.find((b) => b.id === id);
+      if (old && old.status === data.status && old.likes === (data.likes ?? 0)) return prev;
+      const next = toBattle(data as Row, old?.viewers ?? 0);
+      return old ? prev.map((b) => (b.id === id ? next : b)) : [next, ...prev];
+    });
+  }, []);
 
   const messagesForBattle = useCallback(
     (battleId: string) => battleMessages.filter((m) => m.battleId === battleId).sort((a, b) => a.createdAt - b.createdAt),
@@ -1671,6 +1737,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     hasRequested,
     respondFollowRequest,
     toggleLike,
+    toggleDislike,
+    refreshBattle,
     toggleSave,
     toggleCommentLike,
     addComment,
