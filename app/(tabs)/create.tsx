@@ -81,20 +81,28 @@ export default function CreateScreen() {
 
       {!media ? (
         <View style={styles.empty}>
-          <Ionicons name="images-outline" size={72} color={colors.text} />
-          <Text style={styles.emptyTitle}>Compartilhe fotos, vídeos ou texto</Text>
+          <Text style={styles.emptyTitle}>O que você quer publicar?</Text>
           <Text style={styles.emptyText}>Mostre o que acontece na sua cidade, fiscalize, proponha.</Text>
-          <Pressable style={styles.primary} onPress={() => pick(false)}>
-            <Text style={styles.primaryText}>Escolher da galeria</Text>
-          </Pressable>
-          <Pressable style={styles.secondary} onPress={() => pick(true)}>
-            <Ionicons name="camera-outline" size={18} color={colors.text} />
-            <Text style={styles.secondaryText}>Usar a câmera</Text>
-          </Pressable>
-          <Pressable style={styles.textOnly} onPress={() => setMedia({ uri: '', type: 'text' })}>
-            <Ionicons name="text-outline" size={18} color={colors.text} />
-            <Text style={styles.secondaryText}>Escrever só texto</Text>
-          </Pressable>
+          <View style={styles.options}>
+            {(
+              [
+                { icon: 'images', color: colors.primary, title: 'Foto ou vídeo da galeria', desc: 'Escolha algo que já está no celular', onPress: () => pick(false) },
+                { icon: 'camera', color: colors.like, title: 'Usar a câmera', desc: 'Tire uma foto ou grave um vídeo agora', onPress: () => pick(true) },
+                { icon: 'text', color: '#22C55E', title: 'Só texto', desc: 'Escreva uma opinião, aviso ou proposta', onPress: () => setMedia({ uri: '', type: 'text' }) },
+              ] as const
+            ).map((o) => (
+              <Pressable key={o.title} style={({ pressed }) => [styles.optionCard, pressed && { opacity: 0.7 }]} onPress={o.onPress}>
+                <View style={[styles.optionIcon, { backgroundColor: o.color }]}>
+                  <Ionicons name={o.icon} size={24} color="#fff" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.optionTitle}>{o.title}</Text>
+                  <Text style={styles.optionDesc}>{o.desc}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+              </Pressable>
+            ))}
+          </View>
         </View>
       ) : (
         <KeyboardView style={{ flex: 1 }}>
@@ -154,9 +162,14 @@ const styles = themed(() => StyleSheet.create({
   },
   title: { fontSize: 16, fontWeight: '700', color: colors.text },
   shareText: { color: colors.primary, fontWeight: '700', fontSize: 15 },
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.md },
-  emptyTitle: { fontSize: 20, fontWeight: '600', color: colors.text },
-  emptyText: { color: colors.textMuted, textAlign: 'center' },
+  empty: { flex: 1, justifyContent: 'center', padding: spacing.lg, gap: spacing.sm },
+  emptyTitle: { fontSize: 24, fontWeight: '800', color: colors.text },
+  emptyText: { color: colors.textMuted, fontSize: 15, marginBottom: spacing.md },
+  options: { gap: spacing.md },
+  optionCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: 16, backgroundColor: colors.surface },
+  optionIcon: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  optionTitle: { color: colors.text, fontSize: 16, fontWeight: '700' },
+  optionDesc: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
   primary: { backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 24, alignItems: 'center' },
   primaryText: { color: colors.white, fontWeight: '700' },
   secondary: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10 },
