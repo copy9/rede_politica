@@ -12,7 +12,7 @@ import {
 import { Track } from 'livekit-client';
 import { Camera } from 'expo-camera';
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { LIVEKIT_URL } from '@/lib/config';
 import { supabase } from '@/lib/supabase';
@@ -24,7 +24,7 @@ registerGlobals();
 const ConnectedContext = createContext(false);
 
 /** Entra na sala de vídeo da batalha. Quem debate transmite câmera e microfone; a plateia só assiste e ouve. */
-export function BattleRoom({ battleId, speaker, children }: { battleId: string; speaker: boolean; children: React.ReactNode }) {
+export function BattleRoom({ battleId, speaker, children, style }: { battleId: string; speaker: boolean; children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
   const [token, setToken] = useState<string | undefined>();
   const [error, setError] = useState<string | null>(null);
 
@@ -77,7 +77,7 @@ export function BattleRoom({ battleId, speaker, children }: { battleId: string; 
       onError={(e) => setError(`O vídeo caiu: ${e.message}`)}
       onMediaDeviceFailure={() => setError('Não deu para abrir a câmera ou o microfone. Feche outros apps que usam a câmera e entre de novo.')}>
       <ConnectedContext.Provider value={connected}>
-        <View>
+        <View style={style}>
           {children}
           {error ? (
             <View style={styles.error} pointerEvents="none">

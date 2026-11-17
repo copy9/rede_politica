@@ -272,15 +272,19 @@ export function BattleView({ id }: { id: string }) {
             ...(solo ? [] : [{ key: opponent.id, user: opponent, isMe: opponent.id === me.id, kind: 'side' as const }]),
             ...guestSlots('accepted', 'accepted'),
             ...guestSlots('convidado', 'invited'),
-            ...(showJoin ? [{ key: 'join', isMe: false, kind: 'join' as const }] : []),
           ];
-          const cols = slots.length === 1 ? 1 : slots.length <= 4 ? 2 : 3;
-          const rows = Math.ceil(slots.length / cols);
+          // formatos: 1 pessoa = tela inteira; 2 = lado a lado em pé (como a live em dupla do TikTok); 3 ou mais = quadrados
+          const people = slots.length;
+          const fullScreen = people === 1;
+          const cols = people === 1 ? 1 : people === 2 ? 2 : people <= 4 ? 2 : 3;
+          const rows = Math.ceil(people / cols);
           const tileW = Math.floor(width / cols);
-          // o grid ocupa até 42% da altura, para sobrar espaço para o chat e o campo de comentário
           const reserved = 300 + (battle.status === 'invited' || battle.status === 'scheduled' ? 120 : 0);
-          const gridH = Math.max(150, Math.min(height * 0.42, height - reserved));
-          const tileH = Math.round(gridH / rows);
+          const tileH = fullScreen
+            ? height
+            : people === 2
+              ? Math.min(Math.round(tileW * 1.4), Math.max(180, height - reserved))
+              : Math.round(Math.min(tileW, Math.max(150, Math.min(height * 0.45, height - reserved)) / rows));
           const LVx = getLiveVideo();
           const leads = (side: 'host' | 'opponent') =>
             battle.status !== 'scheduled' && battle.scores[side] > battle.scores[side === 'host' ? 'opponent' : 'host'];
@@ -322,9 +326,16 @@ export function BattleView({ id }: { id: string }) {
               ) : (
                 fallback
               );
+            if (fullScreen) {
+              return (
+                <View key={s.key} style={StyleSheet.absoluteFill}>
+                  {video}
+                </View>
+              );
+            }
             return (
-              <View key={s.key} style={{ width: tileW, height: tileH, padding: 3 }}>
-                <View style={styles.tileBox}>{video}</View>
+              <View key={s.key} style={{ width: tileW, height: tileH, padding: people === 2 ? 1 : 3 }}>
+                <View style={[styles.tileBox, people === 2 && { borderRadius: 0 }]}>{video}</View>
                 <Text style={styles.tileName} numberOfLines={1}>
                   {crown}
                   {name}
@@ -332,6 +343,51 @@ export function BattleView({ id }: { id: string }) {
               </View>
             );
           };
+
+          const joinLabel = myGuest?.status === 'pending' ? 'Pedido enviado' : myGuest?.status === 'declined' ? 'Pedir de novo' : 'Participar';
+          const joinButton = showJoin ? (
+            <Pressable
+              style={styles.joinPill}
+              accessibilityLabel="Participar da live"
+              onPress={async () => {
+                const msg = await requestToJoin(battle.id, me.id, myGuest?.status);
+                if (msg) showBanner(msg, { icon: 'people-outline', tone: 'success' });
+              }}>
+              <Ionicons name="add" size={16} color="#fff" />
+              <Text style={styles.joinPillText}>{joinLabel}</Text>
+            </Pressable>
+          ) : null;
+
+          // sozinho: a câmera fica atrás de tudo, ocupando a tela inteira (cabeçalho e comentários por cima)
+          if (fullScreen) {
+            const solo1 = (
+              <>
+                {slots.map(tile)}
+                <View style={styles.fullTop}>
+                  <BattleGuestsControls
+                    battleId={battle.id}
+                    isHost={isHost}
+                    users={app.users}
+                    guests={guests}
+                    onMessage={(t) => showBanner(t, { icon: 'people-outline', tone: 'success' })}
+                  />
+                </View>
+              </>
+            );
+            const LVf = getLiveVideo();
+            return (
+              <>
+                {LVf && live ? (
+                  <LVf.BattleRoom key={`${isParticipant}-${isGuestSpeaker}`} battleId={battle.id} speaker={isParticipant || isGuestSpeaker} style={styles.fullStage}>
+                    {solo1}
+                  </LVf.BattleRoom>
+                ) : (
+                  <View style={styles.fullStage}>{solo1}</View>
+                )}
+                {joinButton ? <View style={styles.joinRow}>{joinButton}</View> : null}
+              </>
+            );
+          }
 
           const stage = (
             <View>
@@ -343,6 +399,7 @@ export function BattleView({ id }: { id: string }) {
                 onMessage={(t) => showBanner(t, { icon: 'people-outline', tone: 'success' })}
               />
               <View style={styles.tileGrid}>{slots.map(tile)}</View>
+              {joinButton ? <View style={styles.joinRow}>{joinButton}</View> : null}
             </View>
           );
           // No app instalado: vídeo e áudio ao vivo de um celular para o outro (LiveKit)
@@ -517,6 +574,12 @@ function Result({ battle }: { battle: LiveBattle; host: User; opponent: User }) 
 
 const styles = themed(() => StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0B1020' },
+  // live sozinho: vídeo atrás de tudo
+  fullStage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: -1 },
+  fullTop: { position: 'absolute', top: 120, left: 0, right: 0 },
+  joinRow: { flexDirection: 'row', justifyContent: 'center', paddingVertical: 6 },
+  joinPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.like, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7 },
+  joinPillText: { color: '#fff', fontWeight: '800', fontSize: 13 },
   center: { alignItems: 'center', justifyContent: 'center' },
   white: { color: '#fff' },
   header: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
