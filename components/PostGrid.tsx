@@ -9,7 +9,7 @@ import { colors, themed } from '@/lib/theme';
 import type { Post } from '@/lib/types';
 
 /** Grade de 3 colunas (perfil e explorar). Não rola sozinha: fica dentro de outra lista. */
-export function PostGrid({ posts, emptyText = 'Nenhuma publicação ainda' }: { posts: Post[]; emptyText?: string }) {
+export function PostGrid({ posts, emptyText = 'Nenhuma publicação ainda', portrait = false }: { posts: Post[]; emptyText?: string; portrait?: boolean }) {
   const { width } = useWindowDimensions();
   const size = Math.floor((Math.min(width, 640) - 4) / 3);
   const { settings } = useSettings();
@@ -26,7 +26,7 @@ export function PostGrid({ posts, emptyText = 'Nenhuma publicação ainda' }: { 
   return (
     <View style={styles.grid}>
       {posts.map((p) => (
-        <Pressable key={p.id} onPress={() => router.push(`/post/${p.id}`)} style={{ width: size, height: size }}>
+        <Pressable key={p.id} onPress={() => router.push(`/post/${p.id}`)} style={{ width: size, height: portrait ? Math.round((size * 16) / 9) : size }}>
           {p.type === 'text' ? (
             <View style={[StyleSheet.absoluteFill, styles.textTile]}>
               <Text style={styles.textTileText} numberOfLines={5}>

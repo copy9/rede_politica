@@ -92,7 +92,7 @@ export default function CreateScreen() {
                 style={styles.input}
               />
               {media ? (
-                <View style={styles.preview}>
+                <View style={[styles.preview, media.type === 'video' && styles.previewVideo]}>
                   {media.type === 'video' ? (
                     <MediaVideo uri={media.uri} active style={StyleSheet.absoluteFill} />
                   ) : (
@@ -133,6 +133,7 @@ const styles = themed(() => StyleSheet.create({
   postTextOff: { color: 'rgba(255,255,255,0.85)' },
   composer: { flexDirection: 'row', gap: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.md },
   input: { color: colors.text, fontSize: 20, minHeight: 120, textAlignVertical: 'top', paddingTop: 8 },
+  previewVideo: { aspectRatio: 9 / 16, width: '70%', backgroundColor: '#000' },
   preview: { marginTop: spacing.md, width: '100%', aspectRatio: 1, borderRadius: 16, overflow: 'hidden', backgroundColor: colors.surface },
   removeMedia: { position: 'absolute', top: 8, right: 8, width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' },
   toolbar: { flexDirection: 'row', alignItems: 'center', gap: spacing.xl, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },

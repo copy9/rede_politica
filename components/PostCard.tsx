@@ -19,7 +19,7 @@ import { UserName } from './UserName';
 
 export function PostCard({ post, active = false }: { post: Post; active?: boolean }) {
   const { me, getUser, commentsFor, toggleLike, toggleDislike, deletePost, storyUsers } = useApp();
-  const { width } = useWindowDimensions();
+  const { width, height: screenH } = useWindowDimensions();
   const { settings } = useSettings();
   const { showSheet, confirm, showBanner } = useOverlay();
   const reportIt = useReport();
@@ -35,6 +35,8 @@ export function PostCard({ post, active = false }: { post: Post; active?: boolea
   const comments = commentsFor(post.id);
   const hasStory = storyUsers().find((s) => s.user.id === author.id);
   const mediaSize = Math.min(width, 640);
+  // vídeo sempre em pé (9:16), como no TikTok; foto quadrada
+  const mediaH = post.type === 'video' ? Math.min(Math.round((mediaSize * 16) / 9), Math.round(screenH * 0.8)) : mediaSize;
 
   const openProfile = () => router.push(`/user/${author.username}`);
   const openComments = () => router.push(`/comments/${post.id}`);
@@ -117,7 +119,7 @@ export function PostCard({ post, active = false }: { post: Post; active?: boolea
           <Text style={styles.textPostText}>{post.caption}</Text>
         </Pressable>
       ) : (
-      <View style={{ width: mediaSize, height: mediaSize, alignSelf: 'center', backgroundColor: colors.surface }}>
+      <View style={{ width: mediaSize, height: mediaH, alignSelf: 'center', backgroundColor: post.type === 'video' ? '#000' : colors.surface }}>
         {post.type === 'video' ? (
           <MediaVideo uri={post.uri} active={active && autoplay} style={StyleSheet.absoluteFill} onPress={onMediaPress} />
         ) : (

@@ -300,6 +300,7 @@ export function ProfileView({ user }: { user: User }) {
       ) : null}
       {visible && tab !== 'texts' ? (
         <PostGrid
+          portrait={tab === 'videos'}
           posts={shown}
           emptyText={tab === 'saved' ? 'Nada salvo ainda' : tab === 'videos' ? 'Nenhum vídeo ainda' : 'Nenhuma foto ainda'}
         />
