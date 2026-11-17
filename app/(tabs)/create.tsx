@@ -2,8 +2,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
+import * as VideoThumbnails from 'expo-video-thumbnails';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -15,7 +16,7 @@ import { useApp, useMe } from '@/lib/store';
 import { colors, spacing, themed } from '@/lib/theme';
 import type { MediaType } from '@/lib/types';
 
-type Picked = { uri: string; type: MediaType };
+type Picked = { uri: string; type: MediaType; duration?: number };
 const MAX = 2200;
 
 export default function CreateScreen() {
@@ -24,6 +25,34 @@ export default function CreateScreen() {
   const { showBanner } = useOverlay();
   const [media, setMedia] = useState<Picked | null>(null);
   const [text, setText] = useState('');
+  // capa do vídeo: alguns momentos do vídeo para escolher
+  const [frames, setFrames] = useState<string[]>([]);
+  const [cover, setCover] = useState<string | undefined>();
+
+  useEffect(() => {
+    setFrames([]);
+    setCover(undefined);
+    if (media?.type !== 'video') return;
+    let alive = true;
+    (async () => {
+      const total = media.duration && media.duration > 0 ? media.duration : 15000;
+      const times = Array.from({ length: 8 }, (_, i) => Math.round((total * (i + 0.5)) / 8));
+      const out: string[] = [];
+      for (const time of times) {
+        try {
+          const { uri } = await VideoThumbnails.getThumbnailAsync(media.uri, { time, quality: 0.7 });
+          out.push(uri);
+          if (alive) setFrames([...out]);
+        } catch {
+          // momento que não deu para ler: pula
+        }
+      }
+      if (alive && out[0]) setCover((c) => c ?? out[0]);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [media]);
 
   const canPost = text.trim().length > 0 || !!media;
 
@@ -44,7 +73,7 @@ export default function CreateScreen() {
     };
     const result = fromCamera ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
     const asset = result.canceled ? null : result.assets[0];
-    if (asset) setMedia({ uri: asset.uri, type: asset.type === 'video' ? 'video' : 'image' });
+    if (asset) setMedia({ uri: asset.uri, type: asset.type === 'video' ? 'video' : 'image', duration: asset.duration ?? undefined });
   };
 
   const cancel = () => {
@@ -56,7 +85,7 @@ export default function CreateScreen() {
   const post = () => {
     if (!canPost) return;
     const created = media
-      ? createPost({ type: media.type, uri: media.uri, caption: text })
+      ? createPost({ type: media.type, uri: media.uri, caption: text, thumbnail: media.type === 'video' ? cover : undefined })
       : createPost({ type: 'text', uri: '', caption: text });
     if (typeof created === 'string') return showBanner(created, { icon: 'alert-circle-outline', tone: 'warning' });
     setMedia(null);
@@ -103,6 +132,20 @@ export default function CreateScreen() {
                   </Pressable>
                 </View>
               ) : null}
+              {media?.type === 'video' ? (
+                <View style={styles.coverBox}>
+                  <Text style={styles.coverTitle}>Capa do vídeo</Text>
+                  <Text style={styles.coverHint}>Toque no momento que você quer como capa.</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+                    {frames.length === 0 ? <Text style={styles.coverHint}>Carregando momentos do vídeo…</Text> : null}
+                    {frames.map((f) => (
+                      <Pressable key={f} onPress={() => setCover(f)} style={[styles.frame, cover === f && styles.frameOn]} accessibilityLabel="Escolher como capa">
+                        <Image source={{ uri: f }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </View>
+              ) : null}
             </View>
           </View>
         </ScrollView>
@@ -136,6 +179,11 @@ const styles = themed(() => StyleSheet.create({
   previewVideo: { aspectRatio: 9 / 16, width: '70%', backgroundColor: '#000' },
   preview: { marginTop: spacing.md, width: '100%', aspectRatio: 1, borderRadius: 16, overflow: 'hidden', backgroundColor: colors.surface },
   removeMedia: { position: 'absolute', top: 8, right: 8, width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' },
+  coverBox: { marginTop: spacing.md, gap: 6 },
+  coverTitle: { color: colors.text, fontWeight: '700', fontSize: 15 },
+  coverHint: { color: colors.textMuted, fontSize: 12 },
+  frame: { width: 54, height: 96, borderRadius: 8, overflow: 'hidden', borderWidth: 2, borderColor: 'transparent', backgroundColor: colors.surface },
+  frameOn: { borderColor: colors.primary },
   toolbar: { flexDirection: 'row', alignItems: 'center', gap: spacing.xl, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
   counter: { color: colors.textMuted, fontWeight: '600' },
 }));

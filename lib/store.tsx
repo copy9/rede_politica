@@ -152,7 +152,7 @@ type AppState = {
   toggleSave: (postId: string) => void;
   toggleCommentLike: (commentId: string) => void;
   addComment: (postId: string, text: string) => string | null;
-  createPost: (input: { type: PostType; uri: string; caption: string; location?: string }) => Post | string | null;
+  createPost: (input: { thumbnail?: string; type: PostType; uri: string; caption: string; location?: string }) => Post | string | null;
   deletePost: (postId: string) => void;
   addStory: (uri: string, closeFriends?: boolean) => void;
   markStorySeen: (storyId: string) => void;
@@ -1248,7 +1248,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const createPost = useCallback(
-    ({ type, uri, caption, location }: { type: PostType; uri: string; caption: string; location?: string }) => {
+    ({ type, uri, caption, location, thumbnail }: { type: PostType; uri: string; caption: string; location?: string; thumbnail?: string }) => {
       if (!meId) return null;
       const err = mentionError(caption);
       if (err) return err;
@@ -1259,6 +1259,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         userId: meId,
         type,
         uri,
+        thumbnail: type === 'video' ? thumbnail : undefined,
         caption: caption.trim(),
         location: location?.trim() || undefined,
         createdAt: Date.now(),
@@ -1272,6 +1273,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         (async () => {
           // publicação só de texto não tem arquivo para enviar
           const url = type === 'text' ? null : await uploadMedia(meId, uri, type);
+          // capa escolhida do vídeo
+          const thumbUrl = type === 'video' && thumbnail ? await uploadMedia(meId, thumbnail, 'image').catch(() => null) : null;
           const r = await supabase
             .from('posts')
             .insert({
@@ -1280,10 +1283,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               // texto vai como publicação sem arquivo, aceita pelo banco mesmo sem a migração do tipo "text"
               type: type === 'text' ? 'image' : type,
               media_url: url ?? '',
+              thumbnail_url: thumbUrl,
               caption: post.caption,
               location: post.location ?? null,
             });
-          if (!r.error && url) setPosts((prev) => prev.map((p) => (p.id === post.id ? { ...p, uri: url } : p)));
+          if (!r.error && url) setPosts((prev) => prev.map((p) => (p.id === post.id ? { ...p, uri: url, thumbnail: thumbUrl ?? p.thumbnail } : p)));
           return r;
         })(),
       );

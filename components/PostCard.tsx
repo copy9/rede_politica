@@ -17,7 +17,7 @@ import { useOverlay } from './Overlay';
 import { useReport } from './useReport';
 import { UserName } from './UserName';
 
-export function PostCard({ post, active = false }: { post: Post; active?: boolean }) {
+export function PostCard({ post, active = false, onOpen }: { post: Post; active?: boolean; onOpen?: () => void }) {
   const { me, getUser, commentsFor, toggleLike, toggleDislike, deletePost, storyUsers } = useApp();
   const { width, height: screenH } = useWindowDimensions();
   const { settings } = useSettings();
@@ -42,9 +42,15 @@ export function PostCard({ post, active = false }: { post: Post; active?: boolea
   const openComments = () => router.push(`/comments/${post.id}`);
 
   // Toque duplo na mídia = curtir (com animação de coração)
+  const openTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onMediaPress = () => {
     const now = Date.now();
+    // toque simples abre (quando a tela pede); toque duplo curte
+    if (onOpen && now - lastTap.current >= 300) {
+      openTimer.current = setTimeout(onOpen, 300);
+    }
     if (now - lastTap.current < 300) {
+      if (openTimer.current) clearTimeout(openTimer.current);
       if (!liked) toggleLike(post.id);
       heart.setValue(0);
       Animated.sequence([

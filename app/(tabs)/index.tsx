@@ -6,7 +6,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Logo } from '@/components/Logo';
 import { PostCard } from '@/components/PostCard';
-import { PostGrid } from '@/components/PostGrid';
 import { StoriesBar } from '@/components/StoriesBar';
 import { useSettings } from '@/lib/settings';
 import { useApp } from '@/lib/store';
@@ -50,9 +49,16 @@ export default function FeedScreen() {
       </View>
 
       <FlatList
-        data={kind === 'video' ? [] : posts}
+        data={posts}
         keyExtractor={(p) => p.id}
-        renderItem={({ item }) => <PostCard post={item} active={item.id === activeId} />}
+        renderItem={({ item }) => (
+          <PostCard
+            post={item}
+            active={item.id === activeId}
+            // na aba Vídeos, tocar no vídeo abre a tela cheia rolando
+            onOpen={kind === 'video' ? () => router.push(`/reels?start=${item.id}`) : undefined}
+          />
+        )}
         ListHeaderComponent={
           <>
             <StoriesBar />
@@ -83,13 +89,9 @@ export default function FeedScreen() {
           </>
         }
         ListEmptyComponent={
-          kind === 'video' ? (
-            <PostGrid portrait posts={posts} emptyText="Nenhum vídeo ainda" onPressPost={(p) => router.push(`/reels?start=${p.id}`)} />
-          ) : (
           <Text style={styles.empty}>
-            {kind === 'image' ? 'Nenhuma foto ainda.' : kind === 'text' ? 'Nenhum texto ainda.' : 'Nada por aqui ainda.'}
+            {kind === 'image' ? 'Nenhuma foto ainda.' : kind === 'video' ? 'Nenhum vídeo ainda.' : kind === 'text' ? 'Nenhum texto ainda.' : 'Nada por aqui ainda.'}
           </Text>
-          )
         }
         onViewableItemsChanged={onViewable}
         viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
