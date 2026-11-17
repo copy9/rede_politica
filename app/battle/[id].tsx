@@ -273,55 +273,57 @@ export function BattleView({ id }: { id: string }) {
             ...guestSlots('accepted', 'accepted'),
             ...guestSlots('convidado', 'invited'),
           ];
-          // formatos: 1 pessoa = tela inteira; 2 = lado a lado em pé (como a live em dupla do TikTok); 3 ou mais = quadrados
+          // Disposições iguais às da live do TikTok:
+          // 1 pessoa: tela inteira | 2 (batalha): meia tela para cada um, lado a lado em pé (9:16)
+          // 3: quem criou grande à esquerda e os outros dois empilhados à direita | 4: 2x2 | 5-6: 3x2 | 7-9: 3x3
           const people = slots.length;
           const fullScreen = people === 1;
-          const cols = people === 1 ? 1 : people === 2 ? 2 : people <= 4 ? 2 : 3;
-          const rows = Math.ceil(people / cols);
-          const tileW = Math.floor(width / cols);
-          const reserved = 300 + (battle.status === 'invited' || battle.status === 'scheduled' ? 120 : 0);
-          const tileH = fullScreen
-            ? height
-            : people === 2
-              ? Math.min(Math.round(tileW * 1.4), Math.max(180, height - reserved))
-              : Math.round(Math.min(tileW, Math.max(150, Math.min(height * 0.45, height - reserved)) / rows));
+          const reserved = 260 + (battle.status === 'invited' || battle.status === 'scheduled' ? 120 : 0);
+          const stageW = width;
+          const stageH = Math.max(200, Math.min(Math.round((width / 2) * (16 / 9)), height - reserved));
+          type Rect = { x: number; y: number; w: number; h: number };
+          const grid = (cols: number, rows: number): Rect[] =>
+            Array.from({ length: cols * rows }, (_, i) => ({
+              x: (i % cols) * (stageW / cols),
+              y: Math.floor(i / cols) * (stageH / rows),
+              w: stageW / cols,
+              h: stageH / rows,
+            }));
+          const rects: Rect[] =
+            people <= 1
+              ? [{ x: 0, y: 0, w: stageW, h: stageH }]
+              : people === 2
+                ? grid(2, 1)
+                : people === 3
+                  ? [
+                      { x: 0, y: 0, w: stageW / 2, h: stageH },
+                      { x: stageW / 2, y: 0, w: stageW / 2, h: stageH / 2 },
+                      { x: stageW / 2, y: stageH / 2, w: stageW / 2, h: stageH / 2 },
+                    ]
+                  : people === 4
+                    ? grid(2, 2)
+                    : people <= 6
+                      ? grid(3, 2)
+                      : grid(3, 3);
           const LVx = getLiveVideo();
-          const leads = (side: 'host' | 'opponent') =>
-            battle.status !== 'scheduled' && battle.scores[side] > battle.scores[side === 'host' ? 'opponent' : 'host'];
 
-          const tile = (s: Slot) => {
-            if (s.kind === 'join') {
-              const label = myGuest?.status === 'pending' ? 'Pedido enviado' : myGuest?.status === 'declined' ? 'Pedir de novo' : 'Participar';
-              return (
-                <View key="join" style={{ width: tileW, height: tileH, padding: 3 }}>
-                  <Pressable
-                    style={styles.joinTile}
-                    accessibilityLabel="Participar da batalha"
-                    onPress={async () => {
-                      const msg = await requestToJoin(battle.id, me.id, myGuest?.status);
-                      if (msg) showBanner(msg, { icon: 'people-outline', tone: 'success' });
-                    }}>
-                    <Text style={styles.joinPlus}>+</Text>
-                    <Text style={styles.joinLabel}>{label}</Text>
-                  </Pressable>
-                </View>
-              );
-            }
-            const sideKey = s.key === host.id ? 'host' : s.key === opponent.id ? 'opponent' : null;
-            const crown = '';
+          const tile = (s: Slot, i: number) => {
+            const r = rects[i];
+            if (!r && !fullScreen) return null;
             const name = s.isMe ? 'Você' : s.user?.name ?? '';
             const fallback = (
               <View style={[StyleSheet.absoluteFill, styles.placeholder]}>
-                <Avatar uri={s.user?.avatar ?? ''} size={Math.min(56, Math.round(tileH * 0.35))} />
+                <Avatar uri={s.user?.avatar ?? ''} size={Math.min(64, Math.round((fullScreen ? 200 : r.h) * 0.3))} />
                 {s.kind === 'invited' ? <Text style={styles.waiting}>aguardando</Text> : null}
               </View>
             );
             const canShowVideo = live && s.kind !== 'invited';
-            // ao vivo: vídeo da sala; antes de começar: a própria câmera de quem está na batalha
+            // ao vivo: só o vídeo da sala (a câmera do celular fica livre para a transmissão);
+            // antes de começar: a própria câmera de quem está na batalha
             const video =
               canShowVideo && LVx ? (
                 <LVx.SideVideo userId={s.key} isMe={s.isMe} fallback={fallback} />
-              ) : s.isMe && s.kind !== 'invited' ? (
+              ) : !live && s.isMe && s.kind !== 'invited' ? (
                 <LiveCamera />
               ) : (
                 fallback
@@ -334,10 +336,10 @@ export function BattleView({ id }: { id: string }) {
               );
             }
             return (
-              <View key={s.key} style={{ width: tileW, height: tileH, padding: people === 2 ? 1 : 3 }}>
-                <View style={[styles.tileBox, people === 2 && { borderRadius: 0 }]}>{video}</View>
-                <Text style={styles.tileName} numberOfLines={1}>
-                  {crown}
+              <View key={s.key} style={[styles.tileAbs, { left: r.x, top: r.y, width: r.w, height: r.h }]}>
+                {video}
+                {/* nome por cima do vídeo, embaixo à esquerda, como no TikTok */}
+                <Text style={styles.tileNameOver} numberOfLines={1}>
                   {name}
                 </Text>
               </View>
@@ -398,7 +400,7 @@ export function BattleView({ id }: { id: string }) {
                 guests={guests}
                 onMessage={(t) => showBanner(t, { icon: 'people-outline', tone: 'success' })}
               />
-              <View style={styles.tileGrid}>{slots.map(tile)}</View>
+              <View style={[styles.tileGrid, { width: stageW, height: stageH }]}>{slots.map(tile)}</View>
               {joinButton ? <View style={styles.joinRow}>{joinButton}</View> : null}
             </View>
           );
@@ -601,7 +603,9 @@ const styles = themed(() => StyleSheet.create({
   inviteTitle: { color: '#fff', fontSize: 18, fontWeight: '800', textAlign: 'center' },
   inviteTopic: { color: 'rgba(255,255,255,0.85)', fontSize: 15, textAlign: 'center' },
   inviteNote: { color: 'rgba(255,255,255,0.6)', fontSize: 12, textAlign: 'center', marginBottom: spacing.xs },
-  tileGrid: { flexDirection: 'row', flexWrap: 'wrap', backgroundColor: '#0B1020' },
+  tileGrid: { position: 'relative', backgroundColor: '#000' },
+  tileAbs: { position: 'absolute', overflow: 'hidden', backgroundColor: '#111827', borderWidth: StyleSheet.hairlineWidth, borderColor: '#000' },
+  tileNameOver: { position: 'absolute', left: 8, bottom: 6, right: 8, color: '#fff', fontWeight: '700', fontSize: 13, textShadowColor: 'rgba(0,0,0,0.8)', textShadowRadius: 4 },
   chatHint: { color: 'rgba(255,255,255,0.6)', fontSize: 13, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   tileBox: { flex: 1, overflow: 'hidden', borderRadius: 10, backgroundColor: '#111827' },
   tileName: { color: '#fff', fontWeight: '700', fontSize: 12, paddingTop: 3, paddingHorizontal: 4 },

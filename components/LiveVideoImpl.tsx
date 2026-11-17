@@ -94,8 +94,8 @@ export function BattleRoom({ battleId, speaker, children, style }: { battleId: s
 export function SideVideo({ userId, isMe, fallback }: { userId: string; isMe: boolean; fallback: React.ReactNode }) {
   const connected = useContext(ConnectedContext);
   const tracks = useTracks([Track.Source.Camera]);
-  // sem conexão: quem debate vê pelo menos a própria câmera
-  if (!connected && isMe) return <LiveCamera />;
+  // antes era aberta a câmera do celular aqui enquanto conectava, e isso travava a transmissão do vídeo para os outros
+  void connected;
   const ref = tracks.find((t) => t.participant.identity === userId && isTrackReference(t) && !t.publication.isMuted);
   return (
     <View style={StyleSheet.absoluteFill}>
