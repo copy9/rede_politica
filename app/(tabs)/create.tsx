@@ -82,7 +82,7 @@ export default function CreateScreen() {
             <Avatar uri={me.avatar} size={44} />
             <View style={{ flex: 1 }}>
               <TextInput
-                placeholder="O que está acontecendo?"
+                placeholder="O que você está pensando?"
                 placeholderTextColor={colors.textMuted}
                 value={text}
                 onChangeText={setText}
