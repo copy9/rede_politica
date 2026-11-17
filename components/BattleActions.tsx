@@ -131,7 +131,7 @@ export function BattleActions({
       </View>
 
       <Action icon="heart" color="#F43F5E" label={compactNumber(battle.likes ?? 0)} onPress={like} a11y="Curtir" />
-      <Action icon="arrow-redo" label="Compartilhar" onPress={share} a11y="Compartilhar" />
+      <Action icon="share-social" label="Compartilhar" onPress={share} a11y="Compartilhar" />
       {!participant ? <Action icon="person-add" label="Seguir" onPress={follow} a11y="Seguir" /> : null}
     </View>
   );

@@ -16,8 +16,10 @@ import type { ShareField, User } from '@/lib/types';
 import { Avatar } from './Avatar';
 import { FollowButton, SecondaryButton } from './FollowButton';
 import { PostGrid } from './PostGrid';
+import { PostCard } from './PostCard';
+import { useStoryPicker } from './useStoryPicker';
 
-type Tab = 'posts' | 'videos' | 'saved';
+type Tab = 'posts' | 'videos' | 'texts' | 'saved';
 
 export function ProfileView({ user }: { user: User }) {
   const me = useMe();
@@ -31,11 +33,14 @@ export function ProfileView({ user }: { user: User }) {
   const userPosts = postsBy(user.id);
   const shown =
     tab === 'posts'
-      ? userPosts
-      : tab === 'videos'
+      ? userPosts.filter((p) => p.type !== 'text')
+      : tab === 'texts'
+        ? userPosts.filter((p) => p.type === 'text')
+        : tab === 'videos'
         ? userPosts.filter((p) => p.type === 'video')
         : posts.filter((p) => p.savedBy.includes(me.id));
   const story = storyUsers().find((s) => s.user.id === user.id);
+  const pickStory = useStoryPicker();
   const [rowY, setRowY] = useState(0);
   const [avatarBottom, setAvatarBottom] = useState(130);
   const [colY, setColY] = useState(0);
@@ -143,7 +148,7 @@ export function ProfileView({ user }: { user: User }) {
                 )}
               </Pressable>
               {isMe ? (
-                <Pressable style={styles.addBadge} onPress={() => router.push('/create')} accessibilityLabel="Nova publicação">
+                <Pressable style={styles.addBadge} onPress={pickStory} accessibilityLabel="Publicar no story">
                   <Ionicons name="add" size={18} color={colors.white} />
                 </Pressable>
               ) : null}
@@ -271,6 +276,7 @@ export function ProfileView({ user }: { user: User }) {
       <View style={styles.tabs}>
         <TabIcon icon="grid" active={tab === 'posts'} onPress={() => setTab('posts')} />
         <TabIcon icon="play-circle" active={tab === 'videos'} onPress={() => setTab('videos')} />
+        <TabIcon icon="chatbox-ellipses" active={tab === 'texts'} onPress={() => setTab('texts')} />
         {isMe ? (
           <Pressable onPress={() => router.push('/battle/new')} style={styles.tab} accessibilityLabel="Debate">
             <Ionicons name="flash-outline" size={22} color={colors.text} />
@@ -285,10 +291,19 @@ export function ProfileView({ user }: { user: User }) {
           <Text style={styles.privateText}>Siga para ver as fotos e vídeos. A pessoa precisa aprovar o seu pedido.</Text>
         </View>
       ) : null}
-      {visible ? <PostGrid
-        posts={shown}
-        emptyText={tab === 'saved' ? 'Nada salvo ainda' : tab === 'videos' ? 'Nenhum vídeo ainda' : 'Nenhuma publicação ainda'}
-      /> : null}
+      {visible && tab === 'texts' ? (
+        shown.length ? (
+          shown.map((p) => <PostCard key={p.id} post={p} />)
+        ) : (
+          <Text style={styles.emptyTexts}>Nenhum texto publicado ainda</Text>
+        )
+      ) : null}
+      {visible && tab !== 'texts' ? (
+        <PostGrid
+          posts={shown}
+          emptyText={tab === 'saved' ? 'Nada salvo ainda' : tab === 'videos' ? 'Nenhum vídeo ainda' : 'Nenhuma foto ainda'}
+        />
+      ) : null}
     </ScrollView>
   );
 }
@@ -309,7 +324,7 @@ function TabIcon({
   active,
   onPress,
 }: {
-  icon: 'grid' | 'play-circle' | 'bookmark';
+  icon: 'grid' | 'play-circle' | 'bookmark' | 'chatbox-ellipses';
   active: boolean;
   onPress: () => void;
 }) {
@@ -322,6 +337,7 @@ function TabIcon({
 
 const styles = themed(() => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
+  emptyTexts: { color: colors.textMuted, textAlign: 'center', paddingVertical: 48, fontSize: 15 },
   top: { flexDirection: 'row', alignItems: 'center', padding: spacing.lg, gap: spacing.xl },
   hero: { minHeight: 150 },
   cover: { position: 'absolute', top: 0, left: 0, right: 0 },

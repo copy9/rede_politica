@@ -1,11 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { useSettings } from '@/lib/settings';
 import { useApp, useMe } from '@/lib/store';
-import { useOverlay } from './Overlay';
+import { useStoryPicker } from './useStoryPicker';
 import { colors, spacing, themed } from '@/lib/theme';
 import { Avatar } from './Avatar';
 
@@ -13,38 +11,14 @@ const SIZE = 64;
 
 export function StoriesBar() {
   const me = useMe();
-  const { storyUsers, addStory } = useApp();
+  const { storyUsers } = useApp();
   const list = storyUsers();
   const mine = list.find((s) => s.user.id === me.id);
   const others = list.filter((s) => s.user.id !== me.id);
 
-  const { showSheet, showBanner } = useOverlay();
-  const { settings } = useSettings();
 
-  const pickStory = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
-    const uri = !result.canceled ? result.assets[0]?.uri : undefined;
-    if (!uri) return;
-    const friends = settings.closeFriendIds.length;
-    const publish = (close: boolean) => {
-      addStory(uri, close);
-      showBanner(close ? 'Story publicado para os melhores amigos.' : 'Story publicado.', { icon: 'checkmark-circle', tone: 'success' });
-    };
-    // sem lista de melhores amigos: publica direto para todos
-    if (!friends) return publish(false);
-    await new Promise((r) => setTimeout(r, 350));
-    showSheet({
-      title: 'Compartilhar story com',
-      options: [
-        { label: 'Todos', icon: 'people-outline', onPress: () => publish(false) },
-        {
-          label: friends ? `Melhores amigos (${friends})` : 'Melhores amigos (lista vazia)',
-          icon: 'star-outline',
-          onPress: () => publish(true),
-        },
-      ],
-    });
-  };
+  const pickStory = useStoryPicker();
+
 
   return (
     <View style={styles.wrap}>

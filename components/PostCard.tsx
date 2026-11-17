@@ -104,10 +104,6 @@ export function PostCard({ post, active = false }: { post: Post; active?: boolea
             <Text style={styles.location} numberOfLines={1}>
               {post.location}
             </Text>
-          ) : author.role ? (
-            <Text style={styles.location} numberOfLines={1}>
-              {author.role}
-            </Text>
           ) : null}
         </Pressable>
         <Pressable onPress={onMore} hitSlop={10} accessibilityLabel="Mais opções">
@@ -150,10 +146,10 @@ export function PostCard({ post, active = false }: { post: Post; active?: boolea
           {post.dislikes ? <Text style={[styles.countText, post.dislikedByMe && { color: '#DC2626' }]}>{post.dislikes}</Text> : null}
         </Pressable>
         <Pressable onPress={openComments} hitSlop={8} style={styles.action} accessibilityLabel="Comentar">
-          <Ionicons name="chatbubble-outline" size={24} color={colors.text} />
+          <Ionicons name="chatbubble-outline" size={21} color={colors.text} />
         </Pressable>
         <Pressable onPress={onShare} hitSlop={8} style={styles.action} accessibilityLabel="Compartilhar">
-          <Ionicons name="paper-plane-outline" size={24} color={colors.text} />
+          <Ionicons name="share-social-outline" size={21} color={colors.text} />
         </Pressable>
       </View>
 
@@ -199,7 +195,7 @@ const styles = themed(() => StyleSheet.create({
   // publicação só de texto no estilo do Twitter: texto simples, sem caixa, fonte Inter (a mais parecida com a do Twitter)
   textPost: { paddingHorizontal: spacing.lg, paddingTop: 2, paddingBottom: spacing.xs },
   textPostText: { color: colors.text, fontSize: 16, lineHeight: 22, fontFamily: Platform.select({ ios: 'Inter-Regular', default: 'Inter_400Regular' }) },
-  thumbIcon: { width: 26, height: 26 },
+  thumbIcon: { width: 22, height: 22 },
   countText: { color: colors.text, fontWeight: '600', fontSize: 13, marginLeft: 3 },
   card: { backgroundColor: colors.background, paddingBottom: spacing.md },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: spacing.sm },

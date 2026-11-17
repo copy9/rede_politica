@@ -88,7 +88,7 @@ export default function PainelScreen() {
           title: 'Painel do político',
           headerRight: () => (
             <Pressable onPress={shareSummary} hitSlop={8}>
-              <Ionicons name="share-outline" size={22} color={colors.text} />
+              <Ionicons name="share-social-outline" size={22} color={colors.text} />
             </Pressable>
           ),
         }}

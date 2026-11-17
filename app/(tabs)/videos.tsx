@@ -68,11 +68,10 @@ function Reel({ post, height, active }: { post: Post; height: number; active: bo
         <Action icon={liked ? 'heart' : 'heart-outline'} color={liked ? '#E11D48' : '#fff'} label={compactNumber(post.likes.length)} onPress={() => toggleLike(post.id)} />
         <Action icon="chatbubble-outline" label={compactNumber(commentsFor(post.id).length)} onPress={() => router.push(`/comments/${post.id}`)} />
         <Action
-          icon="paper-plane-outline"
-          label="Enviar"
+          icon="share-social-outline"
+          label="Compartilhar"
           onPress={() => Share.share({ message: `Veja o vídeo de @${author.username} na Rede Política` }).catch(() => {})}
         />
-        <Action icon={saved ? 'bookmark' : 'bookmark-outline'} label="Salvar" onPress={() => toggleSave(post.id)} />
       </View>
 
       <View style={styles.bottom}>
