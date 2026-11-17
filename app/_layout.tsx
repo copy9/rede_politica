@@ -171,6 +171,7 @@ function RootNavigator() {
         <Stack.Screen name="battle/new" options={{ title: t('Debate'), presentation: 'modal' }} />
         <Stack.Screen name="battle/[id]" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
         <Stack.Screen name="lives" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
+        <Stack.Screen name="reels" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
       </Stack.Protected>
       {/* Termos: abre com ou sem login */}
       <Stack.Screen name="termos" options={{ title: t('Termos e Privacidade') }} />
