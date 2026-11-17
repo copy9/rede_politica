@@ -69,6 +69,14 @@
             "extraProguardRules": "-keep class livekit.org.webrtc.** { *; }\n-keep class livekit.org.jni_zero.** { *; }\n-dontwarn livekit.org.jni_zero.**\n-keep class io.livekit.** { *; }\n-keep class com.oney.WebRTCModule.** { *; }\n-dontwarn livekit.org.webrtc.**"
           }
         }
+      ],
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/Inter_400Regular.ttf"
+          ]
+        }
       ]
     ],
     "experiments": {

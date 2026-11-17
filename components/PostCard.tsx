@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Animated, Pressable, Share, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Animated, Pressable, Share, StyleSheet, Text, View, useWindowDimensions, Platform } from 'react-native';
 
 import { compactNumber, pluralize, timeAgo } from '@/lib/format';
 import { mediaUri } from '@/lib/media';
@@ -118,7 +118,7 @@ export function PostCard({ post, active = false }: { post: Post; active?: boolea
       {/* Mídia (ou o texto, quando a publicação é só texto) */}
       {post.type === 'text' ? (
         <Pressable onPress={onMediaPress} style={styles.textPost}>
-          <Text style={[styles.textPostText, post.caption.length > 140 && { fontSize: 16 }]}>{post.caption}</Text>
+          <Text style={styles.textPostText}>{post.caption}</Text>
         </Pressable>
       ) : (
       <View style={{ width: mediaSize, height: mediaSize, alignSelf: 'center', backgroundColor: colors.surface }}>
@@ -196,8 +196,9 @@ const THUMB = {
 
 const styles = themed(() => StyleSheet.create({
   thumb: { flexDirection: 'row', alignItems: 'center', marginRight: spacing.xl },
-  textPost: { marginHorizontal: spacing.md, padding: spacing.lg, borderRadius: 14, backgroundColor: colors.surface },
-  textPostText: { color: colors.text, fontSize: 19, lineHeight: 26, fontWeight: '600' },
+  // publicação só de texto no estilo do Twitter: texto simples, sem caixa, fonte Inter (a mais parecida com a do Twitter)
+  textPost: { paddingHorizontal: spacing.lg, paddingTop: 2, paddingBottom: spacing.xs },
+  textPostText: { color: colors.text, fontSize: 16, lineHeight: 22, fontFamily: Platform.select({ ios: 'Inter-Regular', default: 'Inter_400Regular' }) },
   thumbIcon: { width: 26, height: 26 },
   countText: { color: colors.text, fontWeight: '600', fontSize: 13, marginLeft: 3 },
   card: { backgroundColor: colors.background, paddingBottom: spacing.md },
