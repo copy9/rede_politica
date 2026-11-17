@@ -16,7 +16,9 @@ export default function FeedScreen() {
   const { feed, notifications, me } = useApp();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const posts = feed();
+  // menu do início: tudo, só fotos, só vídeos ou só textos (Live abre as lives ao vivo)
+  const [kind, setKind] = useState<'all' | 'image' | 'video' | 'text'>('all');
+  const posts = kind === 'all' ? feed() : feed().filter((p) => p.type === kind);
   const { settings } = useSettings();
   const hasNotifications = !settings.notifications.pauseAll && notifications.some((n) => n.toUserId === me?.id);
 
@@ -55,7 +57,40 @@ export default function FeedScreen() {
         data={posts}
         keyExtractor={(p) => p.id}
         renderItem={({ item }) => <PostCard post={item} active={item.id === activeId} />}
-        ListHeaderComponent={<StoriesBar />}
+        ListHeaderComponent={
+          <>
+            <StoriesBar />
+            <View style={styles.tabs}>
+              {(
+                [
+                  ['image', 'grid', 'Fotos'],
+                  ['video', 'play-circle', 'Vídeos'],
+                  ['text', 'chatbox-ellipses', 'Textos'],
+                ] as const
+              ).map(([k, icon, label]) => {
+                const on = kind === k;
+                return (
+                  <Pressable
+                    key={k}
+                    style={[styles.tab, on && styles.tabOn]}
+                    onPress={() => setKind(on ? 'all' : k)}
+                    accessibilityLabel={label}
+                    accessibilityState={{ selected: on }}>
+                    <Ionicons name={on ? icon : (`${icon}-outline` as const)} size={22} color={on ? colors.text : colors.textMuted} />
+                  </Pressable>
+                );
+              })}
+              <Pressable style={styles.tab} onPress={() => router.push('/lives')} accessibilityLabel="Lives ao vivo">
+                <Ionicons name="flash-outline" size={22} color={colors.textMuted} />
+              </Pressable>
+            </View>
+          </>
+        }
+        ListEmptyComponent={
+          <Text style={styles.empty}>
+            {kind === 'image' ? 'Nenhuma foto ainda.' : kind === 'video' ? 'Nenhum vídeo ainda.' : kind === 'text' ? 'Nenhum texto ainda.' : 'Nada por aqui ainda.'}
+          </Text>
+        }
         onViewableItemsChanged={onViewable}
         viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -75,6 +110,10 @@ const styles = themed(() => StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   headerIcons: { flexDirection: 'row', alignItems: 'center', gap: 20 },
+  tabs: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
+  tab: { flex: 1, alignItems: 'center', paddingVertical: 10, borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  tabOn: { borderBottomColor: colors.text },
+  empty: { color: colors.textMuted, textAlign: 'center', paddingVertical: 48 },
   liveBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1.5, borderColor: colors.like, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3 },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.like },
   liveText: { color: colors.like, fontWeight: '900', fontSize: 13, letterSpacing: 0.5 },
