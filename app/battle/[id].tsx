@@ -57,11 +57,25 @@ export function BattleView({ id }: { id: string }) {
   const [now, setNow] = useState(Date.now());
   const [side, setSide] = useState<BattleSide | null>(null);
   const [text, setText] = useState('');
-  // altura do teclado aberto: o campo de comentário fica sempre logo acima dele
+  // teclado aberto: mede onde o teclado começa na tela e põe o campo de comentário logo acima,
+  // funcione o celular encolhendo a tela com o teclado ou não (cada aparelho faz de um jeito)
   const [kbHeight, setKbHeight] = useState(0);
+  const [kbOpen, setKbOpen] = useState(false);
+  const chatAreaRef = useRef<React.ComponentRef<typeof View>>(null);
   useEffect(() => {
-    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', (e) => setKbHeight(e.endCoordinates.height));
-    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKbHeight(0));
+    const place = (kbTop: number) => {
+      chatAreaRef.current?.measureInWindow((_x: number, y: number, _w: number, h: number) => setKbHeight(Math.max(0, Math.round(y + h - kbTop))));
+    };
+    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', (e) => {
+      setKbOpen(true);
+      place(e.endCoordinates.screenY);
+      // mede de novo depois que a tela termina de se ajustar
+      setTimeout(() => place(e.endCoordinates.screenY), 150);
+    });
+    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => {
+      setKbOpen(false);
+      setKbHeight(0);
+    });
     return () => {
       show.remove();
       hide.remove();
@@ -429,7 +443,7 @@ export function BattleView({ id }: { id: string }) {
         {battle.status === 'ended' ? <Result battle={battle} host={host} opponent={opponent} /> : null}
 
         {/* Chat */}
-        <View style={{ flex: 1 }}>
+        <View style={{ flex: 1 }} ref={chatAreaRef} collapsable={false}>
           {/* Comentários embaixo do palco, mais recentes por último */}
           <View style={{ flex: 1, minHeight: 0 }}>
             <FlatList
@@ -470,7 +484,7 @@ export function BattleView({ id }: { id: string }) {
           ) : null}
 
           {battle.status !== 'ended' ? (
-            <View style={[styles.bottom, kbHeight > 0 && [styles.bottomOverKeyboard, { bottom: kbHeight }]]}>
+            <View style={[styles.bottom, kbOpen && [styles.bottomOverKeyboard, { bottom: kbHeight }]]}>
               <TextInput
                 placeholder="Comente..."
                 placeholderTextColor="rgba(255,255,255,0.6)"
