@@ -11,10 +11,10 @@ import { colors, spacing, themed } from '@/lib/theme';
 
 type Invite = { battleId: string; kind: 'lado' | 'convidado' };
 // o pop-up só aparece na hora do convite (até 2 minutos depois), não fica voltando depois
-const FRESH_MS = 2 * 60 * 1000;
+const FRESH_MS = 5 * 60 * 1000;
 
 export function InvitePopup() {
-  const { me, battles, getUser, acceptBattle, declineBattle } = useApp();
+  const { me, battles, getUser, acceptBattle, declineBattle, refreshBattle } = useApp();
   const meId = me?.id;
   const [guestInvites, setGuestInvites] = useState<{ id: string; at: number }[]>([]);
   const [, tick] = useState(0);
@@ -34,15 +34,23 @@ export function InvitePopup() {
         setGuestInvites((data ?? []).map((r: { battle_id: string; created_at: string }) => ({ id: r.battle_id, at: new Date(r.created_at).getTime() })));
     };
     load();
+    // além do tempo real, confere no banco a cada 8 segundos se chegou convite (caso o aviso em tempo real falhe)
+    const poll = setInterval(async () => {
+      load();
+      const since = new Date(Date.now() - FRESH_MS).toISOString();
+      const { data } = await supabase.from('battles').select('id').eq('opponent_id', meId).eq('status', 'invited').gte('created_at', since);
+      (data ?? []).forEach((b: { id: string }) => refreshBattle(b.id));
+    }, 8000);
     const ch = supabase
       .channel(`meus-convites-${meId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'battle_guests', filter: `user_id=eq.${meId}` }, () => load())
       .subscribe();
     return () => {
       alive = false;
+      clearInterval(poll);
       supabase.removeChannel(ch);
     };
-  }, [meId]);
+  }, [meId, refreshBattle]);
 
   if (!meId) return null;
 
