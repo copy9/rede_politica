@@ -7,7 +7,6 @@ import { useApp } from '@/lib/store';
 import { colors, spacing, themed } from '@/lib/theme';
 import type { LiveBattle } from '@/lib/types';
 import { Avatar } from './Avatar';
-import { BattleScoreBar } from './BattleScoreBar';
 
 function scheduleLabel(ts: number) {
   const d = new Date(ts);
@@ -87,9 +86,6 @@ export function BattleCard({ battle }: { battle: LiveBattle }) {
         )}
       </View>
 
-      {battle.status !== 'scheduled' && !solo ? (
-        <BattleScoreBar host={battle.scores.host} opponent={battle.scores.opponent} />
-      ) : null}
     </Pressable>
   );
 }
