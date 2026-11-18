@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
   useWindowDimensions,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -20,7 +21,6 @@ import { BattleGuestsControls, answerGuestInvite, requestToJoin, useBattleGuests
 import { LiveCamera } from '@/components/LiveCamera';
 import { useOverlay } from '@/components/Overlay';
 import { Linking } from 'react-native';
-import { KeyboardView } from '@/components/KeyboardView';
 import { MediaVideo } from '@/components/MediaVideo';
 import { compactNumber } from '@/lib/format';
 import { getLiveVideo } from '@/lib/livekit';
@@ -57,6 +57,16 @@ export function BattleView({ id }: { id: string }) {
   const [now, setNow] = useState(Date.now());
   const [side, setSide] = useState<BattleSide | null>(null);
   const [text, setText] = useState('');
+  // altura do teclado aberto: o campo de comentário fica sempre logo acima dele
+  const [kbHeight, setKbHeight] = useState(0);
+  useEffect(() => {
+    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', (e) => setKbHeight(e.endCoordinates.height));
+    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKbHeight(0));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
   const chatRef = useRef<FlatList<BattleMessage>>(null);
   const guests = useBattleGuests(id);
   const battleStatus = getBattle(id)?.status;
@@ -419,7 +429,7 @@ export function BattleView({ id }: { id: string }) {
         {battle.status === 'ended' ? <Result battle={battle} host={host} opponent={opponent} /> : null}
 
         {/* Chat */}
-        <KeyboardView style={{ flex: 1 }}>
+        <View style={{ flex: 1 }}>
           {/* Comentários embaixo do palco, mais recentes por último */}
           <View style={{ flex: 1, minHeight: 0 }}>
             <FlatList
@@ -460,7 +470,7 @@ export function BattleView({ id }: { id: string }) {
           ) : null}
 
           {battle.status !== 'ended' ? (
-            <View style={styles.bottom}>
+            <View style={[styles.bottom, kbHeight > 0 && [styles.bottomOverKeyboard, { bottom: kbHeight }]]}>
               <TextInput
                 placeholder="Comente..."
                 placeholderTextColor="rgba(255,255,255,0.6)"
@@ -482,7 +492,7 @@ export function BattleView({ id }: { id: string }) {
               )}
             </View>
           ) : null}
-        </KeyboardView>
+        </View>
       </SafeAreaView>
     </View>
   );
@@ -636,6 +646,7 @@ const styles = themed(() => StyleSheet.create({
   giftEmoji: { fontSize: 22 },
   giftLabel: { color: '#fff', fontWeight: '700', fontSize: 12 },
   bottom: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md },
+  bottomOverKeyboard: { position: 'absolute', left: 0, right: 0, backgroundColor: '#0B1020', zIndex: 10, elevation: 10 },
   input: { flex: 1, minWidth: 0, color: '#fff', backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 9 },
   sideButton: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1.5, borderRadius: 18, paddingHorizontal: 8, paddingVertical: 7, maxWidth: 88, flexShrink: 0 },
   sideButtonText: { fontWeight: '700', fontSize: 12, flexShrink: 1 },
