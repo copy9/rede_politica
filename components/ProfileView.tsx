@@ -25,7 +25,7 @@ export function ProfileView({ user }: { user: User }) {
   const me = useMe();
   const { postsBy, posts, followersOf, followingOf, storyUsers, openConversationWith, consentFor, supportersFor, canSeeContent, canInteract, activityText, giveConsent, isFollowing, commentsFor, battles } = useApp();
   const { accountSettings, settings, update } = useSettings();
-  const availableForDebate = settings.whoCanChallenge !== 'ninguem';
+  const availableForDebate = settings.whoCanChallenge === 'todos';
   const { showBanner } = useOverlay();
   const [tab, setTab] = useState<Tab>('posts');
   const isMe = user.id === me.id;

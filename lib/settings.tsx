@@ -108,7 +108,7 @@ export const DEFAULT_ACCOUNT: AccountSettings = {
   whoCanComment: 'todos',
   whoCanMessage: 'todos',
   whoCanMention: 'todos',
-  whoCanChallenge: 'seguidores',
+  whoCanChallenge: 'todos',
   filterOffensive: true,
   hiddenWords: [],
   blockedIds: [],
