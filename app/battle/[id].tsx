@@ -514,7 +514,10 @@ export function BattleView({ id }: { id: string }) {
           ) : null}
 
           {battle.status !== 'ended' ? (
-            <View style={[styles.bottom, kbOpen && [styles.bottomOverKeyboard, { bottom: kbHeight }]]}>
+            <View
+              // collapsable={false}: a caixa nunca é recriada quando o teclado abre (senão o campo perde o foco e o teclado fecha sozinho)
+              collapsable={false}
+              style={[styles.bottom, kbOpen && [styles.bottomOverKeyboard, { bottom: kbHeight }]]}>
               <TextInput
                 placeholder="Comente..."
                 placeholderTextColor="rgba(255,255,255,0.6)"
@@ -688,7 +691,7 @@ const styles = themed(() => StyleSheet.create({
   gift: { flex: 1, alignItems: 'center', borderWidth: 1.5, borderRadius: 12, paddingVertical: 6, backgroundColor: 'rgba(255,255,255,0.06)' },
   giftEmoji: { fontSize: 22 },
   giftLabel: { color: '#fff', fontWeight: '700', fontSize: 12 },
-  bottom: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md },
+  bottom: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md, backgroundColor: 'transparent' },
   bottomOverKeyboard: { position: 'absolute', left: 0, right: 0, backgroundColor: '#0B1020', zIndex: 10, elevation: 10 },
   input: { flex: 1, minWidth: 0, color: '#fff', backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 9 },
   sideButton: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1.5, borderRadius: 18, paddingHorizontal: 8, paddingVertical: 7, maxWidth: 88, flexShrink: 0 },
