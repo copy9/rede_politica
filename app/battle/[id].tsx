@@ -11,12 +11,13 @@ import {
   View,
   useWindowDimensions,
   Keyboard,
+  Modal,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
 import { BattleActions } from '@/components/BattleActions';
-import { BattleScoreBar } from '@/components/BattleScoreBar';
 import { BattleGuestsControls, answerGuestInvite, requestToJoin, useBattleGuests, type GuestRow } from '@/components/BattleGuests';
 import { LiveCamera } from '@/components/LiveCamera';
 import { useOverlay } from '@/components/Overlay';
@@ -57,6 +58,7 @@ export function BattleView({ id }: { id: string }) {
   const [now, setNow] = useState(Date.now());
   const [side, setSide] = useState<BattleSide | null>(null);
   const [text, setText] = useState('');
+  const [composeOpen, setComposeOpen] = useState(false);
   // teclado aberto: mede onde o teclado começa na tela e põe o campo de comentário logo acima,
   // funcione o celular encolhendo a tela com o teclado ou não (cada aparelho faz de um jeito)
   const [kbHeight, setKbHeight] = useState(0);
@@ -131,13 +133,20 @@ export function BattleView({ id }: { id: string }) {
   // Palco ocupa metade da tela: as duas telas ficam grandes, como nas batalhas de 2
   const halfHeight = Math.round(height * 0.5);
 
-  const onClose = () => {
-    if (isHost && live) {
-      confirm('Encerrar debate?', 'O debate termina agora para todos.', 'Encerrar', () => endBattle(battle.id), true);
-      return;
-    }
+  const leave = () => {
     // convidado ao vivo que sai: libera o lugar e desliga a câmera
     if (guests.some((g) => g.user_id === me.id && g.status === 'accepted')) answerGuestInvite(battle.id, me.id, 'declined');
+    router.back();
+  };
+  const onClose = () => {
+    if (isHost && live) {
+      confirm('Tem certeza que você deseja sair?', 'A live termina agora para todos.', 'Sair', () => endBattle(battle.id), true);
+      return;
+    }
+    if (live) {
+      confirm('Tem certeza que você deseja sair?', 'Você sai desta live.', 'Sair', leave, true);
+      return;
+    }
     router.back();
   };
 
@@ -200,7 +209,7 @@ export function BattleView({ id }: { id: string }) {
         {/* Placar no topo: cresce para o lado com mais presentes e curtidas */}
         {multiPeople || solo ? null : (
           <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
-            <BattleScoreBar host={battle.scores.host} opponent={battle.scores.opponent} height={24} />
+            {null}
           </View>
         )}
 
@@ -346,7 +355,7 @@ export function BattleView({ id }: { id: string }) {
             // antes de começar: a própria câmera de quem está na batalha
             const video =
               canShowVideo && LVx ? (
-                <LVx.SideVideo userId={s.key} isMe={s.isMe} fallback={fallback} />
+                <LVx.SideVideo userId={s.key} isMe={s.isMe} fallback={fallback} controlsTop={fullScreen ? 130 : 8} />
               ) : !live && s.isMe && s.kind !== 'invited' ? (
                 <LiveCamera />
               ) : (
@@ -366,6 +375,12 @@ export function BattleView({ id }: { id: string }) {
                 <Text style={styles.tileNameOver} numberOfLines={1}>
                   {name}
                 </Text>
+                {s.key === host.id || (!solo && s.key === opponent.id) ? (
+                  <View style={styles.likeCount}>
+                    <Ionicons name="heart" size={12} color="#F43F5E" />
+                    <Text style={styles.likeCountText}>{compactNumber(battle.scores[s.key === host.id ? 'host' : 'opponent'])}</Text>
+                  </View>
+                ) : null}
               </View>
             );
           };
@@ -392,7 +407,7 @@ export function BattleView({ id }: { id: string }) {
                 <View style={styles.fullTop}>
                   <BattleGuestsControls
                     battleId={battle.id}
-                    isHost={isHost}
+                    isHost={isHost && live}
                     users={app.users}
                     guests={guests}
                     onMessage={(t) => showBanner(t, { icon: 'people-outline', tone: 'success' })}
@@ -419,7 +434,7 @@ export function BattleView({ id }: { id: string }) {
             <View>
               <BattleGuestsControls
                 battleId={battle.id}
-                isHost={isHost}
+                isHost={isHost && live}
                 users={app.users}
                 guests={guests}
                 onMessage={(t) => showBanner(t, { icon: 'people-outline', tone: 'success' })}
@@ -484,16 +499,12 @@ export function BattleView({ id }: { id: string }) {
           ) : null}
 
           {battle.status !== 'ended' ? (
-            <View style={[styles.bottom, kbOpen && [styles.bottomOverKeyboard, { bottom: kbHeight }]]}>
-              <TextInput
-                placeholder="Comente..."
-                placeholderTextColor="rgba(255,255,255,0.6)"
-                value={text}
-                onChangeText={setText}
-                onSubmitEditing={send}
-                returnKeyType="send"
-                style={styles.input}
-              />
+            <View style={styles.bottom}>
+              <Pressable style={[styles.input, { justifyContent: 'center' }]} onPress={() => setComposeOpen(true)} accessibilityLabel="Comentar">
+                <Text style={{ color: text ? '#fff' : 'rgba(255,255,255,0.6)' }} numberOfLines={1}>
+                  {text || 'Comente...'}
+                </Text>
+              </Pressable>
               {!isParticipant && !solo ? (
                 <>
                   <SideButton label={firstName(host)} color={colors.primary} active={side === 'host'} onPress={() => setSide(side === 'host' ? null : 'host')} />
@@ -507,6 +518,33 @@ export function BattleView({ id }: { id: string }) {
             </View>
           ) : null}
         </View>
+      {/* caixa de comentário: janela própria que o celular sempre sobe junto com o teclado */}
+      <Modal visible={composeOpen} transparent animationType="fade" onRequestClose={() => setComposeOpen(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+          <Pressable style={styles.composeBackdrop} onPress={() => setComposeOpen(false)} />
+          <View style={styles.composeBar}>
+            <TextInput
+              placeholder="Comente..."
+              placeholderTextColor="rgba(255,255,255,0.6)"
+              value={text}
+              onChangeText={setText}
+              autoFocus
+              multiline
+              maxLength={300}
+              style={styles.composeInput}
+            />
+            <Pressable
+              onPress={() => {
+                send();
+                setComposeOpen(false);
+              }}
+              hitSlop={8}
+              accessibilityLabel="Enviar comentário">
+              <Ionicons name="send" size={22} color="#fff" />
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
       </SafeAreaView>
     </View>
   );
@@ -591,9 +629,6 @@ function Result({ battle }: { battle: LiveBattle; host: User; opponent: User }) 
     <View style={styles.result}>
       <Text style={styles.resultTitle}>Debate encerrado</Text>
       <Text style={styles.resultText}>{battle.topic}</Text>
-      <Pressable style={styles.startButton} onPress={() => router.back()}>
-        <Text style={styles.startText}>Voltar</Text>
-      </Pressable>
     </View>
   );
 }
@@ -629,6 +664,11 @@ const styles = themed(() => StyleSheet.create({
   inviteNote: { color: 'rgba(255,255,255,0.6)', fontSize: 12, textAlign: 'center', marginBottom: spacing.xs },
   tileGrid: { position: 'relative', backgroundColor: '#000' },
   tileAbs: { position: 'absolute', overflow: 'hidden', backgroundColor: '#111827', borderWidth: StyleSheet.hairlineWidth, borderColor: '#000' },
+  likeCount: { position: 'absolute', top: 8, left: 8, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
+  likeCountText: { color: '#fff', fontWeight: '800', fontSize: 12 },
+  composeBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.25)' },
+  composeBar: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md, backgroundColor: '#0B1020' },
+  composeInput: { flex: 1, minHeight: 42, maxHeight: 110, borderRadius: 21, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: 'rgba(255,255,255,0.12)', color: '#fff', fontSize: 15 },
   tileNameOver: { position: 'absolute', left: 8, bottom: 6, right: 8, color: '#fff', fontWeight: '700', fontSize: 13, textShadowColor: 'rgba(0,0,0,0.8)', textShadowRadius: 4 },
   chatHint: { color: 'rgba(255,255,255,0.6)', fontSize: 13, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   tileBox: { flex: 1, overflow: 'hidden', borderRadius: 10, backgroundColor: '#111827' },

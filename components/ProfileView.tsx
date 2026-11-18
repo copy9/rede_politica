@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Image as FitImage } from 'expo-image';
-import { Image, Linking, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Image, Linking, Pressable, ScrollView, Share, StyleSheet, Text, View, RefreshControl } from 'react-native';
 import { shareText } from '@/lib/share';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ScoreLevel, ScoreRing } from './ScoreRing';
@@ -23,7 +23,7 @@ type Tab = 'posts' | 'videos' | 'texts' | 'saved';
 
 export function ProfileView({ user }: { user: User }) {
   const me = useMe();
-  const { postsBy, posts, followersOf, followingOf, storyUsers, openConversationWith, consentFor, supportersFor, canSeeContent, canInteract, activityText, giveConsent, isFollowing, commentsFor, battles } = useApp();
+  const { postsBy, posts, followersOf, followingOf, storyUsers, openConversationWith, consentFor, supportersFor, canSeeContent, canInteract, activityText, giveConsent, isFollowing, commentsFor, battles, refresh } = useApp();
   const { accountSettings, settings, update } = useSettings();
   const availableForDebate = settings.whoCanChallenge === 'todos';
   const { showBanner } = useOverlay();
@@ -41,6 +41,12 @@ export function ProfileView({ user }: { user: User }) {
         : posts.filter((p) => p.savedBy.includes(me.id));
   const story = storyUsers().find((s) => s.user.id === user.id);
   const pickStory = useStoryPicker();
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await refresh().catch(() => {});
+    setRefreshing(false);
+  };
   const [rowY, setRowY] = useState(0);
   const [avatarBottom, setAvatarBottom] = useState(130);
   const [colY, setColY] = useState(0);
@@ -85,7 +91,11 @@ export function ProfileView({ user }: { user: User }) {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={{ paddingBottom: 40 }}
+      // puxar para baixo atualiza o perfil (seguidores, curtidas, publicações)
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.text} colors={[colors.primary]} />}>
       {/* topo: capa que vai escurecendo para baixo; nome e números à esquerda, foto à direita */}
       <View style={styles.hero}>
         {user.cover ? (

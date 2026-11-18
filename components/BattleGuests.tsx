@@ -36,12 +36,14 @@ export function useBattleGuests(battleId: string): GuestRow[] {
       if (alive && data) setRows(data as GuestRow[]);
     };
     load();
+    const poll = setInterval(load, 4000);
     const channel = supabase
       .channel(`convidados-${battleId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'battle_guests', filter: `battle_id=eq.${battleId}` }, () => load())
       .subscribe();
     return () => {
       alive = false;
+      clearInterval(poll);
       supabase.removeChannel(channel);
     };
   }, [battleId]);
@@ -59,7 +61,8 @@ type Props = {
 /** Controles de quem criou a batalha: aceitar ou recusar pedidos, e ver quem ainda não respondeu. */
 export function BattleGuestsControls({ battleId, isHost, users, guests, onMessage }: Props) {
   const styles = guestStyles;
-  const pending = guests.filter((g) => g.status === 'pending');
+  const [answered, setAnswered] = useState<string[]>([]);
+  const pending = guests.filter((g) => g.status === 'pending' && !answered.includes(g.user_id));
   const invited = guests.filter((g) => g.status === 'convidado');
   const pendingCount = pending.length;
   const prevPending = useRef(0);
@@ -73,8 +76,12 @@ export function BattleGuestsControls({ battleId, isHost, users, guests, onMessag
   const userOf = (id: string) => users.find((u) => u.id === id);
 
   const answer = async (userId: string, status: 'accepted' | 'declined') => {
+    setAnswered((a) => [...a, userId]);
     const { error } = await answerGuestInvite(battleId, userId, status);
-    if (error) onMessage('Não foi possível responder agora.');
+    if (error) {
+      setAnswered((a) => a.filter((u) => u !== userId));
+      onMessage(`Não foi possível responder: ${error.message}`);
+    } else if (status === 'accepted') onMessage('Aceito! A câmera da pessoa entra na live em alguns segundos.');
   };
 
   if (!isHost || (pending.length === 0 && invited.length === 0)) return null;
@@ -106,9 +113,9 @@ export function BattleGuestsControls({ battleId, isHost, users, guests, onMessag
 }
 
 const guestStyles = themed(() => StyleSheet.create({
-  wrap: { backgroundColor: '#0B1020', paddingHorizontal: spacing.md, paddingVertical: spacing.xs, gap: 6 },
-  pendingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 6 },
-  pendingName: { flex: 1, color: '#fff', fontSize: 13 },
+  wrap: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs, gap: 6, alignItems: 'center' },
+  pendingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, paddingVertical: 5, paddingLeft: 6, paddingRight: 6, maxWidth: '100%' },
+  pendingName: { flexShrink: 1, color: '#fff', fontSize: 13, fontWeight: '600' },
   yes: { backgroundColor: '#2563EB', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
   no: { backgroundColor: '#DC2626', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
   btnText: { color: '#fff', fontWeight: '700', fontSize: 12 },

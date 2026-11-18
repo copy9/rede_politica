@@ -127,7 +127,11 @@ export function PostCard({ post, active = false, onOpen }: { post: Post; active?
       ) : (
       <View style={{ width: mediaSize, height: mediaH, alignSelf: 'center', backgroundColor: post.type === 'video' ? '#000' : colors.surface }}>
         {post.type === 'video' ? (
-          <MediaVideo uri={post.uri} active={active && autoplay} style={StyleSheet.absoluteFill} onPress={onMediaPress} />
+          <>
+            <MediaVideo uri={post.uri} active={active && autoplay} style={StyleSheet.absoluteFill} onPress={onOpen ? undefined : onMediaPress} />
+            {/* aba Vídeos: camada de toque por cima do vídeo (o player não deixava o toque chegar) */}
+            {onOpen ? <Pressable style={StyleSheet.absoluteFill} onPress={onMediaPress} accessibilityLabel="Abrir vídeo em tela cheia" /> : null}
+          </>
         ) : (
           <Pressable style={StyleSheet.absoluteFill} onPress={onMediaPress}>
             <Image source={{ uri: mediaUri(post.uri, settings.dataSaver) }} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} />

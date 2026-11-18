@@ -91,7 +91,7 @@ export function BattleRoom({ battleId, speaker, children, style }: { battleId: s
 }
 
 /** Vídeo de uma pessoa da batalha (ou o `fallback` enquanto não chega). */
-export function SideVideo({ userId, isMe, fallback }: { userId: string; isMe: boolean; fallback: React.ReactNode }) {
+export function SideVideo({ userId, isMe, fallback, controlsTop = 8 }: { userId: string; isMe: boolean; fallback: React.ReactNode; controlsTop?: number }) {
   const connected = useContext(ConnectedContext);
   const tracks = useTracks([Track.Source.Camera]);
   // antes era aberta a câmera do celular aqui enquanto conectava, e isso travava a transmissão do vídeo para os outros
@@ -104,13 +104,13 @@ export function SideVideo({ userId, isMe, fallback }: { userId: string; isMe: bo
       ) : (
         fallback
       )}
-      {isMe ? <MyControls /> : null}
+      {isMe ? <MyControls top={controlsTop} /> : null}
     </View>
   );
 }
 
 /** Botões de quem está debatendo: ligar/desligar câmera e microfone, trocar de câmera. */
-function MyControls() {
+function MyControls({ top = 8 }: { top?: number }) {
   const { localParticipant, isCameraEnabled, isMicrophoneEnabled, cameraTrack } = useLocalParticipant();
   const [front, setFront] = useState(true);
   const flip = async () => {
@@ -120,7 +120,7 @@ function MyControls() {
     setFront(!front);
   };
   return (
-    <View style={styles.controls}>
+    <View style={[styles.controls, { top }]}>
       <Round icon={isMicrophoneEnabled ? 'mic' : 'mic-off'} onPress={() => localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled)} />
       <Round icon={isCameraEnabled ? 'videocam' : 'videocam-off'} onPress={() => localParticipant.setCameraEnabled(!isCameraEnabled)} />
       {isCameraEnabled ? <Round icon="camera-reverse" onPress={flip} /> : null}
