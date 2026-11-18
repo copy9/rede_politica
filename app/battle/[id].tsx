@@ -11,8 +11,6 @@ import {
   View,
   useWindowDimensions,
   Keyboard,
-  Modal,
-  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -58,19 +56,23 @@ export function BattleView({ id }: { id: string }) {
   const [now, setNow] = useState(Date.now());
   const [side, setSide] = useState<BattleSide | null>(null);
   const [text, setText] = useState('');
-  const [composeOpen, setComposeOpen] = useState(false);
+  // altura real disponível (diminui quando o teclado abre e o celular encolhe a tela)
+  const [availH, setAvailH] = useState(0);
   // teclado aberto: mede onde o teclado começa na tela e põe o campo de comentário logo acima,
   // funcione o celular encolhendo a tela com o teclado ou não (cada aparelho faz de um jeito)
   const [kbHeight, setKbHeight] = useState(0);
   const [kbOpen, setKbOpen] = useState(false);
   const chatAreaRef = useRef<React.ComponentRef<typeof View>>(null);
+  const kbTopRef = useRef(0);
   useEffect(() => {
     const place = (kbTop: number) => {
       chatAreaRef.current?.measureInWindow((_x: number, y: number, _w: number, h: number) => setKbHeight(Math.max(0, Math.round(y + h - kbTop))));
     };
     const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', (e) => {
       setKbOpen(true);
+      kbTopRef.current = e.endCoordinates.screenY;
       place(e.endCoordinates.screenY);
+      setTimeout(() => place(e.endCoordinates.screenY), 400);
       // mede de novo depois que a tela termina de se ajustar
       setTimeout(() => place(e.endCoordinates.screenY), 150);
     });
@@ -83,6 +85,15 @@ export function BattleView({ id }: { id: string }) {
       hide.remove();
     };
   }, []);
+  useEffect(() => {
+    if (!kbOpen) return;
+    const t = setTimeout(() => {
+      chatAreaRef.current?.measureInWindow((_x: number, y: number, _w: number, h: number) =>
+        setKbHeight(Math.max(0, Math.round(y + h - kbTopRef.current))),
+      );
+    }, 80);
+    return () => clearTimeout(t);
+  }, [kbOpen, availH]);
   const chatRef = useRef<FlatList<BattleMessage>>(null);
   const guests = useBattleGuests(id);
   const battleStatus = getBattle(id)?.status;
@@ -161,7 +172,7 @@ export function BattleView({ id }: { id: string }) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} onLayout={(e) => setAvailH(Math.round(e.nativeEvent.layout.height))}>
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
         {/* Cabeçalho */}
         <View style={styles.header}>
@@ -313,7 +324,11 @@ export function BattleView({ id }: { id: string }) {
           const fullScreen = people === 1;
           const reserved = 260 + (battle.status === 'invited' || battle.status === 'scheduled' ? 120 : 0);
           const stageW = width;
-          const stageH = Math.max(200, Math.min(Math.round((width / 2) * (16 / 9)), height - reserved));
+          // teclado aberto: o palco diminui para sobrar espaço para o campo de comentário
+          const screenH = kbOpen && availH ? Math.min(height, availH) : height;
+          const stageH = kbOpen
+            ? Math.max(120, Math.min(Math.round((width / 2) * (16 / 9)), screenH - 210))
+            : Math.max(200, Math.min(Math.round((width / 2) * (16 / 9)), height - reserved));
           type Rect = { x: number; y: number; w: number; h: number };
           const grid = (cols: number, rows: number): Rect[] =>
             Array.from({ length: cols * rows }, (_, i) => ({
@@ -499,12 +514,16 @@ export function BattleView({ id }: { id: string }) {
           ) : null}
 
           {battle.status !== 'ended' ? (
-            <View style={styles.bottom}>
-              <Pressable style={[styles.input, { justifyContent: 'center' }]} onPress={() => setComposeOpen(true)} accessibilityLabel="Comentar">
-                <Text style={{ color: text ? '#fff' : 'rgba(255,255,255,0.6)' }} numberOfLines={1}>
-                  {text || 'Comente...'}
-                </Text>
-              </Pressable>
+            <View style={[styles.bottom, kbOpen && [styles.bottomOverKeyboard, { bottom: kbHeight }]]}>
+              <TextInput
+                placeholder="Comente..."
+                placeholderTextColor="rgba(255,255,255,0.6)"
+                value={text}
+                onChangeText={setText}
+                onSubmitEditing={send}
+                returnKeyType="send"
+                style={styles.input}
+              />
               {!isParticipant && !solo ? (
                 <>
                   <SideButton label={firstName(host)} color={colors.primary} active={side === 'host'} onPress={() => setSide(side === 'host' ? null : 'host')} />
@@ -518,33 +537,6 @@ export function BattleView({ id }: { id: string }) {
             </View>
           ) : null}
         </View>
-      {/* caixa de comentário: janela própria que o celular sempre sobe junto com o teclado */}
-      <Modal visible={composeOpen} transparent animationType="fade" onRequestClose={() => setComposeOpen(false)}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
-          <Pressable style={styles.composeBackdrop} onPress={() => setComposeOpen(false)} />
-          <View style={styles.composeBar}>
-            <TextInput
-              placeholder="Comente..."
-              placeholderTextColor="rgba(255,255,255,0.6)"
-              value={text}
-              onChangeText={setText}
-              autoFocus
-              multiline
-              maxLength={300}
-              style={styles.composeInput}
-            />
-            <Pressable
-              onPress={() => {
-                send();
-                setComposeOpen(false);
-              }}
-              hitSlop={8}
-              accessibilityLabel="Enviar comentário">
-              <Ionicons name="send" size={22} color="#fff" />
-            </Pressable>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
       </SafeAreaView>
     </View>
   );
@@ -666,9 +658,6 @@ const styles = themed(() => StyleSheet.create({
   tileAbs: { position: 'absolute', overflow: 'hidden', backgroundColor: '#111827', borderWidth: StyleSheet.hairlineWidth, borderColor: '#000' },
   likeCount: { position: 'absolute', top: 8, left: 8, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
   likeCountText: { color: '#fff', fontWeight: '800', fontSize: 12 },
-  composeBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.25)' },
-  composeBar: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md, backgroundColor: '#0B1020' },
-  composeInput: { flex: 1, minHeight: 42, maxHeight: 110, borderRadius: 21, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: 'rgba(255,255,255,0.12)', color: '#fff', fontSize: 15 },
   tileNameOver: { position: 'absolute', left: 8, bottom: 6, right: 8, color: '#fff', fontWeight: '700', fontSize: 13, textShadowColor: 'rgba(0,0,0,0.8)', textShadowRadius: 4 },
   chatHint: { color: 'rgba(255,255,255,0.6)', fontSize: 13, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   tileBox: { flex: 1, overflow: 'hidden', borderRadius: 10, backgroundColor: '#111827' },
