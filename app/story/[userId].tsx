@@ -11,6 +11,7 @@ import { mediaUri } from '@/lib/media';
 import { useSettings } from '@/lib/settings';
 import { useApp, useMe } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
+import { recordView } from '@/lib/views';
 
 import { themed } from '@/lib/theme';
 const DURATION = 5000;
@@ -66,6 +67,7 @@ export default function StoryScreen() {
   useEffect(() => {
     if (!story) return;
     markStorySeen(story.id);
+    recordView(story.userId, 'story', story.id);
     progress.setValue(0);
   }, [story?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 

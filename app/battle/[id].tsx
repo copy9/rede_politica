@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
+import { recordView } from '@/lib/views';
 import {
   FlatList,
   Platform,
@@ -104,6 +105,13 @@ export function BattleView({ id }: { id: string }) {
     return () => clearInterval(t);
   }, [id, battleStatus, refreshBattle]);
   const isGuestSpeaker = guests.some((g) => g.user_id === me.id && g.status === 'accepted');
+  // quem assiste a live conta no painel de quem está debatendo
+  const viewBattle = getBattle(id);
+  useEffect(() => {
+    if (!viewBattle || viewBattle.status !== 'live') return;
+    recordView(viewBattle.hostId, 'battle', viewBattle.id);
+    if (viewBattle.opponentId) recordView(viewBattle.opponentId, 'battle', viewBattle.id);
+  }, [viewBattle?.id, viewBattle?.status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const battle = getBattle(id);
   const host = battle ? getUser(battle.hostId) : undefined;
@@ -144,6 +152,11 @@ export function BattleView({ id }: { id: string }) {
   // Palco ocupa metade da tela: as duas telas ficam grandes, como nas batalhas de 2
   const halfHeight = Math.round(height * 0.5);
 
+  // fim da live: volta para a tela principal (Início)
+  const goHome = () => {
+    if (router.canDismiss()) router.dismissAll();
+    router.navigate('/');
+  };
   const leave = () => {
     // convidado ao vivo que sai: libera o lugar e desliga a câmera
     if (guests.some((g) => g.user_id === me.id && g.status === 'accepted')) answerGuestInvite(battle.id, me.id, 'declined');
@@ -151,13 +164,17 @@ export function BattleView({ id }: { id: string }) {
   };
   const onClose = () => {
     if (isHost && live) {
-      confirm('Tem certeza que você deseja sair?', 'A live termina agora para todos.', 'Sair', () => endBattle(battle.id), true);
+      confirm('Tem certeza que você deseja sair?', 'A live termina agora para todos.', 'Sair', () => {
+        endBattle(battle.id);
+        goHome();
+      }, true);
       return;
     }
     if (live) {
       confirm('Tem certeza que você deseja sair?', 'Você sai desta live.', 'Sair', leave, true);
       return;
     }
+    if (battle.status === 'ended') return goHome();
     router.back();
   };
 
@@ -491,7 +508,7 @@ export function BattleView({ id }: { id: string }) {
               contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end', paddingLeft: spacing.md, paddingRight: 96, paddingVertical: spacing.sm, gap: 10 }}
             />
             {/* Curtir, compartilhar e seguir (para quem está assistindo engajar) */}
-            <BattleActions battle={battle} host={host} opponent={opponent} meId={me.id} side={side} />
+            <BattleActions battle={battle} host={host} opponent={opponent} meId={me.id} side={side} speaker={isGuestSpeaker} />
           </View>
 
           {live && !isParticipant && side && !solo ? (

@@ -7,6 +7,7 @@ import { compactNumber } from '@/lib/format';
 import { useApp } from '@/lib/store';
 import type { LiveBattle, User } from '@/lib/types';
 import { useOverlay } from './Overlay';
+import { recordView } from '@/lib/views';
 
 const HEART_COLORS = ['#F43F5E', '#FB7185', '#EC4899', '#F97316', '#FACC15'];
 
@@ -18,12 +19,15 @@ export function BattleActions({
   opponent,
   meId,
   side = null,
+  speaker = false,
 }: {
   battle: LiveBattle;
   host: User;
   opponent: User;
   meId: string;
   side?: 'host' | 'opponent' | null;
+  /** convidado falando na live: também não curte (curtir é só para a plateia) */
+  speaker?: boolean;
 }) {
   const { likeBattle, isFollowing, toggleFollow } = useApp();
   const { showSheet, showBanner } = useOverlay();
@@ -35,6 +39,18 @@ export function BattleActions({
   const lastTotal = useRef(battle.likes ?? 0);
   const nextId = useRef(0);
   const participant = meId === host.id || meId === opponent.id;
+  const solo = !battle.opponentId;
+  // para quem vai a curtida: o lado escolhido; senão quem a pessoa segue; senão ela escolhe uma vez
+  const autoSide = useRef<'host' | 'opponent' | null>(null);
+  if (!autoSide.current) {
+    if (solo) autoSide.current = 'host';
+    else {
+      const fh = isFollowing(host.id);
+      const fo = isFollowing(opponent.id);
+      if (fh && !fo) autoSide.current = 'host';
+      else if (fo && !fh) autoSide.current = 'opponent';
+    }
+  }
   const live = battle.status === 'live';
 
   const spawn = (count = 1) => {
@@ -63,7 +79,7 @@ export function BattleActions({
       const n = Math.min(50, pending.current);
       pending.current -= n;
       sentByMe.current += n;
-      likeBattle(battle.id, n, sideRef.current);
+      likeBattle(battle.id, n, sideRef.current ?? autoSide.current);
     }, 1000);
     return () => clearInterval(t);
   }, [battle.id, likeBattle]);
@@ -78,15 +94,26 @@ export function BattleActions({
   }, [battle.likes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const like = () => {
+    if (live && !sideRef.current && !autoSide.current) {
+      // segue os dois (ou nenhum): pergunta uma vez para quem vai a curtida
+      showSheet({
+        title: 'Sua curtida vai para quem?',
+        options: [
+          { label: host.name, icon: 'heart-outline' as const, onPress: () => { autoSide.current = 'host'; like(); } },
+          { label: opponent.name, icon: 'heart-outline' as const, onPress: () => { autoSide.current = 'opponent'; like(); } },
+        ],
+      });
+      return;
+    }
     spawn(1);
     if (!live) return;
     pending.current += 1;
   };
 
   const share = () =>
-    Share.share({
+    (recordView(host.id, 'share', battle.id), Share.share({
       message: `🔴 AO VIVO na Rede Política: ${host.name} x ${opponent.name} debatem "${battle.topic}". Entre e apoie seu lado! redepolitica://battle/${battle.id}`,
-    }).catch(() => {});
+    }).catch(() => {}));
 
   const follow = () => {
     const people = [host, opponent].filter((u) => u.id !== meId);
@@ -130,7 +157,10 @@ export function BattleActions({
         ))}
       </View>
 
-      <Action icon="heart" color="#F43F5E" label={compactNumber(battle.likes ?? 0)} onPress={like} a11y="Curtir" />
+      {/* curtir é só para quem está assistindo; quem está na live vê as curtidas no próprio quadro */}
+      {!participant && !speaker ? (
+        <Action icon="heart" color="#F43F5E" label={compactNumber(battle.likes ?? 0)} onPress={like} a11y="Curtir" />
+      ) : null}
       <Action icon="share-social" label="Compartilhar" onPress={share} a11y="Compartilhar" />
       {!participant ? <Action icon="person-add" label="Seguir" onPress={follow} a11y="Seguir" /> : null}
     </View>

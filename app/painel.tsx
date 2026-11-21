@@ -1,8 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { router, Stack } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 
 import { SupportersTab } from '@/components/SupportersTab';
 import {
@@ -16,20 +16,70 @@ import {
   SplitBarList,
   StatTile,
 } from '@/components/charts';
-import { applyRealAudience, buildDashboard, type Period } from '@/lib/analytics';
+import { buildDashboard, type PainelRaw, type Period } from '@/lib/analytics';
+import { supabase } from '@/lib/supabase';
 import { compactNumber } from '@/lib/format';
 import { useApp, useMe } from '@/lib/store';
 import { colors, spacing, themed } from '@/lib/theme';
 
-type Tab = 'inicio' | 'desempenho' | 'publico' | 'apoiadores';
+type Tab = 'inicio' | 'desempenho' | 'publico' | 'batalhas' | 'apoiadores';
 type Metric = 'views' | 'reach' | 'followers';
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'inicio', label: 'Início' },
   { key: 'desempenho', label: 'Desempenho' },
   { key: 'publico', label: 'Público' },
+  { key: 'batalhas', label: 'Batalhas' },
   { key: 'apoiadores', label: 'Apoiadores' },
 ];
+
+const EMPTY: PainelRaw = { views: [], follows: [], unfollows: [] };
+
+/** Busca no banco tudo o que o painel precisa (em páginas de 1000 linhas). */
+async function fetchAll<T>(query: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>): Promise<T[]> {
+  const out: T[] = [];
+  for (let page = 0; page < 50; page++) {
+    const { data, error } = await query(page * 1000, page * 1000 + 999);
+    if (error) throw error;
+    out.push(...(data ?? []));
+    if (!data || data.length < 1000) break;
+  }
+  return out;
+}
+
+function usePainelRaw(meId: string, period: Period) {
+  const [raw, setRaw] = useState<PainelRaw>(EMPTY);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    // período atual + o anterior (para comparar)
+    const since = new Date(Date.now() - period * 2 * 86400000).toISOString();
+    try {
+      const [views, follows, unfollows] = await Promise.all([
+        fetchAll<PainelRaw['views'][number]>((a, b) =>
+          supabase.from('content_views').select('viewer_id, kind, ref_id, created_at').eq('owner_id', meId).gte('created_at', since).order('created_at').range(a, b),
+        ),
+        fetchAll<PainelRaw['follows'][number]>((a, b) =>
+          supabase.from('follows').select('follower_id, created_at').eq('following_id', meId).range(a, b),
+        ),
+        fetchAll<PainelRaw['unfollows'][number]>((a, b) =>
+          supabase.from('follow_events').select('created_at').eq('following_id', meId).eq('kind', 'unfollow').gte('created_at', since).range(a, b),
+        ),
+      ]);
+      setRaw({ views, follows, unfollows });
+    } catch {
+      setError('Não foi possível carregar visualizações e seguidores. Rode o SQL 0019_painel_real.sql no Supabase.');
+    } finally {
+      setLoading(false);
+    }
+  }, [meId, period]);
+  useEffect(() => {
+    load();
+  }, [load]);
+  return { raw, loading, error, reload: load };
+}
 
 const PERIODS: Period[] = [7, 30, 90];
 
@@ -38,17 +88,41 @@ const dayLabel = (ts: number) => new Date(ts).toLocaleDateString('pt-BR', { day:
 /** Painel do político: estatísticas agregadas do público + banco de apoiadores (com consentimento). */
 export default function PainelScreen() {
   const me = useMe();
-  const { posts, supportersFor, followersOf, commentsFor } = useApp();
+  const { posts, supportersFor, followersOf, commentsFor, battles, getUser } = useApp();
   const [tab, setTab] = useState<Tab>('inicio');
   const [period, setPeriod] = useState<Period>(30);
   const [metric, setMetric] = useState<Metric>('views');
+  const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
+  const openTab = (t: Tab) => {
+    setTab(t);
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  };
+  const { raw, loading, error, reload } = usePainelRaw(me.id, period);
 
   const supporters = useMemo(() => supportersFor(me.id), [supportersFor, me]);
   const followers = useMemo(() => followersOf(me.id), [followersOf, me]);
-  const d = useMemo(
-    () => applyRealAudience(buildDashboard(me, posts, supporters.length, period, followers.length), me, followers, posts, (id) => commentsFor(id).length),
-    [me, posts, supporters.length, period, followers, commentsFor],
+  // minhas batalhas e lives (as curtidas e apoios que eu recebi em cada uma)
+  const myBattles = useMemo(
+    () =>
+      battles
+        .filter((b) => b.hostId === me.id || b.opponentId === me.id)
+        .map((b) => ({ b, mine: b.hostId === me.id ? b.scores.host : b.scores.opponent }))
+        .sort((x, y) => y.b.startsAt - x.b.startsAt),
+    [battles, me.id],
   );
+  const d = useMemo(() => {
+    const since = Date.now() - period * 86400000;
+    return buildDashboard({
+      politician: me,
+      posts,
+      supporters: supporters.length,
+      period,
+      followers,
+      raw,
+      commentsOnPost: commentsFor,
+      battlePoints: myBattles.filter((x) => x.b.startsAt >= since).reduce((a, x) => a + x.mine, 0),
+    });
+  }, [me, posts, supporters.length, period, followers, raw, commentsFor, myBattles]);
 
   if (me.accountType !== 'politico' || !me.verified) {
     return (
@@ -96,8 +170,10 @@ export default function PainelScreen() {
 
       <View style={styles.tabs}>
         {TABS.map((t) => (
-          <Pressable key={t.key} onPress={() => setTab(t.key)} style={[styles.tab, tab === t.key && styles.tabActive]}>
-            <Text style={[styles.tabText, tab !== t.key && { color: colors.textMuted }]}>{t.label}</Text>
+          <Pressable key={t.key} onPress={() => openTab(t.key)} style={[styles.tab, tab === t.key && styles.tabActive]}>
+            <Text style={[styles.tabText, tab !== t.key && { color: colors.textMuted }]} numberOfLines={1} adjustsFontSizeToFit>
+              {t.label}
+            </Text>
           </Pressable>
         ))}
       </View>
@@ -105,10 +181,20 @@ export default function PainelScreen() {
       {tab === 'apoiadores' ? (
         <SupportersTab supporters={supporters} />
       ) : (
-        <ScrollView contentContainerStyle={styles.content}>
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={styles.content}
+          refreshControl={<RefreshControl refreshing={loading && raw !== EMPTY} onRefresh={reload} tintColor={colors.text} />}>
+          {error ? (
+            <View style={styles.notice}>
+              <Ionicons name="alert-circle-outline" size={18} color={colors.infoText} />
+              <Text style={styles.noticeText}>{error}</Text>
+            </View>
+          ) : null}
+          {loading && raw === EMPTY ? <ActivityIndicator color={colors.text} /> : null}
           <View style={styles.periodRow}>
             <Text style={styles.sectionTitle}>
-              {tab === 'inicio' ? 'Resumo' : tab === 'desempenho' ? 'Todos os conteúdos' : 'Seu público'}
+              {tab === 'inicio' ? 'Resumo' : tab === 'desempenho' ? 'Todos os conteúdos' : tab === 'batalhas' ? 'Suas batalhas e lives' : 'Seu público'}
             </Text>
             <View style={styles.periods}>
               {PERIODS.map((p) => (
@@ -125,7 +211,7 @@ export default function PainelScreen() {
                 <StatTile label="Visualizações" value={compactNumber(d.totals.views)} delta={d.deltas.views} />
                 <StatTile label="Seguidores" value={compactNumber(d.totals.followers)} delta={d.deltas.followers} />
                 <StatTile label="Seguidores líquidos" value={`+${compactNumber(d.totals.netFollowers)}`} />
-                <StatTile label="Apoiadores cadastrados" value={compactNumber(d.totals.supporters)} onPress={() => setTab('apoiadores')} />
+                <StatTile label="Apoiadores cadastrados" value={compactNumber(d.totals.supporters)} onPress={() => openTab('apoiadores')} />
               </View>
 
               <Card title="Visualizações por dia" info={`Últimos ${period} dias · toque numa coluna para ver o dia`}>
@@ -139,11 +225,19 @@ export default function PainelScreen() {
 
               <Card title="Ferramentas">
                 <View style={styles.tools}>
-                  <Tool icon="people" label="Público" onPress={() => setTab('publico')} />
-                  <Tool icon="trending-up" label="Desempenho" onPress={() => setTab('desempenho')} />
-                  <Tool icon="id-card" label="Apoiadores" onPress={() => setTab('apoiadores')} />
-                  <Tool icon="flash" label="Batalhas" onPress={() => router.navigate('/battles')} />
-                  <Tool icon="add-circle" label="Publicar" onPress={() => router.navigate('/create')} />
+                  <Tool icon="people" label="Público" onPress={() => openTab('publico')} />
+                  <Tool icon="trending-up" label="Desempenho" onPress={() => openTab('desempenho')} />
+                  <Tool icon="id-card" label="Apoiadores" onPress={() => openTab('apoiadores')} />
+                  <Tool icon="flash" label="Batalhas" onPress={() => openTab('batalhas')} />
+                  <Tool
+                    icon="add-circle"
+                    label="Publicar"
+                    onPress={() => {
+                      // volta para as abas e abre a tela de postar
+                      if (router.canDismiss()) router.dismissAll();
+                      router.navigate('/(tabs)/create');
+                    }}
+                  />
                   <Tool icon="calendar" label="Agendar batalha" onPress={() => router.push('/battle/new')} />
                 </View>
               </Card>
@@ -216,6 +310,50 @@ export default function PainelScreen() {
             </>
           ) : null}
 
+          {tab === 'batalhas' ? (
+            <>
+              <View style={styles.tiles}>
+                <StatTile label="Batalhas e lives" value={compactNumber(myBattles.length)} />
+                <StatTile label="Ao vivo agora" value={compactNumber(myBattles.filter((x) => x.b.status === 'live').length)} />
+                <StatTile label="Curtidas e apoios recebidos" value={compactNumber(myBattles.reduce((a, x) => a + x.mine, 0))} />
+                <StatTile label="Agendadas" value={compactNumber(myBattles.filter((x) => x.b.status === 'scheduled').length)} />
+              </View>
+              <Card
+                title="Suas batalhas"
+                right={
+                  <Pressable onPress={() => router.push('/battle/new')} hitSlop={8}>
+                    <Ionicons name="add-circle-outline" size={22} color={colors.text} />
+                  </Pressable>
+                }>
+                {myBattles.length === 0 ? <Text style={styles.muted}>Você ainda não fez nenhuma batalha ou live.</Text> : null}
+                {myBattles.map(({ b, mine }) => {
+                  const other = b.opponentId ? getUser(b.hostId === me.id ? b.opponentId : b.hostId) : undefined;
+                  const status = b.status === 'live' ? 'Ao vivo' : b.status === 'ended' ? 'Encerrada' : b.status === 'scheduled' ? 'Agendada' : 'Convite';
+                  return (
+                    <Pressable key={b.id} style={styles.topPost} onPress={() => router.push(`/battle/${b.id}`)}>
+                      <View style={[styles.battleIcon, b.status === 'live' && { backgroundColor: colors.like }]}>
+                        <Ionicons name={b.opponentId ? 'flash' : 'radio'} size={20} color="#fff" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.topCaption} numberOfLines={1}>
+                          {b.topic || (b.opponentId ? 'Debate' : 'Live')}
+                        </Text>
+                        <Text style={styles.muted} numberOfLines={1}>
+                          {status} · {new Date(b.startsAt).toLocaleDateString('pt-BR')}
+                          {other ? ` · com ${other.name}` : ''}
+                        </Text>
+                        <Text style={styles.muted}>
+                          ❤ {compactNumber(mine)} suas · {compactNumber(b.likes ?? 0)} no total
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                    </Pressable>
+                  );
+                })}
+              </Card>
+            </>
+          ) : null}
+
           {tab === 'publico' ? (
             <>
               <View style={styles.notice}>
@@ -275,7 +413,10 @@ export default function PainelScreen() {
             </>
           ) : null}
 
-          <Text style={styles.footnote}>Dados reais: seguidores, gênero, idade, cidades, estados, interesses, curtidas, comentários e apoiadores. Visualizações, alcance, horários e sentimento ainda são estimativas.</Text>
+          <Text style={styles.footnote}>
+            Todos os números são reais, medidos no app. Puxe para baixo para atualizar. Gênero, idade, cidade e interesses vêm do que cada seguidor
+            declarou no perfil; o tom dos comentários é medido pelas palavras usadas.
+          </Text>
         </ScrollView>
       )}
     </View>
@@ -342,6 +483,7 @@ const styles = themed(() => StyleSheet.create({
   notice: { flexDirection: 'row', gap: 8, backgroundColor: colors.infoBg, borderRadius: 12, padding: spacing.md, alignItems: 'flex-start' },
   noticeText: { flex: 1, color: colors.infoText, fontSize: 13 },
   muted: { color: colors.textMuted, fontSize: 13 },
+  battleIcon: { width: 44, height: 44, borderRadius: 10, backgroundColor: '#374151', alignItems: 'center', justifyContent: 'center' },
   footnote: { color: colors.textMuted, fontSize: 11, textAlign: 'center' },
   locked: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.md, backgroundColor: colors.background },
   lockedTitle: { fontSize: 18, fontWeight: '700', color: colors.text, textAlign: 'center' },

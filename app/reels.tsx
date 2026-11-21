@@ -3,7 +3,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -11,6 +11,7 @@ import { Avatar } from '@/components/Avatar';
 import { MediaVideo } from '@/components/MediaVideo';
 import { compactNumber } from '@/lib/format';
 import { shareText } from '@/lib/share';
+import { recordView } from '@/lib/views';
 import { useApp, useMe } from '@/lib/store';
 import type { Post } from '@/lib/types';
 
@@ -70,12 +71,15 @@ function Reel({ post, height, active }: { post: Post; height: number; active: bo
   const me = useMe();
   const { getUser, toggleLike, toggleDislike, commentsFor, isFollowing, toggleFollow } = useApp();
   const insets = useSafeAreaInsets();
+  useEffect(() => {
+    if (active) recordView(post.userId, 'video', post.id);
+  }, [active, post.id, post.userId]);
   const author = getUser(post.userId);
   if (!author) return null;
   const liked = post.likes.includes(me.id);
   const disliked = !!post.dislikedByMe;
   const share = () =>
-    Share.share({ message: shareText(`Veja o vídeo de @${author.username} na Rede Política`, `post/${post.id}`) }).catch(() => {});
+    (recordView(post.userId, 'share', post.id), Share.share({ message: shareText(`Veja o vídeo de @${author.username} na Rede Política`, `post/${post.id}`) }).catch(() => {}));
 
   return (
     <View style={{ height, backgroundColor: '#000' }}>

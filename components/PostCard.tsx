@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, Share, StyleSheet, Text, View, useWindowDimensions, Platform } from 'react-native';
 
 import { compactNumber, pluralize, timeAgo } from '@/lib/format';
@@ -13,6 +13,7 @@ import type { Post } from '@/lib/types';
 import { Avatar } from './Avatar';
 import { MediaVideo } from './MediaVideo';
 import { shareText } from '@/lib/share';
+import { recordView } from '@/lib/views';
 import { useOverlay } from './Overlay';
 import { useReport } from './useReport';
 import { UserName } from './UserName';
@@ -27,6 +28,10 @@ export function PostCard({ post, active = false, onOpen }: { post: Post; active?
   const [expanded, setExpanded] = useState(false);
   const heart = useRef(new Animated.Value(0)).current;
   const lastTap = useRef(0);
+  // conta a visualização para o painel de quem publicou (quando o post aparece na tela)
+  useEffect(() => {
+    if (active) recordView(post.userId, post.type === 'video' ? 'video' : 'post', post.id);
+  }, [active, post.id, post.userId, post.type]);
 
   const author = getUser(post.userId);
   if (!author || !me) return null;
@@ -62,6 +67,7 @@ export function PostCard({ post, active = false, onOpen }: { post: Post; active?
   };
 
   const onShare = () => {
+    recordView(post.userId, 'share', post.id);
     Share.share({ message: shareText(`Veja a publicação de @${author.username} na Rede Política${post.caption ? `: ${post.caption}` : ''}`, `post/${post.id}`) }).catch(() => {});
   };
 

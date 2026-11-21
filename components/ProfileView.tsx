@@ -1,9 +1,10 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Image as FitImage } from 'expo-image';
 import { Image, Linking, Pressable, ScrollView, Share, StyleSheet, Text, View, RefreshControl } from 'react-native';
 import { shareText } from '@/lib/share';
+import { recordView } from '@/lib/views';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ScoreLevel, ScoreRing } from './ScoreRing';
 
@@ -29,6 +30,10 @@ export function ProfileView({ user }: { user: User }) {
   const { showBanner } = useOverlay();
   const [tab, setTab] = useState<Tab>('posts');
   const isMe = user.id === me.id;
+  // visita ao perfil (conta no painel do dono do perfil)
+  useEffect(() => {
+    if (!isMe) recordView(user.id, 'profile');
+  }, [user.id, isMe]);
 
   const userPosts = postsBy(user.id);
   const shown =
@@ -87,6 +92,7 @@ export function ProfileView({ user }: { user: User }) {
   };
 
   const onShare = () => {
+    recordView(user.id, 'share');
     Share.share({ message: shareText(`Siga @${user.username} na Rede Política`, `user/${user.username}`) }).catch(() => {});
   };
 
