@@ -79,7 +79,7 @@ function Reel({ post, height, active }: { post: Post; height: number; active: bo
   const liked = post.likes.includes(me.id);
   const disliked = !!post.dislikedByMe;
   const share = () =>
-    (recordView(post.userId, 'share', post.id), Share.share({ message: shareText(`Veja o vídeo de @${author.username} na Rede Política`, `post/${post.id}`) }).catch(() => {}));
+    (recordView(post.userId, 'share', post.id), Share.share({ message: shareText(`Veja o vídeo de @${author.username} no Polarizei`, `post/${post.id}`) }).catch(() => {}));
 
   return (
     <View style={{ height, backgroundColor: '#000' }}>

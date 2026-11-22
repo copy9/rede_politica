@@ -38,7 +38,7 @@ export const mockUsers: User[] = [
     username: 'voce.demo',
     name: 'Você (demo)',
     avatar: avatar(12),
-    bio: 'Conta de demonstração da Rede Política.\nParticipe, debata, fiscalize.',
+    bio: 'Conta de demonstração do Polarizei.\nParticipe, debata, fiscalize.',
     role: 'Cidadão',
   },
   {

@@ -70,7 +70,7 @@ function Reel({ post, height, active }: { post: Post; height: number; active: bo
         <Action
           icon="share-social-outline"
           label="Compartilhar"
-          onPress={() => Share.share({ message: `Veja o vídeo de @${author.username} na Rede Política` }).catch(() => {})}
+          onPress={() => Share.share({ message: `Veja o vídeo de @${author.username} no Polarizei` }).catch(() => {})}
         />
       </View>
 

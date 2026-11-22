@@ -2,7 +2,7 @@
 // A versão final deve ser revisada por um advogado antes do lançamento.
 
 export const TERMS: [string, string][] = [
-  ['Idade mínima', 'A Rede Política é só para maiores de 18 anos. Ao criar a conta, você confirma que tem 18 anos ou mais.'],
+  ['Idade mínima', 'O Polarizei é só para maiores de 18 anos. Ao criar a conta, você confirma que tem 18 anos ou mais.'],
   ['Respeito', 'Debata ideias, não ataque pessoas. Ameaças, discurso de ódio e assédio levam à suspensão da conta.'],
   ['Informação verdadeira', 'Não publique conteúdo falso sobre eleições, candidatos ou o processo de votação. Conteúdos denunciados podem ser removidos.'],
   ['Contas políticas', 'Devem representar a pessoa real. Propaganda eleitoral segue as regras e os prazos da Justiça Eleitoral.'],

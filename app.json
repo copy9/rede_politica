@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Rede Política",
+    "name": "Polarizei",
     "slug": "rede-politica",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -11,13 +11,13 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.redepolitica.app",
       "infoPlist": {
-        "NSCameraUsageDescription": "A Rede Política usa a câmera para você entrar ao vivo nas batalhas e gravar publicações.",
-        "NSMicrophoneUsageDescription": "A Rede Política usa o microfone para o áudio das batalhas ao vivo e dos vídeos."
+        "NSCameraUsageDescription": "O Polarizei usa a câmera para você entrar ao vivo nas batalhas e gravar publicações.",
+        "NSMicrophoneUsageDescription": "O Polarizei usa o microfone para o áudio das batalhas ao vivo e dos vídeos."
       }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#030410",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -46,7 +46,8 @@
         {
           "image": "./assets/images/splash-icon.png",
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "imageWidth": 260,
+          "backgroundColor": "#030410"
         }
       ],
       "expo-secure-store",
@@ -55,8 +56,8 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "A Rede Política usa a câmera para você entrar ao vivo nas batalhas e gravar publicações.",
-          "microphonePermission": "A Rede Política usa o microfone para o áudio das batalhas ao vivo e dos vídeos.",
+          "cameraPermission": "O Polarizei usa a câmera para você entrar ao vivo nas batalhas e gravar publicações.",
+          "microphonePermission": "O Polarizei usa o microfone para o áudio das batalhas ao vivo e dos vídeos.",
           "recordAudioAndroid": true
         }
       ],

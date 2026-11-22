@@ -92,7 +92,7 @@ export default function SecurityScreen() {
             <Text style={styles.step}>1. Instale o Google Authenticator (Play Store / App Store), se ainda não tiver.</Text>
             {Platform.OS !== 'web' ? (
               <>
-                <Text style={styles.step}>2. Toque no botão abaixo para adicionar a Rede Política no app autenticador:</Text>
+                <Text style={styles.step}>2. Toque no botão abaixo para adicionar o Polarizei no app autenticador:</Text>
                 <Pressable style={styles.linkBtn} onPress={() => Linking.openURL(setup.uri).catch(() => showBanner('Não achei um app autenticador. Use a chave abaixo.', { tone: 'warning' }))}>
                   <Ionicons name="open-outline" size={16} color={colors.white} />
                   <Text style={styles.linkText}>Abrir no app autenticador</Text>

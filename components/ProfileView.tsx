@@ -93,7 +93,7 @@ export function ProfileView({ user }: { user: User }) {
 
   const onShare = () => {
     recordView(user.id, 'share');
-    Share.share({ message: shareText(`Siga @${user.username} na Rede Política`, `user/${user.username}`) }).catch(() => {});
+    Share.share({ message: shareText(`Siga @${user.username} no Polarizei`, `user/${user.username}`) }).catch(() => {});
   };
 
   return (
