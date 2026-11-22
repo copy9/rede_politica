@@ -1602,6 +1602,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setBattles((prev) => prev.map((b) => (b.id === battleId ? { ...b, status: 'ended' } : b)));
       // quem abriu encerra na hora; para os outros o banco encerra quando o tempo acabou
       if (battle.hostId === meId) write(supabase.from('battles').update({ status: 'ended' }).eq('id', battleId));
+      // o outro lado do debate também encerra ao sair (função leave_battle no banco)
+      else if (battle.opponentId === meId) write(supabase.rpc('leave_battle', { p_battle: battleId }));
       else supabase.rpc('end_expired_battles').then(() => {});
     },
     [battles, meId, write],

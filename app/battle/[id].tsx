@@ -163,7 +163,8 @@ export function BattleView({ id }: { id: string }) {
     router.back();
   };
   const onClose = () => {
-    if (isHost && live) {
+    // quem está debatendo (anfitrião ou o outro lado): sair encerra a live para todos e volta ao Início
+    if (isParticipant && live) {
       confirm('Tem certeza que você deseja sair?', 'A live termina agora para todos.', 'Sair', () => {
         endBattle(battle.id);
         goHome();
