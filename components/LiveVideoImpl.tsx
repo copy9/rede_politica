@@ -7,6 +7,7 @@ import {
   isTrackReference,
   registerGlobals,
   useLocalParticipant,
+  useRoomContext,
   useTracks,
 } from '@livekit/react-native';
 import { Track } from 'livekit-client';
@@ -22,8 +23,6 @@ registerGlobals();
 
 /** false quando a sala de vídeo não conectou (aí quem debate vê ao menos a própria câmera) */
 const ConnectedContext = createContext(false);
-/** câmera da frente ou de trás (para voltar na mesma quando o app reabre) */
-let facing: 'user' | 'environment' = 'user';
 
 /** Entra na sala de vídeo da batalha. Quem debate transmite câmera e microfone; a plateia só assiste e ouve. */
 export function BattleRoom({ battleId, speaker, children, style }: { battleId: string; speaker: boolean; children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
@@ -31,16 +30,6 @@ export function BattleRoom({ battleId, speaker, children, style }: { battleId: s
   const [error, setError] = useState<string | null>(null);
 
   const [connected, setConnected] = useState(false);
-  const connectedRef = useRef(false);
-  connectedRef.current = connected;
-  // se a conexão caiu enquanto a tela estava apagada/minimizada, entra de novo sozinho ao voltar
-  const [attempt, setAttempt] = useState(0);
-  useEffect(() => {
-    const sub = AppState.addEventListener('change', (st) => {
-      if (st === 'active' && !connectedRef.current) setAttempt((n) => n + 1);
-    });
-    return () => sub.remove();
-  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -71,16 +60,15 @@ export function BattleRoom({ battleId, speaker, children, style }: { battleId: s
       alive = false;
       AudioSession.stopAudioSession().catch(() => {});
     };
-  }, [battleId, attempt]);
+  }, [battleId]);
 
   return (
     <LiveKitRoom
-      key={attempt}
       serverUrl={LIVEKIT_URL}
       token={token}
       connect={!!token}
       audio={speaker}
-      video={speaker ? { facingMode: facing } : false}
+      video={speaker ? { facingMode: 'user' } : false}
       options={{ adaptiveStream: true, dynacast: true }}
       onConnected={() => {
         setConnected(true);
@@ -90,7 +78,7 @@ export function BattleRoom({ battleId, speaker, children, style }: { battleId: s
       onError={(e) => setError(`O vídeo caiu: ${e.message}`)}
       onMediaDeviceFailure={() => setError('Não deu para abrir a câmera ou o microfone. Feche outros apps que usam a câmera e entre de novo.')}>
       <ConnectedContext.Provider value={connected}>
-        {speaker ? <ResumeOnForeground /> : null}
+        {speaker ? <ResumeCamera /> : null}
         <View style={style}>
           {children}
           {error ? (
@@ -105,40 +93,44 @@ export function BattleRoom({ battleId, speaker, children, style }: { battleId: s
 }
 
 /**
- * Quando a tela apaga ou o app é minimizado, o Android tira a câmera do app.
- * Ao voltar, religa sozinho a câmera (na mesma lente) e o microfone de quem está transmitindo.
+ * Tela apagou ou app minimizado DURANTE a live (já conectada): ao voltar, se a câmera ou o microfone
+ * pararam, liga de novo. Não faz nada antes de conectar (o pedido de permissão também "sai e volta" do app,
+ * e mexer na câmera nessa hora travava o vídeo para os outros).
  */
-function ResumeOnForeground() {
+function ResumeCamera() {
+  const room = useRoomContext();
   const { localParticipant } = useLocalParticipant();
-  const wanted = useRef({ cam: true, mic: true });
+  const away = useRef<{ cam: boolean; mic: boolean } | null>(null);
   useEffect(() => {
-    let last = AppState.currentState;
     const sub = AppState.addEventListener('change', async (st) => {
-      const wasAway = last !== 'active';
-      if (st !== 'active') {
-        // guarda o que estava ligado antes de sair
-        if (last === 'active') wanted.current = { cam: localParticipant.isCameraEnabled, mic: localParticipant.isMicrophoneEnabled };
-        last = st;
+      if (st === 'background') {
+        // só conta se a live já estava conectada
+        if (room.state === 'connected') away.current = { cam: localParticipant.isCameraEnabled, mic: localParticipant.isMicrophoneEnabled };
         return;
       }
-      last = st;
-      if (!wasAway) return;
-      if (wanted.current.cam) {
+      if (st !== 'active' || !away.current) return;
+      const wanted = away.current;
+      away.current = null;
+      if (room.state !== 'connected') return;
+      if (wanted.cam) {
         const pub = localParticipant.getTrackPublication(Track.Source.Camera);
-        const track = pub?.track as { restartTrack?: (o: { facingMode: string }) => Promise<void> } | undefined;
-        try {
-          if (track?.restartTrack) await track.restartTrack({ facingMode: facing });
-          else await localParticipant.setCameraEnabled(true, { facingMode: facing });
-        } catch {
-          // a câmera não voltou com o restart: desliga e liga de novo
-          await localParticipant.setCameraEnabled(false).catch(() => {});
-          await localParticipant.setCameraEnabled(true, { facingMode: facing }).catch(() => {});
+        const track = pub?.track as { mediaStreamTrack?: { readyState?: string }; restartTrack?: () => Promise<void> } | undefined;
+        // só mexe se a câmera realmente parou
+        if (!track || track.mediaStreamTrack?.readyState === 'ended' || pub?.isMuted) {
+          try {
+            if (track?.restartTrack) await track.restartTrack();
+            else await localParticipant.setCameraEnabled(true);
+            if (pub?.isMuted) await localParticipant.setCameraEnabled(true);
+          } catch {
+            await localParticipant.setCameraEnabled(false).catch(() => {});
+            await localParticipant.setCameraEnabled(true).catch(() => {});
+          }
         }
       }
-      if (wanted.current.mic) await localParticipant.setMicrophoneEnabled(true).catch(() => {});
+      if (wanted.mic && !localParticipant.isMicrophoneEnabled) await localParticipant.setMicrophoneEnabled(true).catch(() => {});
     });
     return () => sub.remove();
-  }, [localParticipant]);
+  }, [room, localParticipant]);
   return null;
 }
 
@@ -164,13 +156,11 @@ export function SideVideo({ userId, isMe, fallback, controlsTop = 8 }: { userId:
 /** Botões de quem está debatendo: ligar/desligar câmera e microfone, trocar de câmera. */
 function MyControls({ top = 8 }: { top?: number }) {
   const { localParticipant, isCameraEnabled, isMicrophoneEnabled, cameraTrack } = useLocalParticipant();
-  const [front, setFront] = useState(facing === 'user');
+  const [front, setFront] = useState(true);
   const flip = async () => {
     const track = cameraTrack?.track as { restartTrack?: (o: { facingMode: string }) => Promise<void> } | undefined;
     if (!track?.restartTrack) return;
-    const next = front ? 'environment' : 'user';
-    await track.restartTrack({ facingMode: next }).catch(() => {});
-    facing = next;
+    await track.restartTrack({ facingMode: front ? 'environment' : 'user' }).catch(() => {});
     setFront(!front);
   };
   return (
