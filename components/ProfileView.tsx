@@ -5,6 +5,7 @@ import { Image as FitImage } from 'expo-image';
 import { Image, Linking, Pressable, ScrollView, Share, StyleSheet, Text, View, RefreshControl } from 'react-native';
 import { shareText } from '@/lib/share';
 import { recordView } from '@/lib/views';
+import { ratingPoints, useRatings } from '@/lib/ratings';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ScoreLevel, ScoreRing } from './ScoreRing';
 
@@ -57,6 +58,7 @@ export function ProfileView({ user }: { user: User }) {
   const [colY, setColY] = useState(0);
   const coverH = rowY + colY + avatarBottom;
   const totalLikes = userPosts.reduce((t, p) => t + p.likes.length, 0);
+  useRatings();
   // Score do candidato: seguidores, curtidas, comentários, apoiadores e debates (o "não curti" desconta)
   const score = (() => {
     if (user.accountType !== 'politico') return 0;
@@ -64,7 +66,8 @@ export function ProfileView({ user }: { user: User }) {
     const dislikes = userPosts.reduce((t, p) => t + (p.dislikes ?? 0), 0);
     const comments = userPosts.reduce((t, p) => t + commentsFor(p.id).length, 0);
     const debates = battles.filter((b) => b.status !== 'invited' && (b.hostId === user.id || b.opponentId === user.id)).length;
-    const raw = followersOf(user.id).length * 3 + likes * 2 + comments * 3 + supportersFor(user.id).length * 10 + debates * 15 - dislikes;
+    // nota das lives (estrelas da plateia): acima de 3 soma, abaixo de 3 desconta
+    const raw = followersOf(user.id).length * 3 + likes * 2 + comments * 3 + supportersFor(user.id).length * 10 + debates * 15 - dislikes + ratingPoints(user.id);
     return Math.max(0, raw);
   })();
 

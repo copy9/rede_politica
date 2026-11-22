@@ -12,6 +12,8 @@ import { useT } from '@/lib/i18n';
 import { SettingsProvider, useSettings } from '@/lib/settings';
 import { AppProvider, useApp } from '@/lib/store';
 import { InvitePopup } from '@/components/InvitePopup';
+import { loadRatings } from '@/lib/ratings';
+import { RateLivePrompt } from '@/components/RateLivePrompt';
 import { MessageAlert } from '@/components/MessageAlert';
 import { colors, schemeFrom, setScheme } from '@/lib/theme';
 
@@ -55,6 +57,10 @@ function ThemedApp() {
     pathAtChange.current = pathname;
   }
 
+  // notas das lives (impulsionamento e score): carrega ao abrir o app
+  useEffect(() => {
+    loadRatings();
+  }, []);
   useEffect(() => {
     if (loaded) SplashScreen.hideAsync();
   }, [loaded]);
@@ -82,6 +88,7 @@ function ThemedApp() {
       <UsageTracker />
       <SyncErrorBanner />
       <InvitePopup />
+      <RateLivePrompt />
       <MessageAlert />
       {/* key: troca de tema redesenha tudo; RestorePath volta para a tela onde a pessoa estava */}
       <RootNavigator key={scheme} />

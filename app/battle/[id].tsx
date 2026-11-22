@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { recordView } from '@/lib/views';
+import { markWatched } from '@/lib/ratings';
 import {
   FlatList,
   Platform,
@@ -130,6 +131,12 @@ export function BattleView({ id }: { id: string }) {
 
   // Conta quem está assistindo (tempo real)
   useEffect(() => joinBattle(id), [id, joinBattle]);
+
+  // Nota da live: quem está assistindo (não quem fala) recebe o pedido de estrelas quando a live terminar
+  const amSpeaker = !!battle && (battle.hostId === me.id || battle.opponentId === me.id || isGuestSpeaker);
+  useEffect(() => {
+    if (battle?.status === 'live' && !amSpeaker) markWatched(battle.id);
+  }, [battle?.id, battle?.status, amSpeaker]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!battle || !host || !opponent) {
     return (

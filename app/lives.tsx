@@ -7,18 +7,22 @@ import { FlatList, Pressable, StyleSheet, Text, View, useWindowDimensions } from
 import { Avatar } from '@/components/Avatar';
 import { BattleView } from '@/app/battle/[id]';
 import { useApp } from '@/lib/store';
+import { liveBoost } from '@/lib/ratings';
 import { colors, spacing } from '@/lib/theme';
 
 export default function LivesFeed() {
   const { battles, getUser } = useApp();
   const { height } = useWindowDimensions();
-  // ordem aleatória, mas fixa enquanto a tela está aberta
+  // ordem sorteada (fixa enquanto a tela está aberta), mas quem tem nota melhor nas lives aparece antes para mais gente
   const seed = useRef(Math.random()).current;
   const lives = useMemo(
     () =>
       battles
         .filter((b) => b.status === 'live')
-        .map((b) => ({ b, k: Math.abs(Math.sin(seed * 1000 + b.id.charCodeAt(0) * 31 + b.id.charCodeAt(5))) }))
+        .map((b) => {
+          const boost = Math.max(liveBoost(b.hostId), b.opponentId ? liveBoost(b.opponentId) : 0);
+          return { b, k: Math.abs(Math.sin(seed * 1000 + b.id.charCodeAt(0) * 31 + b.id.charCodeAt(5))) / (boost * boost) };
+        })
         .sort((x, y) => x.k - y.k)
         .map((x) => x.b),
     [battles, seed],

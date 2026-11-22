@@ -6,6 +6,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BattleCard } from '@/components/BattleCard';
 import { useApp } from '@/lib/store';
+import { liveBoost } from '@/lib/ratings';
+
+const reach = (b: { viewers: number; hostId: string; opponentId: string }) => {
+  const boost = Math.max(liveBoost(b.hostId), b.opponentId ? liveBoost(b.opponentId) : 0);
+  return (b.viewers + 1) * boost * boost;
+};
 import { colors, spacing, themed } from '@/lib/theme';
 
 type Filter = 'all' | 'following';
@@ -21,7 +27,8 @@ export default function BattlesScreen() {
   );
 
   const sections = [
-    { title: 'Ao vivo agora', data: visible.filter((b) => b.status === 'live').sort((a, b) => b.viewers - a.viewers) },
+    // ao vivo: quem tem nota melhor nas lives sobe na lista (impulsionamento)
+    { title: 'Ao vivo agora', data: visible.filter((b) => b.status === 'live').sort((a, b) => reach(b) - reach(a)) },
     { title: 'Agendadas', data: visible.filter((b) => b.status === 'scheduled').sort((a, b) => a.startsAt - b.startsAt) },
   ].filter((s) => s.data.length > 0);
 
