@@ -186,6 +186,8 @@ export function BattleView({ id }: { id: string }) {
     }
     sendBattleMessage(battle.id, text);
     setText('');
+    // enviou: o teclado desce sozinho
+    Keyboard.dismiss();
   };
 
   return (
@@ -400,13 +402,48 @@ export function BattleView({ id }: { id: string }) {
                 </View>
               );
             }
+            const tileSide: BattleSide | null = s.key === host.id ? 'host' : !solo && s.key === opponent.id ? 'opponent' : null;
+            // quem assiste toca na tela de um dos lados para mandar as curtidas para ele
+            const canPick = !!tileSide && !isParticipant && !isGuestSpeaker && live;
+            const picked = canPick && side === tileSide;
+            const showFollow = !s.isMe && !!s.user && !app.isFollowing(s.user.id);
             return (
               <View key={s.key} style={[styles.tileAbs, { left: r.x, top: r.y, width: r.w, height: r.h }]}>
                 {video}
-                {/* nome por cima do vídeo, embaixo à esquerda, como no TikTok */}
-                <Text style={styles.tileNameOver} numberOfLines={1}>
-                  {name}
-                </Text>
+                {canPick ? (
+                  <Pressable
+                    style={[StyleSheet.absoluteFill, picked && styles.tilePicked]}
+                    accessibilityLabel={`Curtir ${name}`}
+                    onPress={() => {
+                      setSide(tileSide);
+                      showBanner(`Suas curtidas agora vão para ${name}`, { icon: 'heart', tone: 'success' });
+                    }}
+                  />
+                ) : null}
+                {/* nome por cima do vídeo, embaixo à esquerda, como no TikTok, com + para seguir */}
+                <View style={styles.tileNameRow} pointerEvents="box-none">
+                  <Text style={styles.tileNameText} numberOfLines={1}>
+                    {name}
+                  </Text>
+                  {showFollow ? (
+                    <Pressable
+                      style={styles.followPlus}
+                      hitSlop={10}
+                      accessibilityLabel={`Seguir ${name}`}
+                      onPress={() => {
+                        app.toggleFollow(s.user!.id);
+                        showBanner(`Você está seguindo ${name}`, { icon: 'person-add', tone: 'success' });
+                      }}>
+                      <Ionicons name="add" size={14} color="#fff" />
+                    </Pressable>
+                  ) : null}
+                </View>
+                {picked ? (
+                  <View style={styles.pickedBadge} pointerEvents="none">
+                    <Ionicons name="heart" size={11} color="#fff" />
+                    <Text style={styles.pickedText}>Curtindo</Text>
+                  </View>
+                ) : null}
                 {s.key === host.id || (!solo && s.key === opponent.id) ? (
                   <View style={styles.likeCount}>
                     <Ionicons name="heart" size={12} color="#F43F5E" />
@@ -678,6 +715,12 @@ const styles = themed(() => StyleSheet.create({
   tileAbs: { position: 'absolute', overflow: 'hidden', backgroundColor: '#111827', borderWidth: StyleSheet.hairlineWidth, borderColor: '#000' },
   likeCount: { position: 'absolute', top: 8, left: 8, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
   likeCountText: { color: '#fff', fontWeight: '800', fontSize: 12 },
+  tileNameRow: { position: 'absolute', left: 8, bottom: 6, right: 8, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  tileNameText: { flexShrink: 1, color: '#fff', fontWeight: '700', fontSize: 13, textShadowColor: 'rgba(0,0,0,0.8)', textShadowRadius: 4 },
+  followPlus: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#F43F5E', alignItems: 'center', justifyContent: 'center' },
+  tilePicked: { borderWidth: 3, borderColor: '#F43F5E' },
+  pickedBadge: { position: 'absolute', top: 8, right: 8, flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#F43F5E', borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2 },
+  pickedText: { color: '#fff', fontSize: 11, fontWeight: '800' },
   tileNameOver: { position: 'absolute', left: 8, bottom: 6, right: 8, color: '#fff', fontWeight: '700', fontSize: 13, textShadowColor: 'rgba(0,0,0,0.8)', textShadowRadius: 4 },
   chatHint: { color: 'rgba(255,255,255,0.6)', fontSize: 13, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   tileBox: { flex: 1, overflow: 'hidden', borderRadius: 10, backgroundColor: '#111827' },

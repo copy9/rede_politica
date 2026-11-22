@@ -29,7 +29,7 @@ export default function ReelsScreen() {
   const [height, setHeight] = useState(0);
   const videos = useMemo(() => feed().filter((p) => p.type === 'video'), [feed]);
   const startIndex = Math.max(0, videos.findIndex((v) => v.id === start));
-  const [activeId, setActiveId] = useState<string | null>(start ?? null);
+  const [activeId, setActiveId] = useState<string | null>(start ?? videos[0]?.id ?? null);
 
   const onViewable = useRef(({ viewableItems }: { viewableItems: { item: Post }[] }) => {
     const id = viewableItems[0]?.item?.id;

@@ -23,6 +23,8 @@ export function InvitePopup() {
     return () => clearInterval(t);
   }, []);
   const [dismissed, setDismissed] = useState<string[]>([]);
+  // quem convidou pode ser uma conta nova que o app ainda não carregou: busca nome e foto direto
+  const [hosts, setHosts] = useState<Record<string, { name: string; avatar: string }>>({});
 
   // convites como participante ao vivo (tabela battle_guests), em tempo real
   useEffect(() => {
@@ -30,8 +32,11 @@ export function InvitePopup() {
     let alive = true;
     const load = async () => {
       const { data } = await supabase.from('battle_guests').select('battle_id, created_at').eq('user_id', meId).eq('status', 'convidado');
-      if (alive)
-        setGuestInvites((data ?? []).map((r: { battle_id: string; created_at: string }) => ({ id: r.battle_id, at: new Date(r.created_at).getTime() })));
+      if (!alive) return;
+      const rows = (data ?? []) as { battle_id: string; created_at: string }[];
+      setGuestInvites(rows.map((r) => ({ id: r.battle_id, at: new Date(r.created_at).getTime() })));
+      // a live do convite precisa estar na lista do app para o pop-up aparecer (sem fechar e abrir o app)
+      rows.forEach((r) => refreshBattle(r.battle_id));
     };
     load();
     // além do tempo real, confere no banco a cada 8 segundos se chegou convite (caso o aviso em tempo real falhe)
@@ -52,6 +57,23 @@ export function InvitePopup() {
     };
   }, [meId, refreshBattle]);
 
+  // busca nome e foto de quem convidou, se o app ainda não tiver essa conta
+  useEffect(() => {
+    const ids = battles
+      .filter((b) => (b.status === 'invited' && b.opponentId === meId) || guestInvites.some((g) => g.id === b.id))
+      .map((b) => b.hostId)
+      .filter((id) => !getUser(id) && !(id in hosts));
+    if (!ids.length) return;
+    setHosts((h) => Object.fromEntries([...Object.entries(h), ...ids.map((id) => [id, { name: '', avatar: '' }])]));
+    supabase
+      .from('profiles')
+      .select('id, name, avatar_url')
+      .in('id', ids)
+      .then(({ data }) =>
+        setHosts((h) => ({ ...h, ...Object.fromEntries((data ?? []).map((p: { id: string; name: string; avatar_url: string | null }) => [p.id, { name: p.name, avatar: p.avatar_url ?? '' }])) })),
+      );
+  }, [battles, guestInvites, meId, getUser, hosts]);
+
   if (!meId) return null;
 
   const now = Date.now();
@@ -60,13 +82,14 @@ export function InvitePopup() {
       .filter((b) => b.status === 'invited' && b.opponentId === meId && now - b.startsAt < FRESH_MS)
       .map((b) => ({ battleId: b.id, kind: 'lado' as const })),
     ...guestInvites
-      .filter((g) => now - g.at < FRESH_MS && battles.some((b) => b.id === g.id && b.status !== 'ended'))
+      .filter((g) => battles.some((b) => b.id === g.id && (b.status === 'live' || (b.status !== 'ended' && now - g.at < FRESH_MS))))
       .map((g) => ({ battleId: g.id, kind: 'convidado' as const })),
   ].filter((i) => !dismissed.includes(i.battleId));
 
   const current = invites[0];
   const battle = current ? battles.find((b) => b.id === current.battleId) : undefined;
-  const host = battle ? getUser(battle.hostId) : undefined;
+  const hostId = battle?.hostId;
+  const host = hostId ? (getUser(hostId) ?? (hosts[hostId]?.name ? hosts[hostId] : undefined)) : undefined;
   if (!current || !battle || !host) return null;
 
   const close = () => setDismissed((d) => [...d, current.battleId]);

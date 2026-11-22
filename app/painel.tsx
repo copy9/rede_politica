@@ -57,7 +57,7 @@ function usePainelRaw(meId: string, period: Period) {
     // período atual + o anterior (para comparar)
     const since = new Date(Date.now() - period * 2 * 86400000).toISOString();
     try {
-      const [views, follows, unfollows] = await Promise.all([
+      const results = await Promise.allSettled([
         fetchAll<PainelRaw['views'][number]>((a, b) =>
           supabase.from('content_views').select('viewer_id, kind, ref_id, created_at').eq('owner_id', meId).gte('created_at', since).order('created_at').range(a, b),
         ),
@@ -68,9 +68,13 @@ function usePainelRaw(meId: string, period: Period) {
           supabase.from('follow_events').select('created_at').eq('following_id', meId).eq('kind', 'unfollow').gte('created_at', since).range(a, b),
         ),
       ]);
+      const [views, follows, unfollows] = results.map((r) => (r.status === 'fulfilled' ? r.value : [])) as [PainelRaw['views'], PainelRaw['follows'], PainelRaw['unfollows']];
       setRaw({ views, follows, unfollows });
+      // as tabelas de visualizações ainda não existem no banco: avisa só o que falta
+      if (results.some((r) => r.status === 'rejected'))
+        setError('Visualizações, visitas e "deixaram de seguir" começam a contar quando o banco for atualizado (SQL 0019_painel_real.sql).');
     } catch {
-      setError('Não foi possível carregar visualizações e seguidores. Rode o SQL 0019_painel_real.sql no Supabase.');
+      setError('Sem conexão. Puxe para baixo para tentar de novo.');
     } finally {
       setLoading(false);
     }
@@ -168,14 +172,17 @@ export default function PainelScreen() {
         }}
       />
 
+      {/* abas roláveis para os lados: nenhum nome fica cortado, mesmo com letra grande */}
       <View style={styles.tabs}>
-        {TABS.map((t) => (
-          <Pressable key={t.key} onPress={() => openTab(t.key)} style={[styles.tab, tab === t.key && styles.tabActive]}>
-            <Text style={[styles.tabText, tab !== t.key && { color: colors.textMuted }]} numberOfLines={1} adjustsFontSizeToFit>
-              {t.label}
-            </Text>
-          </Pressable>
-        ))}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsRow}>
+          {TABS.map((t) => (
+            <Pressable key={t.key} onPress={() => openTab(t.key)} style={[styles.tab, tab === t.key && styles.tabActive]}>
+              <Text style={[styles.tabText, tab !== t.key && { color: colors.textMuted }]} numberOfLines={1}>
+                {t.label}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
       </View>
 
       {tab === 'apoiadores' ? (
@@ -459,7 +466,8 @@ function Tool({ icon, label, onPress }: { icon: React.ComponentProps<typeof Ioni
 const styles = themed(() => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
   tabs: { flexDirection: 'row', backgroundColor: colors.background, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
-  tab: { flex: 1, alignItems: 'center', paddingVertical: spacing.md },
+  tabsRow: { flexGrow: 1, paddingHorizontal: spacing.sm },
+  tab: { flexGrow: 1, alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md },
   tabActive: { borderBottomWidth: 2, borderBottomColor: colors.text },
   tabText: { fontWeight: '700', color: colors.text, fontSize: 13 },
   content: { padding: spacing.lg, gap: spacing.lg, paddingBottom: 48, maxWidth: 720, width: '100%', alignSelf: 'center' },

@@ -75,7 +75,8 @@ export default function FeedScreen() {
                   <Pressable
                     key={k}
                     style={[styles.tab, on && styles.tabOn]}
-                    onPress={() => setKind(on ? 'all' : k)}
+                    // Vídeos abre direto em tela cheia (rolando um atrás do outro, como no TikTok)
+                    onPress={() => (k === 'video' ? router.push('/reels') : setKind(on ? 'all' : k))}
                     accessibilityLabel={label}
                     accessibilityState={{ selected: on }}>
                     <Ionicons name={on ? icon : (`${icon}-outline` as const)} size={22} color={on ? colors.text : colors.textMuted} />
