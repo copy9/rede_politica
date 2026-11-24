@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { recordView } from '@/lib/views';
 import { InviteToLive } from '@/components/InviteToLive';
+import { BRAND_BLUE } from '@/components/Logo';
 import { markWatched } from '@/lib/ratings';
 import {
   FlatList,
@@ -744,7 +745,7 @@ const styles = themed(() => StyleSheet.create({
   link: { color: '#60A5FA', textDecorationLine: 'underline' },
   topic: { color: '#fff', fontWeight: '700', fontSize: 15 },
   close: { paddingTop: 2 },
-  inviteBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, marginRight: 8, marginTop: 2 },
+  inviteBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: BRAND_BLUE, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, marginRight: 8, marginTop: 2 },
   inviteText: { color: '#fff', fontWeight: '700' },
   endText: { color: '#fff', fontWeight: '700', backgroundColor: colors.like, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, overflow: 'hidden' },
   split: { flexDirection: 'row' },

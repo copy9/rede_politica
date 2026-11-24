@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
+import { BRAND_BLUE } from '@/components/Logo';
 import { useOverlay } from '@/components/Overlay';
 import { useApp, useMe } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
@@ -108,7 +109,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: spacing.md, paddingVertical: 8 },
   name: { color: '#fff', fontWeight: '700', fontSize: 15 },
   user: { color: 'rgba(255,255,255,0.6)', fontSize: 13 },
-  btn: { backgroundColor: '#F43F5E', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8 },
+  btn: { backgroundColor: BRAND_BLUE, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8 },
   btnDone: { backgroundColor: '#4B5563' },
   btnText: { color: '#fff', fontWeight: '800', fontSize: 13 },
 });
