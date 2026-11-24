@@ -538,13 +538,21 @@ export function BattleView({ id }: { id: string }) {
             </View>
           );
           // No app instalado: vídeo e áudio ao vivo de um celular para o outro (LiveKit)
+          // Mesma estrutura da tela cheia (fragmento com a sala na 1ª posição): ao trocar de tela cheia para
+          // dividida (alguém entrou) ou ao contrário (alguém saiu), a conexão de vídeo CONTINUA a mesma —
+          // não reconecta e a câmera não fica presa (era o que deixava a tela escura).
           const LV = getLiveVideo();
-          return LV && live ? (
-            <LV.BattleRoom key={`${isParticipant}-${isGuestSpeaker}`} battleId={battle.id} speaker={isParticipant || isGuestSpeaker}>
-              {stage}
-            </LV.BattleRoom>
-          ) : (
-            stage
+          return (
+            <>
+              {LV && live ? (
+                <LV.BattleRoom key={`${isParticipant}-${isGuestSpeaker}`} battleId={battle.id} speaker={isParticipant || isGuestSpeaker}>
+                  {stage}
+                </LV.BattleRoom>
+              ) : (
+                <View>{stage}</View>
+              )}
+              {null}
+            </>
           );
         })()}
 
