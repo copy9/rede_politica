@@ -37,7 +37,10 @@ begin
     insert into follow_events (following_id, follower_id, kind) values (new.following_id, new.follower_id, 'follow');
     return new;
   else
-    insert into follow_events (following_id, follower_id, kind) values (old.following_id, old.follower_id, 'unfollow');
+    -- conta apagada: não registra (o perfil já saiu do banco)
+    if exists (select 1 from profiles where id = old.follower_id) and exists (select 1 from profiles where id = old.following_id) then
+      insert into follow_events (following_id, follower_id, kind) values (old.following_id, old.follower_id, 'unfollow');
+    end if;
     return old;
   end if;
 end $$;
