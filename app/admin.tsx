@@ -2,7 +2,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useOverlay } from '@/components/Overlay';
 import { useMe } from '@/lib/store';
@@ -14,7 +14,7 @@ type Stats = Record<string, number> & { by_state: { label: string; total: number
 type Request = { id: string; created_at: string; status: string; reason: string; user_id: string; username: string; name: string; account_type: string };
 type Report = { id: string; created_at: string; status: string; reason: string; target_type: string; target_id: string | null; reporter_username: string };
 type AdminUser = {
-  id: string; username: string; name: string; account_type: string; verified: boolean; is_admin: boolean;
+  id: string; username: string; name: string; email?: string | null; account_type: string; verified: boolean; is_admin: boolean;
   city: string | null; state: string | null; created_at: string; last_active_at: string | null; posts: number; followers: number;
 };
 
@@ -81,6 +81,36 @@ export default function AdminScreen() {
       if (error) showBanner(`Erro: ${error.message}`, { icon: 'alert-circle-outline', tone: 'warning' });
       load();
     }, !on);
+  };
+
+  // apagar usuário (de vez)
+  const deleteUser = (u: AdminUser) => {
+    confirm(
+      `Apagar @${u.username}?`,
+      `A conta${u.email ? ` ${u.email}` : ''} e tudo o que ela publicou (posts, comentários, mensagens, stories, lives) serão apagados de vez. Não dá para desfazer.`,
+      'Apagar',
+      async () => {
+        const { error } = await supabase.rpc('admin_delete_user', { target: u.id });
+        if (error) showBanner(`Erro: ${error.message}`, { icon: 'alert-circle-outline', tone: 'warning' });
+        else showBanner(`@${u.username} foi apagado.`, { icon: 'trash-outline', tone: 'success' });
+        load();
+      },
+      true,
+    );
+  };
+
+  // trocar a senha de um usuário
+  const [pwdUser, setPwdUser] = useState<AdminUser | null>(null);
+  const [pwd, setPwd] = useState('');
+  const [pwdShow, setPwdShow] = useState(false);
+  const savePassword = async () => {
+    if (!pwdUser) return;
+    if (pwd.length < 6) return showBanner('A senha precisa ter pelo menos 6 caracteres.', { icon: 'alert-circle-outline', tone: 'warning' });
+    const { error } = await supabase.rpc('admin_set_password', { target: pwdUser.id, new_password: pwd });
+    if (error) return showBanner(`Erro: ${error.message}`, { icon: 'alert-circle-outline', tone: 'warning' });
+    showBanner(`Senha de @${pwdUser.username} trocada.`, { icon: 'key-outline', tone: 'success' });
+    setPwdUser(null);
+    setPwd('');
   };
 
   const resolve = async (r: Report) => {
@@ -229,7 +259,7 @@ export default function AdminScreen() {
             <View style={styles.search}>
               <Ionicons name="search" size={16} color={colors.textMuted} />
               <TextInput
-                placeholder="Buscar por nome ou usuário"
+                placeholder="Buscar por nome, usuário ou e-mail"
                 placeholderTextColor={colors.textMuted}
                 value={search}
                 onChangeText={setSearch}
@@ -248,6 +278,7 @@ export default function AdminScreen() {
                   {u.name} · @{u.username} {u.verified ? '✔' : ''} {u.is_admin ? '(admin)' : ''}
                 </Text>
               </Pressable>
+              {u.email ? <Text style={styles.muted}>{u.email}</Text> : null}
               <Text style={styles.muted}>
                 {u.account_type === 'politico' ? 'Perfil público' : 'Usuário normal'} · {[u.city, u.state].filter(Boolean).join('/') || 'sem cidade'}
               </Text>
@@ -258,11 +289,52 @@ export default function AdminScreen() {
                 <Pressable style={[styles.btn, { backgroundColor: u.account_type === 'politico' ? '#DC2626' : '#2563EB' }]} onPress={() => setPolitico(u)}>
                   <Text style={styles.btnText}>{u.account_type === 'politico' ? 'Tirar perfil público' : 'Liberar perfil público'}</Text>
                 </Pressable>
+                <Pressable style={[styles.btn, { backgroundColor: '#4B5563' }]} onPress={() => { setPwd(''); setPwdShow(false); setPwdUser(u); }}>
+                  <Text style={styles.btnText}>Trocar senha</Text>
+                </Pressable>
+                {!u.is_admin ? (
+                  <Pressable style={[styles.btn, { backgroundColor: '#991B1B' }]} onPress={() => deleteUser(u)}>
+                    <Text style={styles.btnText}>Apagar usuário</Text>
+                  </Pressable>
+                ) : null}
               </View>
             </View>
           )}
         />
       ) : null}
+
+      <Modal visible={!!pwdUser} transparent animationType="fade" onRequestClose={() => setPwdUser(null)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.cardTitle}>Nova senha para @{pwdUser?.username}</Text>
+            {pwdUser?.email ? <Text style={styles.muted}>{pwdUser.email}</Text> : null}
+            <View style={styles.pwdRow}>
+              <TextInput
+                value={pwd}
+                onChangeText={setPwd}
+                placeholder="Mínimo 6 caracteres"
+                placeholderTextColor={colors.textMuted}
+                secureTextEntry={!pwdShow}
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoFocus
+                style={styles.pwdInput}
+              />
+              <Pressable onPress={() => setPwdShow((v) => !v)} hitSlop={8}>
+                <Ionicons name={pwdShow ? 'eye-off-outline' : 'eye-outline'} size={22} color={colors.textMuted} />
+              </Pressable>
+            </View>
+            <View style={styles.actions}>
+              <Pressable style={[styles.btn, { backgroundColor: '#4B5563' }]} onPress={() => setPwdUser(null)}>
+                <Text style={styles.btnText}>Cancelar</Text>
+              </Pressable>
+              <Pressable style={[styles.btn, { backgroundColor: '#2563EB' }]} onPress={savePassword}>
+                <Text style={styles.btnText}>Salvar senha</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -324,6 +396,10 @@ const styles = themed(() => StyleSheet.create({
   muted: { color: colors.textMuted, fontSize: 12 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
   btn: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', padding: spacing.lg },
+  modalCard: { backgroundColor: colors.surface, borderRadius: 16, padding: spacing.lg, gap: spacing.sm },
+  pwdRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 12 },
+  pwdInput: { flex: 1, color: colors.text, paddingVertical: 10, fontSize: 15 },
   btnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
   search: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.surface, borderRadius: 10, paddingHorizontal: 12, height: 40 },
   empty: { color: colors.textMuted, textAlign: 'center', marginTop: 40 },
