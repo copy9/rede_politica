@@ -174,6 +174,7 @@ type AppState = {
   joinBattle: (battleId: string) => () => void;
   startBattle: (battleId: string) => void;
   endBattle: (battleId: string) => void;
+  leaveBattle: (battleId: string) => void;
 
   // apoiadores (consentimento LGPD)
   consents: SupporterConsent[];
@@ -344,6 +345,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [stories, setStories] = useState<Story[]>([]);
   const [follows, setFollows] = useState<Follow[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const battlesLoaded = useRef(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [battles, setBattles] = useState<LiveBattle[]>([]);
@@ -460,6 +462,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setNotifications(no.map(toNotification));
 
       const battleList = ba.map((b) => toBattle(b));
+      battlesLoaded.current = true;
       setBattles(battleList.map((b) => ({ ...b, viewers: viewersRef.current[b.id] ?? 0 })));
       setBattleMessages(be.filter((e) => e.kind !== 'like').reverse().map((e) => toBattleMessage(e, userList, battleList)));
       setConsents(
@@ -594,6 +597,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
     // só na abertura do app
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sino: aviso de batalha some quando a batalha terminou, foi respondida ou não existe mais
+  const staleBattleNotif = useCallback(
+    (n: AppNotification) => {
+      if (n.type !== 'battle' || !n.battleId) return false;
+      const b = battles.find((x) => x.id === n.battleId);
+      if (!b) return battlesLoaded.current; // batalha apagada (só decide depois de carregar as batalhas)
+      if (b.status === 'ended') return true;
+      // convite/desafio já respondido: a batalha não está mais esperando resposta
+      if (/desafiou/i.test(n.text ?? '') && b.status !== 'invited') return true;
+      return false;
+    },
+    [battles],
+  );
+  const visibleNotifications = useMemo(() => notifications.filter((n) => !staleBattleNotif(n)), [notifications, staleBattleNotif]);
+  // e sai do banco também, para não voltar
+  useEffect(() => {
+    if (!meId) return;
+    const ids = notifications.filter(staleBattleNotif).map((n) => n.id);
+    if (!ids.length) return;
+    supabase.from('notifications').delete().in('id', ids).then(({ error }) => {
+      if (!error) setNotifications((prev) => prev.filter((n) => !ids.includes(n.id)));
+    });
+  }, [notifications, staleBattleNotif, meId]);
 
   // Conta apagada pelo administrador: quem estiver com o app aberto sai sozinho (confere a cada minuto e ao voltar para o app)
   useEffect(() => {
@@ -1627,6 +1654,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [battles, meId, write],
   );
 
+  /** Sair da live: quem fica continua (o outro lado sai; se o anfitrião sai, o outro lado assume). Sozinho, encerra. */
+  const leaveBattle = useCallback(
+    (battleId: string) => {
+      const battle = battles.find((b) => b.id === battleId);
+      if (!battle) return;
+      setBattles((prev) =>
+        prev.map((b) => {
+          if (b.id !== battleId) return b;
+          if (b.status !== 'live') return { ...b, status: 'ended' };
+          if (b.opponentId === meId) return { ...b, opponentId: '', scores: { host: b.scores.host, opponent: 0 } };
+          if (b.hostId === meId && b.opponentId) return { ...b, hostId: b.opponentId, opponentId: '', scores: { host: b.scores.opponent, opponent: 0 } };
+          if (b.hostId === meId) return { ...b, status: 'ended' };
+          return b;
+        }),
+      );
+      write(supabase.rpc('leave_battle', { p_battle: battleId }));
+    },
+    [battles, meId, write],
+  );
+
   // ---------- autorizações a políticos ----------
   const consentFor = useCallback(
     (politicianId: string) => consents.find((c) => c.politicianId === politicianId && c.userId === meId),
@@ -1747,7 +1794,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     comments,
     stories,
     follows,
-    notifications,
+    notifications: visibleNotifications,
     conversations,
     messages,
     battles,
@@ -1812,6 +1859,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     joinBattle,
     startBattle,
     endBattle,
+    leaveBattle,
     consents,
     consentFor,
     giveConsent,

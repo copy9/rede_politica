@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { recordView } from '@/lib/views';
+import { InviteToLive } from '@/components/InviteToLive';
 import { markWatched } from '@/lib/ratings';
 import {
   FlatList,
@@ -129,6 +130,7 @@ export function BattleView({ id }: { id: string }) {
   // sem tempo fixo: mostra há quanto tempo o debate está no ar; quem criou encerra no botão
   const elapsed = battle ? Math.max(0, (now - battle.startsAt) / 1000) : 0;
 
+  const [inviteOpen, setInviteOpen] = useState(false);
   // Conta quem está assistindo (tempo real)
   useEffect(() => joinBattle(id), [id, joinBattle]);
 
@@ -170,12 +172,20 @@ export function BattleView({ id }: { id: string }) {
     router.back();
   };
   const onClose = () => {
-    // quem está debatendo (anfitrião ou o outro lado): sair encerra a live para todos e volta ao Início
+    // quem está debatendo sai e volta ao Início; quem fica continua a live em tela cheia
     if (isParticipant && live) {
-      confirm('Tem certeza que você deseja sair?', 'A live termina agora para todos.', 'Sair', () => {
-        endBattle(battle.id);
-        goHome();
-      }, true);
+      const other = solo ? undefined : battle.hostId === me.id ? opponent : host;
+      confirm(
+        'Tem certeza que você deseja sair?',
+        other ? `Você sai e a live continua com ${other.name}.` : 'A live termina agora para todos.',
+        'Sair',
+        () => {
+          if (other) app.leaveBattle(battle.id);
+          else endBattle(battle.id);
+          goHome();
+        },
+        true,
+      );
       return;
     }
     if (live) {
@@ -233,6 +243,13 @@ export function BattleView({ id }: { id: string }) {
             </Text>
             {battle.description ? <LinkText text={battle.description} style={styles.description} /> : null}
           </View>
+          {isHost && live ? (
+            // chamar alguém para a live (ex.: o outro lado saiu e quero chamar um amigo)
+            <Pressable onPress={() => setInviteOpen(true)} hitSlop={8} style={styles.inviteBtn} accessibilityLabel="Chamar alguém para a live">
+              <Ionicons name="person-add" size={16} color="#fff" />
+              <Text style={styles.inviteText}>Chamar</Text>
+            </Pressable>
+          ) : null}
           <Pressable onPress={onClose} hitSlop={12} style={styles.close}>
             {isHost && live ? (
               <Text style={styles.endText}>Encerrar</Text>
@@ -533,6 +550,14 @@ export function BattleView({ id }: { id: string }) {
 
         {/* Resultado / agendada */}
         {battle.status === 'ended' ? <Result battle={battle} host={host} opponent={opponent} /> : null}
+        {isHost && live ? (
+          <InviteToLive
+            battleId={battle.id}
+            visible={inviteOpen}
+            onClose={() => setInviteOpen(false)}
+            exclude={[battle.hostId, battle.opponentId, ...guests.filter((g) => g.status === 'accepted').map((g) => g.user_id)].filter(Boolean)}
+          />
+        ) : null}
 
         {/* Chat */}
         <View style={{ flex: 1 }} ref={chatAreaRef} collapsable={false}>
@@ -711,6 +736,8 @@ const styles = themed(() => StyleSheet.create({
   link: { color: '#60A5FA', textDecorationLine: 'underline' },
   topic: { color: '#fff', fontWeight: '700', fontSize: 15 },
   close: { paddingTop: 2 },
+  inviteBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, marginRight: 8, marginTop: 2 },
+  inviteText: { color: '#fff', fontWeight: '700' },
   endText: { color: '#fff', fontWeight: '700', backgroundColor: colors.like, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, overflow: 'hidden' },
   split: { flexDirection: 'row' },
   half: { flex: 1, backgroundColor: '#0B1020' },
