@@ -595,6 +595,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // só na abertura do app
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Conta apagada pelo administrador: quem estiver com o app aberto sai sozinho (confere a cada minuto e ao voltar para o app)
+  useEffect(() => {
+    if (!meId) return;
+    const check = async () => {
+      const { error } = await supabase.auth.getUser();
+      // só sai quando o servidor diz que a conta não existe mais (sem internet não conta)
+      const gone = !!error && ((error.status ?? 0) === 401 || (error.status ?? 0) === 403 || (error.status ?? 0) === 404 || /not exist|not found/i.test(error.message));
+      if (gone) await supabase.auth.signOut({ scope: 'local' }).catch(() => setMeId(null));
+    };
+    check();
+    const t = setInterval(check, 60_000);
+    const sub = RNAppState.addEventListener('change', (st) => st === 'active' && check());
+    return () => {
+      clearInterval(t);
+      sub.remove();
+    };
+  }, [meId]);
+
   // Tempo real (batalhas, mensagens, notificações) + atualização periódica + "visto por último"
   useEffect(() => {
     if (!meId) return;
