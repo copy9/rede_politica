@@ -9,7 +9,9 @@ import { colors, spacing, themed } from '@/lib/theme';
 
 export default function AboutScreen() {
   const params = useLocalSearchParams<{ tab?: string }>();
-  const [tab, setTab] = useState<'sobre' | 'termos' | 'privacidade'>(params.tab === 'termos' ? 'termos' : 'sobre');
+  const [tab, setTab] = useState<'sobre' | 'termos' | 'privacidade'>(
+    params.tab === 'termos' ? 'termos' : params.tab === 'privacidade' ? 'privacidade' : 'sobre',
+  );
   const list = tab === 'termos' ? TERMS : PRIVACY;
 
   return (

@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
-import { useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Share, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useOverlay } from '@/components/Overlay';
@@ -31,11 +31,17 @@ export default function PersonalInfoScreen() {
   const remove = () =>
     confirm(
       'Excluir sua conta?',
-      'Apaga seu perfil, publicações, comentários, mensagens, seguidores e autorizações. Não dá para desfazer.',
+      'Apaga na hora seu perfil, publicações, stories, comentários, mensagens, seguidores, autorizações e créditos de impulsionamento. Não dá para desfazer.',
       'Excluir conta definitivamente',
       () => void deleteAccount(),
       true,
     );
+
+  // veio de Configurações › Excluir minha conta: já abre a confirmação
+  const { excluir } = useLocalSearchParams<{ excluir?: string }>();
+  useEffect(() => {
+    if (excluir === '1') remove();
+  }, [excluir]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <SettingsScreen>

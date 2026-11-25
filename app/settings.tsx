@@ -37,6 +37,7 @@ export default function SettingsHome() {
         { icon: 'person-circle-outline', label: 'Editar perfil', onPress: go('/edit-profile') },
         { icon: 'card-outline', label: 'Informações pessoais', onPress: go('/config/dados-pessoais') },
         { icon: 'key-outline', label: 'Senha e segurança', onPress: go('/config/seguranca') },
+        { icon: 'trash-outline', label: 'Excluir minha conta', onPress: go('/config/dados-pessoais?excluir=1') },
         { icon: 'shield-checkmark-outline', label: political ? 'Perfil público verificado' : 'Solicitar perfil público (político)', value: settings.verification.status === 'em_analise' ? t('Em análise') : undefined, onPress: go('/config/verificacao') },
         ...(me.isAdmin ? [{ icon: 'construct-outline' as const, label: 'Administração', onPress: go('/admin') }] : []),
         ...(political && me.verified ? [{ icon: 'bar-chart-outline' as const, label: 'Painel do político', onPress: go('/painel') }] : []),
@@ -80,7 +81,8 @@ export default function SettingsHome() {
       title: 'Mais informações e suporte',
       rows: [
         { icon: 'help-circle-outline', label: 'Ajuda', onPress: go('/config/ajuda') },
-        { icon: 'document-text-outline', label: 'Termos de uso e privacidade', onPress: go('/config/sobre?tab=termos') },
+        { icon: 'document-text-outline', label: 'Termos de uso', onPress: go('/config/sobre?tab=termos') },
+        { icon: 'shield-outline', label: 'Política de privacidade', onPress: go('/config/sobre?tab=privacidade') },
         { icon: 'information-circle-outline', label: 'Sobre', onPress: go('/config/sobre') },
       ],
     },
