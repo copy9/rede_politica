@@ -12,6 +12,8 @@ import { MediaVideo } from '@/components/MediaVideo';
 import { compactNumber } from '@/lib/format';
 import { shareText } from '@/lib/share';
 import { recordView } from '@/lib/views';
+import { boostEvent, boostImpression, useBoostSlots } from '@/lib/boost';
+import { BRAND_BLUE } from '@/components/Logo';
 import { useApp, useMe } from '@/lib/store';
 import type { Post } from '@/lib/types';
 
@@ -24,15 +26,37 @@ const THUMB = {
 
 export default function ReelsScreen() {
   const { start } = useLocalSearchParams<{ start?: string }>();
-  const { feed } = useApp();
+  const { feed, posts } = useApp();
   const insets = useSafeAreaInsets();
   const [height, setHeight] = useState(0);
   const videos = useMemo(() => feed().filter((p) => p.type === 'video'), [feed]);
-  const startIndex = Math.max(0, videos.findIndex((v) => v.id === start));
+  // vídeos impulsionados (tráfego pago): 1 a cada N vídeos, marcados como "Impulsionado"
+  const { slots, settings: boostSettings } = useBoostSlots(5);
+  type Item = { key: string; post: Post; campaignId?: string };
+  const items = useMemo<Item[]>(() => {
+    const boosted = slots
+      .filter((b) => b.kind === 'post')
+      .map((b) => ({ b, p: posts.find((x) => x.id === b.targetId) }))
+      .filter((x): x is { b: (typeof slots)[number]; p: Post } => !!x.p && x.p.type === 'video');
+    const every = Math.max(2, boostSettings.reels_every);
+    const out: Item[] = [];
+    let bi = 0;
+    // só entra DEPOIS do vídeo que a pessoa abriu (para a tela não pular quando os impulsionados chegam)
+    const from = Math.max(0, videos.findIndex((v) => v.id === start));
+    videos.forEach((v, i) => {
+      out.push({ key: v.id, post: v });
+      if (i >= from && (i + 1 - from) % every === 0 && bi < boosted.length) {
+        const { b, p } = boosted[bi++];
+        out.push({ key: `boost-${b.campaignId}`, post: p, campaignId: b.campaignId });
+      }
+    });
+    return out;
+  }, [videos, slots, posts, boostSettings.reels_every, start]);
+  const startIndex = Math.max(0, items.findIndex((v) => v.key === start));
   const [activeId, setActiveId] = useState<string | null>(start ?? videos[0]?.id ?? null);
 
-  const onViewable = useRef(({ viewableItems }: { viewableItems: { item: Post }[] }) => {
-    const id = viewableItems[0]?.item?.id;
+  const onViewable = useRef(({ viewableItems }: { viewableItems: { item: Item }[] }) => {
+    const id = viewableItems[0]?.item?.key;
     if (id) setActiveId(id);
   }).current;
 
@@ -41,10 +65,10 @@ export default function ReelsScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       {height > 0 ? (
         <FlatList
-          data={videos}
-          keyExtractor={(p) => p.id}
-          initialScrollIndex={videos.length ? startIndex : undefined}
-          renderItem={({ item }) => <Reel post={item} height={height} active={item.id === activeId} />}
+          data={items}
+          keyExtractor={(it) => it.key}
+          initialScrollIndex={items.length ? startIndex : undefined}
+          renderItem={({ item }) => <Reel post={item.post} height={height} active={item.key === activeId} campaignId={item.campaignId} />}
           pagingEnabled
           snapToInterval={height}
           decelerationRate="fast"
@@ -67,13 +91,14 @@ export default function ReelsScreen() {
   );
 }
 
-function Reel({ post, height, active }: { post: Post; height: number; active: boolean }) {
+function Reel({ post, height, active, campaignId }: { post: Post; height: number; active: boolean; campaignId?: string }) {
   const me = useMe();
   const { getUser, toggleLike, toggleDislike, commentsFor, isFollowing, toggleFollow } = useApp();
   const insets = useSafeAreaInsets();
   useEffect(() => {
     if (active) recordView(post.userId, 'video', post.id);
-  }, [active, post.id, post.userId]);
+    if (active && campaignId) boostImpression(campaignId);
+  }, [active, post.id, post.userId, campaignId]);
   const author = getUser(post.userId);
   if (!author) return null;
   const liked = post.likes.includes(me.id);
@@ -90,7 +115,14 @@ function Reel({ post, height, active }: { post: Post; height: number; active: bo
         <Pressable onPress={() => router.push(`/user/${author.username}`)} style={styles.authorBtn}>
           <Avatar uri={author.avatar} size={46} />
           {author.id !== me.id && !isFollowing(author.id) ? (
-            <Pressable onPress={() => toggleFollow(author.id)} style={styles.followPlus} hitSlop={6} accessibilityLabel="Seguir">
+            <Pressable
+              onPress={() => {
+                if (campaignId) boostEvent(campaignId, 'follow');
+                toggleFollow(author.id);
+              }}
+              style={styles.followPlus}
+              hitSlop={6}
+              accessibilityLabel="Seguir">
               <Ionicons name="add" size={14} color="#fff" />
             </Pressable>
           ) : null}
@@ -115,7 +147,18 @@ function Reel({ post, height, active }: { post: Post; height: number; active: bo
 
       {/* autor e legenda embaixo, à esquerda */}
       <View style={[styles.bottom, { bottom: insets.bottom + 28 }]}>
-        <Pressable onPress={() => router.push(`/user/${author.username}`)} style={styles.authorRow}>
+        {campaignId ? (
+          <View style={styles.boostTag}>
+            <Ionicons name="rocket-outline" size={12} color="#fff" />
+            <Text style={styles.boostText}>Impulsionado</Text>
+          </View>
+        ) : null}
+        <Pressable
+          onPress={() => {
+            if (campaignId) boostEvent(campaignId, 'click');
+            router.push(`/user/${author.username}`);
+          }}
+          style={styles.authorRow}>
           <Text style={[styles.username, styles.shadow]}>{author.name}</Text>
           {author.verified ? <Ionicons name="checkmark-circle" size={15} color="#fff" /> : null}
         </Pressable>
@@ -144,5 +187,7 @@ const styles = StyleSheet.create({
   username: { color: '#fff', fontWeight: '800', fontSize: 16 },
   caption: { color: '#fff', fontSize: 15 },
   empty: { alignItems: 'center', justifyContent: 'center' },
+  boostTag: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', backgroundColor: BRAND_BLUE, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 },
+  boostText: { color: '#fff', fontWeight: '800', fontSize: 11 },
   emptyText: { color: '#fff' },
 });

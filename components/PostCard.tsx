@@ -76,6 +76,10 @@ export function PostCard({ post, active = false, onOpen }: { post: Post; active?
       showSheet({
         title: 'Publicação',
         options: [
+          // político: impulsionar a própria publicação (tráfego pago)
+          ...(me.accountType === 'politico'
+            ? [{ label: 'Impulsionar', icon: 'rocket-outline' as const, onPress: () => router.push({ pathname: '/boost/new', params: { kind: 'post', id: post.id } }) }]
+            : []),
           {
             label: 'Excluir',
             icon: 'trash-outline',

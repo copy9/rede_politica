@@ -4,12 +4,13 @@ import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { AdminBoosts } from '@/components/AdminBoosts';
 import { useOverlay } from '@/components/Overlay';
 import { useMe } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { colors, spacing, themed } from '@/lib/theme';
 
-type Tab = 'painel' | 'pedidos' | 'denuncias' | 'usuarios';
+type Tab = 'painel' | 'pedidos' | 'denuncias' | 'usuarios' | 'impulsionamento';
 type Stats = Record<string, number> & { by_state: { label: string; total: number }[]; signups_14d: { day: string; total: number }[] };
 type Request = { id: string; created_at: string; status: string; reason: string; user_id: string; username: string; name: string; account_type: string };
 type Report = { id: string; created_at: string; status: string; reason: string; target_type: string; target_id: string | null; reporter_username: string };
@@ -130,6 +131,7 @@ export default function AdminScreen() {
             ['pedidos', `Pedidos${stats?.requests_open ? ` (${stats.requests_open})` : ''}`],
             ['denuncias', `Denúncias${stats?.reports_open ? ` (${stats.reports_open})` : ''}`],
             ['usuarios', 'Usuários'],
+            ['impulsionamento', 'Impulsionamento'],
           ] as [Tab, string][]
         ).map(([k, label]) => (
           <Pressable key={k} onPress={() => setTab(k)} style={[styles.tab, tab === k && styles.tabOn]}>
@@ -248,6 +250,8 @@ export default function AdminScreen() {
           )}
         />
       ) : null}
+
+      {tab === 'impulsionamento' ? <AdminBoosts /> : null}
 
       {tab === 'usuarios' ? (
         <FlatList

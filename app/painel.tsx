@@ -18,11 +18,12 @@ import {
 } from '@/components/charts';
 import { buildDashboard, type PainelRaw, type Period } from '@/lib/analytics';
 import { supabase } from '@/lib/supabase';
+import { BoostTab } from '@/components/BoostTab';
 import { compactNumber } from '@/lib/format';
 import { useApp, useMe } from '@/lib/store';
 import { colors, spacing, themed } from '@/lib/theme';
 
-type Tab = 'inicio' | 'desempenho' | 'publico' | 'batalhas' | 'apoiadores';
+type Tab = 'inicio' | 'impulsionar' | 'desempenho' | 'publico' | 'batalhas' | 'apoiadores';
 type Metric = 'views' | 'reach' | 'followers';
 
 const TABS: { key: Tab; label: string }[] = [
@@ -31,6 +32,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'publico', label: 'Público' },
   { key: 'batalhas', label: 'Batalhas' },
   { key: 'apoiadores', label: 'Apoiadores' },
+  { key: 'impulsionar', label: 'Impulsionar' },
 ];
 
 const EMPTY: PainelRaw = { views: [], follows: [], unfollows: [] };
@@ -185,7 +187,9 @@ export default function PainelScreen() {
         </ScrollView>
       </View>
 
-      {tab === 'apoiadores' ? (
+      {tab === 'impulsionar' ? (
+        <BoostTab />
+      ) : tab === 'apoiadores' ? (
         <SupportersTab supporters={supporters} />
       ) : (
         <ScrollView
@@ -246,6 +250,7 @@ export default function PainelScreen() {
                     }}
                   />
                   <Tool icon="calendar" label="Agendar batalha" onPress={() => router.push('/battle/new')} />
+                  <Tool icon="rocket" label="Impulsionar" onPress={() => openTab('impulsionar')} />
                 </View>
               </Card>
             </>
