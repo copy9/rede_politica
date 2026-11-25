@@ -1,11 +1,15 @@
 import { Stack } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { PRIVACY, TERMS } from '@/lib/legal';
+import { privacyFor, termsFor } from '@/lib/legal-i18n';
+import { useSettings } from '@/lib/settings';
 import { colors, spacing, themed } from '@/lib/theme';
 
 /** Termos de uso e Política de Privacidade: abre também antes do login (pelo cadastro). */
 export default function TermsScreen() {
+  const lang = useSettings().settings.language;
+  const TERMS = termsFor(lang);
+  const PRIVACY = privacyFor(lang);
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Stack.Screen options={{ title: 'Termos e Privacidade' }} />

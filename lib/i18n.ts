@@ -1,7 +1,9 @@
 // Traduções. A chave é o próprio texto em português: t('Salvos') devolve 'Saved' em inglês.
 // Texto sem tradução cadastrada aparece em português (nunca quebra a tela).
 // Para traduzir mais telas: troque o texto fixo por t('...') e adicione a linha aqui.
-import { useCallback } from 'react';
+import { createContext, useCallback } from 'react';
+
+import { UI_EN, UI_ES, UI_PATTERNS } from './i18n-ui';
 
 import { useSettings, type Language } from './settings';
 
@@ -91,8 +93,8 @@ const en: Dict = {
   'Reproduzir vídeos automaticamente no feed': 'Autoplay videos in the feed',
   'As preferências ficam salvas neste celular.': 'Preferences are saved on this phone.',
   'Idioma do app': 'App language',
-  'Tradução parcial: a página de Configurações, os títulos das telas, o login e esta página já estão traduzidos. As demais telas ainda aparecem em português.':
-    'Partial translation: the Settings page, screen titles, login and this page are translated. Other screens still show in Portuguese.',
+  'O app inteiro muda de idioma na hora. Publicações, comentários e nomes que as pessoas escrevem continuam como foram escritos.':
+    'The whole app changes language right away. Posts, comments and names people write stay as they were written.',
 };
 
 const es: Dict = {
@@ -175,14 +177,56 @@ const es: Dict = {
   'Reproduzir vídeos automaticamente no feed': 'Reproducir videos automáticamente en el feed',
   'As preferências ficam salvas neste celular.': 'Las preferencias se guardan en este teléfono.',
   'Idioma do app': 'Idioma de la app',
-  'Tradução parcial: a página de Configurações, os títulos das telas, o login e esta página já estão traduzidos. As demais telas ainda aparecem em português.':
-    'Traducción parcial: la página de Configuración, los títulos de las pantallas, el inicio de sesión y esta página están traducidos. Las demás pantallas siguen en portugués.',
+  'O app inteiro muda de idioma na hora. Publicações, comentários e nomes que as pessoas escrevem continuam como foram escritos.':
+    'Toda la app cambia de idioma al instante. Las publicaciones, comentarios y nombres que escriben las personas quedan como fueron escritos.',
 };
 
-const DICTS: Record<Language, Dict> = { 'pt-BR': {}, en, es };
+const DICTS: Record<Language, Dict> = { 'pt-BR': {}, en: { ...UI_EN, ...en }, es: { ...UI_ES, ...es } };
 
-export function translate(text: string, lang: Language) {
-  return DICTS[lang][text] ?? text;
+// textos com partes variáveis ("Você está seguindo {0}") viram expressões regulares
+const esc = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const PATTERNS = UI_PATTERNS.map(([pt, enT, esT]) => {
+  const parts = pt.split(/\{\d+\}/);
+  const order = [...pt.matchAll(/\{(\d+)\}/g)].map((m) => Number(m[1]));
+  return { re: new RegExp('^' + parts.map(esc).join('([\\s\\S]+?)') + '$'), order, en: enT, es: esT };
+});
+
+const cache: Record<Language, Map<string, string>> = { 'pt-BR': new Map(), en: new Map(), es: new Map() };
+
+/** Traduz um texto da tela. Mantém espaços das pontas; tenta o texto exato e depois os modelos com partes variáveis. */
+export function translate(text: string, lang: Language): string {
+  if (lang === 'pt-BR' || !text) return text;
+  const hit = cache[lang].get(text);
+  if (hit !== undefined) return hit;
+  const lead = text.match(/^\s*/)![0];
+  const trail = text.slice(lead.length).match(/\s*$/)![0];
+  const core = text.slice(lead.length, text.length - trail.length);
+  let out = DICTS[lang][core];
+  if (out === undefined && core.length < 400) {
+    for (const p of PATTERNS) {
+      const m = core.match(p.re);
+      if (!m) continue;
+      const vals = m.slice(1).map((v) => translate(v, lang));
+      out = (lang === 'en' ? p.en : p.es).replace(/\{(\d+)\}/g, (_, n) => vals[p.order.indexOf(Number(n))] ?? '');
+      break;
+    }
+  }
+  const res = out === undefined ? text : lead + out + trail;
+  if (cache[lang].size > 5000) cache[lang].clear();
+  cache[lang].set(text, res);
+  return res;
+}
+
+// ---------- idioma de toda a tela ----------
+// Todos os textos do app passam por components/i18n-native (Text e TextInput), que leem este contexto.
+export const UILanguageContext = createContext<Language>('pt-BR');
+let uiLanguage: Language = 'pt-BR';
+export function setUILanguage(lang: Language) {
+  uiLanguage = lang;
+}
+/** Para textos fora da tela (alertas do sistema, mensagens de compartilhar). */
+export function tr(text: string) {
+  return translate(text, uiLanguage);
 }
 
 /** const t = useT();  t('Salvos') */

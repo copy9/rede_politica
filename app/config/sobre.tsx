@@ -4,7 +4,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Logo } from '@/components/Logo';
 import { SettingsScreen } from '@/components/SettingsUI';
-import { PRIVACY, TERMS } from '@/lib/legal';
+import { privacyFor, termsFor } from '@/lib/legal-i18n';
+import { useSettings } from '@/lib/settings';
 import { colors, spacing, themed } from '@/lib/theme';
 
 export default function AboutScreen() {
@@ -12,7 +13,8 @@ export default function AboutScreen() {
   const [tab, setTab] = useState<'sobre' | 'termos' | 'privacidade'>(
     params.tab === 'termos' ? 'termos' : params.tab === 'privacidade' ? 'privacidade' : 'sobre',
   );
-  const list = tab === 'termos' ? TERMS : PRIVACY;
+  const lang = useSettings().settings.language;
+  const list = tab === 'termos' ? termsFor(lang) : privacyFor(lang);
 
   return (
     <SettingsScreen>

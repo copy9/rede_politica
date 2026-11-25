@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { tr } from '@/lib/i18n';
 import { useMemo, useState } from 'react';
 import { Alert, FlatList, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -40,7 +41,7 @@ export function SupportersTab({ supporters }: { supporters: Supporter[] }) {
   const last7 = supporters.filter((s) => Date.now() - s.createdAt < 7 * 86400000).length;
 
   const exportCsv = () => {
-    if (!list.length) return Alert.alert('Nada para exportar', 'Nenhum apoiador com esses filtros.');
+    if (!list.length) return Alert.alert(tr('Nada para exportar'), tr('Nenhum apoiador com esses filtros.'));
     Share.share({ title: 'apoiadores.csv', message: supportersToCsv(list) }).catch(() => {});
   };
 

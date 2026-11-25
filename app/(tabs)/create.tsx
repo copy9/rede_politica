@@ -1,5 +1,6 @@
 // Nova publicação no estilo do X/Twitter: escreve direto; foto ou vídeo são opcionais (galeria ou câmera embaixo).
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { tr } from '@/lib/i18n';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as VideoThumbnails from 'expo-video-thumbnails';
@@ -60,7 +61,7 @@ export default function CreateScreen() {
     if (fromCamera) {
       const perm = await ImagePicker.requestCameraPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert('Permissão necessária', 'Autorize o uso da câmera nas configurações do celular.');
+        Alert.alert(tr('Permissão necessária'), tr('Autorize o uso da câmera nas configurações do celular.'));
         return;
       }
     }

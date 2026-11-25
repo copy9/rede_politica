@@ -12,7 +12,7 @@ export default function LanguageScreen() {
           value={settings.language}
           onChange={(language) => update({ language })}
           options={[
-            { value: 'pt-BR', label: 'Português (Brasil)' },
+            { value: 'pt-BR', label: 'Português' },
             { value: 'en', label: 'English' },
             { value: 'es', label: 'Español' },
           ]}
@@ -20,7 +20,7 @@ export default function LanguageScreen() {
       </Section>
       <InfoText>
         {t(
-          'Tradução parcial: a página de Configurações, os títulos das telas, o login e esta página já estão traduzidos. As demais telas ainda aparecem em português.',
+          'O app inteiro muda de idioma na hora. Publicações, comentários e nomes que as pessoas escrevem continuam como foram escritos.',
         )}
       </InfoText>
     </SettingsScreen>

@@ -10,6 +10,7 @@ import { OverlayProvider, useOverlay } from '@/components/Overlay';
 import { UsageTracker } from '@/components/UsageTracker';
 import { useT } from '@/lib/i18n';
 import { SettingsProvider, useSettings } from '@/lib/settings';
+import { setUILanguage, UILanguageContext } from '@/lib/i18n';
 import { AppProvider, useApp } from '@/lib/store';
 import { InvitePopup } from '@/components/InvitePopup';
 import { loadRatings } from '@/lib/ratings';
@@ -25,12 +26,21 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <SettingsProvider>
-        <AppProvider>
-          <ThemedApp />
-        </AppProvider>
+        <LanguageRoot>
+          <AppProvider>
+            <ThemedApp />
+          </AppProvider>
+        </LanguageRoot>
       </SettingsProvider>
     </SafeAreaProvider>
   );
+}
+
+/** Idioma do app inteiro (Configurações › Idioma): todos os textos da tela seguem esta escolha. */
+function LanguageRoot({ children }: { children: React.ReactNode }) {
+  const lang = useSettings().settings.language;
+  setUILanguage(lang);
+  return <UILanguageContext.Provider value={lang}>{children}</UILanguageContext.Provider>;
 }
 
 /** Aplica o tema (claro/escuro/automático) e redesenha o app quando ele muda. */
