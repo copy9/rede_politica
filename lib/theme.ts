@@ -1,4 +1,4 @@
-// Identidade visual do Polarizei, com tema claro e escuro.
+// Identidade visual do Splitter, com tema claro e escuro.
 //
 // Como funciona:
 // - `colors.X` sempre devolve a cor do tema ATUAL (são "getters").

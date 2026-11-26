@@ -112,7 +112,7 @@ export function BattleActions({
 
   const share = () =>
     (recordView(host.id, 'share', battle.id), Share.share({
-      message: `🔴 AO VIVO no Polarizei: ${host.name} x ${opponent.name} debatem "${battle.topic}". Entre e apoie seu lado! redepolitica://battle/${battle.id}`,
+      message: `🔴 AO VIVO no Splitter: ${host.name} x ${opponent.name} debatem "${battle.topic}". Entre e apoie seu lado! redepolitica://battle/${battle.id}`,
     }).catch(() => {}));
 
   const follow = () => {

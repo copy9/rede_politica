@@ -12,7 +12,7 @@ export const LEGAL_CONTACT = {
 };
 
 export const TERMS: [string, string][] = [
-  ['Idade mínima', 'O Polarizei é só para maiores de 18 anos. Ao criar a conta, você confirma que tem 18 anos ou mais.'],
+  ['Idade mínima', 'O Splitter é só para maiores de 18 anos. Ao criar a conta, você confirma que tem 18 anos ou mais.'],
   ['Respeito', 'Debata ideias, não ataque pessoas. Ameaças, discurso de ódio e assédio levam à suspensão da conta.'],
   ['Informação verdadeira', 'Não publique conteúdo falso sobre eleições, candidatos ou o processo de votação. Conteúdos denunciados podem ser removidos.'],
   ['Contas políticas', 'Devem representar a pessoa real. Propaganda eleitoral segue as regras e os prazos da Justiça Eleitoral.'],
@@ -28,7 +28,7 @@ const c = LEGAL_CONTACT;
 export const PRIVACY: [string, string][] = [
   [
     'Quem cuida dos seus dados',
-    `O Polarizei é operado por ${c.company}, CNPJ ${c.cnpj}, ${c.address} ("nós"). Somos os responsáveis (controladores) pelos seus dados pessoais, nos termos da Lei Geral de Proteção de Dados (LGPD – Lei nº 13.709/2018). Encarregado de dados (DPO): ${c.dpo} – ${c.email}. Última atualização: ${c.updatedAt}.`,
+    `O Splitter é operado por ${c.company}, CNPJ ${c.cnpj}, ${c.address} ("nós"). Somos os responsáveis (controladores) pelos seus dados pessoais, nos termos da Lei Geral de Proteção de Dados (LGPD – Lei nº 13.709/2018). Encarregado de dados (DPO): ${c.dpo} – ${c.email}. Última atualização: ${c.updatedAt}.`,
   ],
   [
     'Dados que você nos dá',
@@ -44,7 +44,7 @@ export const PRIVACY: [string, string][] = [
   ],
   [
     'Dados que podem revelar opinião política',
-    'Pela natureza do Polarizei, seguir um político, apoiá-lo ou participar de debates pode revelar sua opinião política, que a LGPD considera dado sensível. Esses dados são tratados para fazer a rede social funcionar (execução do contrato com você) e, quando houver compartilhamento com um político, somente com o seu consentimento específico (veja "Autorizações da plataforma").',
+    'Pela natureza do Splitter, seguir um político, apoiá-lo ou participar de debates pode revelar sua opinião política, que a LGPD considera dado sensível. Esses dados são tratados para fazer a rede social funcionar (execução do contrato com você) e, quando houver compartilhamento com um político, somente com o seu consentimento específico (veja "Autorizações da plataforma").',
   ],
   [
     'Para que usamos',
@@ -83,6 +83,6 @@ export const PRIVACY: [string, string][] = [
     `No app: Configurações › Excluir minha conta. Sem acesso ao app: envie um e-mail para ${c.email} a partir do e-mail cadastrado, com o assunto "Excluir minha conta", e excluímos em até 15 dias.`,
   ],
   ['Segurança', 'Usamos conexão criptografada, senhas criptografadas, regras de acesso no banco de dados (cada pessoa só acessa o que pode), autenticação em dois fatores opcional e alertas de login. Nenhum sistema é 100% seguro; se houver um incidente que afete você, avisaremos.'],
-  ['Menores de idade', 'O Polarizei não é destinado a menores de 18 anos. Se soubermos que uma conta pertence a um menor, ela será excluída.'],
+  ['Menores de idade', 'O Splitter não é destinado a menores de 18 anos. Se soubermos que uma conta pertence a um menor, ela será excluída.'],
   ['Mudanças nesta política', 'Se mudarmos algo importante, avisaremos no app antes de a mudança valer. A data da última atualização fica no início desta política.'],
 ];

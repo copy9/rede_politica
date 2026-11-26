@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Polarizei",
+    "name": "Splitter",
     "slug": "rede-politica",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -11,8 +11,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.redepolitica.app",
       "infoPlist": {
-        "NSCameraUsageDescription": "O Polarizei usa a câmera para você entrar ao vivo nas batalhas e gravar publicações.",
-        "NSMicrophoneUsageDescription": "O Polarizei usa o microfone para o áudio das batalhas ao vivo e dos vídeos."
+        "NSCameraUsageDescription": "O Splitter usa a câmera para você entrar ao vivo nas batalhas e gravar publicações.",
+        "NSMicrophoneUsageDescription": "O Splitter usa o microfone para o áudio das batalhas ao vivo e dos vídeos."
       }
     },
     "android": {
@@ -56,8 +56,8 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "O Polarizei usa a câmera para você entrar ao vivo nas batalhas e gravar publicações.",
-          "microphonePermission": "O Polarizei usa o microfone para o áudio das batalhas ao vivo e dos vídeos.",
+          "cameraPermission": "O Splitter usa a câmera para você entrar ao vivo nas batalhas e gravar publicações.",
+          "microphonePermission": "O Splitter usa o microfone para o áudio das batalhas ao vivo e dos vídeos.",
           "recordAudioAndroid": true
         }
       ],

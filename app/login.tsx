@@ -51,7 +51,7 @@ export default function LoginScreen() {
           <View style={styles.logo}>
             <Logo size={26} />
             <Text style={styles.codeTitle}>Confirme que é você</Text>
-            <Text style={styles.tagline}>Abra o seu app autenticador (ex.: Google Authenticator) e digite o código de 6 números do Polarizei.</Text>
+            <Text style={styles.tagline}>Abra o seu app autenticador (ex.: Google Authenticator) e digite o código de 6 números do Splitter.</Text>
           </View>
           <View style={styles.form}>
             <Field

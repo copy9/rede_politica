@@ -22,7 +22,7 @@ export default function MyProfileScreen() {
             <Ionicons name="notifications-outline" size={25} color={colors.text} />
           </Pressable>
           <Pressable
-            onPress={() => Share.share({ message: shareText(`Siga @${me.username} no Polarizei`, `user/${me.username}`) }).catch(() => {})}
+            onPress={() => Share.share({ message: shareText(`Siga @${me.username} no Splitter`, `user/${me.username}`) }).catch(() => {})}
             hitSlop={8}
             accessibilityLabel="Compartilhar perfil">
             <Ionicons name="share-social-outline" size={25} color={colors.text} />

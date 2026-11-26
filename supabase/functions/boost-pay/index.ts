@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
       headers: { Authorization: `Bearer ${mpToken}`, 'Content-Type': 'application/json', 'X-Idempotency-Key': `boost-${c.id}` },
       body: JSON.stringify({
         transaction_amount: Number(c.amount),
-        description: 'Impulsionamento Polarizei',
+        description: 'Impulsionamento Splitter',
         payment_method_id: 'pix',
         external_reference: c.id,
         notification_url: `${base}/functions/v1/boost-webhook`,

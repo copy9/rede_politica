@@ -68,7 +68,7 @@ export function PostCard({ post, active = false, onOpen }: { post: Post; active?
 
   const onShare = () => {
     recordView(post.userId, 'share', post.id);
-    Share.share({ message: shareText(`Veja a publicação de @${author.username} no Polarizei${post.caption ? `: ${post.caption}` : ''}`, `post/${post.id}`) }).catch(() => {});
+    Share.share({ message: shareText(`Veja a publicação de @${author.username} no Splitter${post.caption ? `: ${post.caption}` : ''}`, `post/${post.id}`) }).catch(() => {});
   };
 
   const onMore = () => {

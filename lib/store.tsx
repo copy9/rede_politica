@@ -857,7 +857,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // remove tentativas antigas não concluídas
     const old = await supabase.auth.mfa.listFactors();
     for (const f of old.data?.all ?? []) if (f.status !== 'verified') await supabase.auth.mfa.unenroll({ factorId: f.id });
-    const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: `Polarizei ${Date.now()}` });
+    const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: `Splitter ${Date.now()}` });
     if (error || !data) return friendlyError(error?.message);
     return { factorId: data.id, qr: data.totp.qr_code, secret: data.totp.secret, uri: data.totp.uri };
   }, []);
@@ -924,7 +924,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (password.length < 6) return 'A senha precisa de pelo menos 6 caracteres.';
       const age = ageFrom(birthDate);
       if (age === null) return 'Informe a data de nascimento no formato DD/MM/AAAA.';
-      if (age < 18) return 'O Polarizei é só para maiores de 18 anos.';
+      if (age < 18) return 'O Splitter é só para maiores de 18 anos.';
       if (!acceptedTerms) return 'Para criar a conta, confirme que tem 18 anos ou mais e aceite os Termos.';
       if (accountType === 'politico' && (!role?.trim() || !city?.trim() || !state?.trim()))
         return 'Para conta política, informe cargo/pretensão, cidade e UF.';

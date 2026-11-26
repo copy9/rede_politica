@@ -58,7 +58,7 @@ export const STATUS_COLOR: Record<BoostStatus, string> = {
   pending_review: '#F59E0B',
   active: '#16A34A',
   paused: '#6B7280',
-  completed: '#1082EE',
+  completed: '#037EF6',
   rejected: '#DC2626',
   canceled: '#6B7280',
 };

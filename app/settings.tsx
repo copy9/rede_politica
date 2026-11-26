@@ -44,7 +44,7 @@ export default function SettingsHome() {
       ],
     },
     {
-      title: 'Como você usa o Polarizei',
+      title: 'Como você usa o Splitter',
       rows: [
         { icon: 'time-outline', label: 'Sua atividade', onPress: go('/atividade') },
         { icon: 'notifications-outline', label: 'Notificações', value: settings.notifications.pauseAll ? t('Pausadas') : undefined, onPress: go('/config/notificacoes') },
@@ -126,7 +126,7 @@ export default function SettingsHome() {
           <NavRow label={t('Sair')} onPress={logout} danger />
         </Section>
       ) : null}
-      <Text style={styles.version}>{t('Polarizei • versão de teste')}</Text>
+      <Text style={styles.version}>{t('Splitter • versão de teste')}</Text>
     </SettingsScreen>
   );
 }

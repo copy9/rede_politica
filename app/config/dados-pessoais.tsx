@@ -58,7 +58,7 @@ export default function PersonalInfoScreen() {
       <Section title="Perfil">
         <NavRow label="Cidade, gênero, nascimento e interesses" value={[me.city, me.state].filter(Boolean).join('/')} onPress={() => router.push('/edit-profile')} />
       </Section>
-      <Section title="Seus dados (LGPD)" footer="Baixe uma cópia de tudo que o Polarizei guarda sobre você, ou exclua a conta de vez.">
+      <Section title="Seus dados (LGPD)" footer="Baixe uma cópia de tudo que o Splitter guarda sobre você, ou exclua a conta de vez.">
         <NavRow icon="download-outline" label="Baixar meus dados" onPress={download} />
         <NavRow label="Excluir minha conta" danger onPress={remove} />
       </Section>
