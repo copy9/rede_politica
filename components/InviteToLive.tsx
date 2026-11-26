@@ -38,7 +38,19 @@ export function InviteToLive({
 
   const invite = async (userId: string, name: string) => {
     setSent((s) => [...s, userId]);
-    const { data, error } = await supabase.rpc('invite_to_live', { p_battle: battleId, p_user: userId });
+    const res = await supabase.rpc('invite_to_live', { p_battle: battleId, p_user: userId });
+    let data: unknown = res.data;
+    let error: { message: string; code?: string } | null = res.error;
+    // banco ainda sem a função (SQL 0024 não rodado): convida direto pela tabela
+    if (error && (error.code === 'PGRST202' || /schema cache|could not find the function/i.test(error.message))) {
+      const ins = await supabase.from('battle_guests').insert({ battle_id: battleId, user_id: userId, status: 'convidado' });
+      if (!ins.error) {
+        error = null;
+        data = 'convidado';
+      } else if (ins.error.code === '23505') {
+        error = { message: 'essa pessoa já tinha pedido ou recusado antes. Rode o SQL 0024 no Supabase para poder chamar de novo.' };
+      } else error = ins.error;
+    }
     if (error) {
       setSent((s) => s.filter((x) => x !== userId));
       return showBanner(`Não deu para chamar: ${error.message}`, { icon: 'alert-circle-outline', tone: 'warning' });

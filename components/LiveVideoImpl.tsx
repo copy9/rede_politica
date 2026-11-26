@@ -25,7 +25,20 @@ registerGlobals();
 const ConnectedContext = createContext(false);
 
 /** Entra na sala de vídeo da batalha. Quem debate transmite câmera e microfone; a plateia só assiste e ouve. */
-export function BattleRoom({ battleId, speaker, children, style }: { battleId: string; speaker: boolean; children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
+export function BattleRoom({
+  battleId,
+  speaker,
+  children,
+  style,
+  forced,
+}: {
+  battleId: string;
+  speaker: boolean;
+  children: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
+  /** o anfitrião desligou o microfone/câmera desta pessoa */
+  forced?: { mic: boolean; cam: boolean };
+}) {
   const [token, setToken] = useState<string | undefined>();
   const [error, setError] = useState<string | null>(null);
 
@@ -79,6 +92,7 @@ export function BattleRoom({ battleId, speaker, children, style }: { battleId: s
       onMediaDeviceFailure={() => setError('Não deu para abrir a câmera ou o microfone. Feche outros apps que usam a câmera e entre de novo.')}>
       <ConnectedContext.Provider value={connected}>
         {speaker ? <ResumeCamera /> : null}
+        {speaker && forced ? <HostControl mic={forced.mic} cam={forced.cam} /> : null}
         <View style={style}>
           {children}
           {error ? (
@@ -131,6 +145,25 @@ function ResumeCamera() {
     });
     return () => sub.remove();
   }, [room, localParticipant]);
+  return null;
+}
+
+/**
+ * O anfitrião silenciou o microfone ou desligou a câmera desta pessoa: o celular dela obedece
+ * (e continua desligado enquanto o anfitrião não liberar). Quando ele libera, volta a ligar.
+ */
+function HostControl({ mic, cam }: { mic: boolean; cam: boolean }) {
+  const { localParticipant, isMicrophoneEnabled, isCameraEnabled } = useLocalParticipant();
+  const connected = useContext(ConnectedContext);
+  const prev = useRef({ mic: false, cam: false });
+  useEffect(() => {
+    if (!connected) return;
+    if (mic && isMicrophoneEnabled) localParticipant.setMicrophoneEnabled(false).catch(() => {});
+    if (!mic && prev.current.mic) localParticipant.setMicrophoneEnabled(true).catch(() => {});
+    if (cam && isCameraEnabled) localParticipant.setCameraEnabled(false).catch(() => {});
+    if (!cam && prev.current.cam) localParticipant.setCameraEnabled(true, { facingMode: 'user' }).catch(() => {});
+    prev.current = { mic, cam };
+  }, [mic, cam, isMicrophoneEnabled, isCameraEnabled, connected, localParticipant]);
   return null;
 }
 

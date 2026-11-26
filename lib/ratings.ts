@@ -64,6 +64,10 @@ export function markWatched(battleId: string) {
   watched.add(battleId);
   emit();
 }
+/** saiu da live antes dela acabar: não pede nota (a pessoa não estava mais vendo) */
+export function unmarkWatched(battleId: string) {
+  if (watched.delete(battleId)) emit();
+}
 export function watchedLives() {
   return watched;
 }

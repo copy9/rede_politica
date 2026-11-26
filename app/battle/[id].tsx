@@ -2,9 +2,10 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { recordView } from '@/lib/views';
+import { supabase } from '@/lib/supabase';
 import { InviteToLive } from '@/components/InviteToLive';
 import { BRAND_BLUE } from '@/components/Logo';
-import { markWatched } from '@/lib/ratings';
+import { markWatched, unmarkWatched } from '@/lib/ratings';
 import {
   FlatList,
   Platform,
@@ -20,7 +21,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
 import { BattleActions } from '@/components/BattleActions';
-import { BattleGuestsControls, answerGuestInvite, requestToJoin, useBattleGuests, type GuestRow } from '@/components/BattleGuests';
+import { BattleGuestsControls, answerGuestChecked, answerGuestInvite, requestToJoin, setModeration, useBattleGuests, useBattleModeration, type GuestRow } from '@/components/BattleGuests';
 import { LiveCamera } from '@/components/LiveCamera';
 import { useOverlay } from '@/components/Overlay';
 import { Linking } from 'react-native';
@@ -56,7 +57,7 @@ export function BattleView({ id }: { id: string }) {
   const app = useApp();
   const { getBattle, getUser, messagesForBattle, supportBattle, sendBattleMessage, joinBattle, startBattle, endBattle, remindBattle, acceptBattle, declineBattle, refreshBattle } = app;
   const { width, height } = useWindowDimensions();
-  const { confirm, showBanner } = useOverlay();
+  const { confirm, showBanner, showSheet } = useOverlay();
   const [now, setNow] = useState(Date.now());
   const [side, setSide] = useState<BattleSide | null>(null);
   const [text, setText] = useState('');
@@ -100,6 +101,10 @@ export function BattleView({ id }: { id: string }) {
   }, [kbOpen, availH]);
   const chatRef = useRef<FlatList<BattleMessage>>(null);
   const guests = useBattleGuests(id);
+  // controle do anfitrião: quem ele silenciou ou teve a câmera desligada
+  const moderation = useBattleModeration(id);
+  const myMod = moderation.find((m) => m.user_id === me.id);
+  const forced = { mic: !!myMod?.mic_off, cam: !!myMod?.cam_off };
   const battleStatus = getBattle(id)?.status;
   useEffect(() => {
     if (!id || battleStatus === 'ended') return;
@@ -140,6 +145,29 @@ export function BattleView({ id }: { id: string }) {
   useEffect(() => {
     if (battle?.status === 'live' && !amSpeaker) markWatched(battle.id);
   }, [battle?.id, battle?.status, amSpeaker]); // eslint-disable-line react-hooks/exhaustive-deps
+  // avisos para quem participa: foi aceito (a câmera vai ligar) ou foi removido pelo anfitrião
+  const wasGuest = useRef(isGuestSpeaker);
+  const wasOpponent = useRef(!!battle && battle.opponentId === me.id);
+  useEffect(() => {
+    const isOpp = !!battle && battle.opponentId === me.id;
+    if (battle?.status === 'live') {
+      if (!wasGuest.current && isGuestSpeaker) showBanner('Você entrou na live! Ligando sua câmera…', { icon: 'videocam', tone: 'success' });
+      if ((wasGuest.current && !isGuestSpeaker && !isOpp) || (wasOpponent.current && !isOpp && battle.hostId !== me.id))
+        showBanner('Você saiu da live e voltou a só assistir.', { icon: 'person-remove-outline' });
+    }
+    wasGuest.current = isGuestSpeaker;
+    wasOpponent.current = isOpp;
+  }, [isGuestSpeaker, battle?.opponentId, battle?.status]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // saiu da tela com a live ainda acontecendo: não pede nota quando ela terminar
+  const liveStatusRef = useRef(battle?.status);
+  liveStatusRef.current = battle?.status;
+  useEffect(() => {
+    const bid = id;
+    return () => {
+      if (liveStatusRef.current === 'live') unmarkWatched(bid);
+    };
+  }, [id]);
 
   if (!battle || !host || !opponent) {
     return (
@@ -244,22 +272,24 @@ export function BattleView({ id }: { id: string }) {
             </Text>
             {battle.description ? <LinkText text={battle.description} style={styles.description} /> : null}
           </View>
-          {isHost && live ? (
-            // chamar alguém para a live (ex.: o outro lado saiu e quero chamar um amigo)
-            <Pressable onPress={() => setInviteOpen(true)} hitSlop={8} style={styles.inviteBtn} accessibilityLabel="Chamar alguém para a live">
-              <Ionicons name="person-add" size={16} color="#fff" />
-              <Text style={styles.inviteText}>Chamar</Text>
+          <View style={styles.headerRight}>
+            <Pressable onPress={onClose} hitSlop={12} style={styles.close}>
+              {isHost && live ? (
+                <Text style={styles.endText}>Encerrar</Text>
+              ) : live ? (
+                <Text style={styles.endText}>Sair</Text>
+              ) : (
+                <Ionicons name="close" size={28} color="#fff" />
+              )}
             </Pressable>
-          ) : null}
-          <Pressable onPress={onClose} hitSlop={12} style={styles.close}>
             {isHost && live ? (
-              <Text style={styles.endText}>Encerrar</Text>
-            ) : live ? (
-              <Text style={styles.endText}>Sair</Text>
-            ) : (
-              <Ionicons name="close" size={28} color="#fff" />
-            )}
-          </Pressable>
+              // chamar alguém para a live (ex.: o outro lado saiu e quero chamar um amigo)
+              <Pressable onPress={() => setInviteOpen(true)} hitSlop={8} style={styles.inviteBtn} accessibilityLabel="Chamar alguém para a live">
+                <Ionicons name="person-add" size={14} color="#fff" />
+                <Text style={styles.inviteText}>Chamar</Text>
+              </Pressable>
+            ) : null}
+          </View>
         </View>
 
         {/* Placar no topo: cresce para o lado com mais presentes e curtidas */}
@@ -470,8 +500,58 @@ export function BattleView({ id }: { id: string }) {
                     <Text style={styles.pickedText}>Curtindo</Text>
                   </View>
                 ) : null}
+                {isHost && live && !s.isMe && s.user && (s.kind === 'side' || s.kind === 'accepted') ? (
+                  <Pressable
+                    style={[styles.hostMenu, fullScreen && { top: 130 }]}
+                    hitSlop={8}
+                    accessibilityLabel={`Opções para ${name}`}
+                    onPress={() => {
+                      const mod = moderation.find((m) => m.user_id === s.key);
+                      const apply = async (patch: { mic_off?: boolean; cam_off?: boolean }, ok: string) => {
+                        const err = await setModeration(battle.id, s.key, patch);
+                        showBanner(err ? `Não deu: ${err}` : ok, { icon: err ? 'alert-circle-outline' : 'checkmark-circle', tone: err ? 'warning' : 'success' });
+                      };
+                      showSheet({
+                        title: name,
+                        options: [
+                          mod?.mic_off
+                            ? { label: 'Liberar microfone', icon: 'mic-outline', onPress: () => apply({ mic_off: false }, `Microfone de ${name} liberado.`) }
+                            : { label: 'Silenciar microfone', icon: 'mic-off-outline', onPress: () => apply({ mic_off: true }, `${name} foi silenciado(a).`) },
+                          mod?.cam_off
+                            ? { label: 'Liberar câmera', icon: 'videocam-outline', onPress: () => apply({ cam_off: false }, `Câmera de ${name} liberada.`) }
+                            : { label: 'Desligar câmera', icon: 'videocam-off-outline', onPress: () => apply({ cam_off: true }, `Câmera de ${name} desligada.`) },
+                          {
+                            label: 'Remover da live',
+                            icon: 'person-remove-outline',
+                            destructive: true,
+                            onPress: () =>
+                              confirm(`Remover ${name}?`, 'A pessoa sai da live e volta a só assistir.', 'Remover', async () => {
+                                let err: string | null = null;
+                                if (!solo && s.key === opponent.id) {
+                                  const { error } = await supabase.from('battles').update({ opponent_id: null, score_opponent: 0 }).eq('id', battle.id);
+                                  err = error?.message ?? null;
+                                } else err = (await answerGuestChecked(battle.id, s.key, 'declined')).error;
+                                showBanner(err ? `Não deu para remover: ${err}` : `${name} saiu da live.`, {
+                                  icon: err ? 'alert-circle-outline' : 'person-remove-outline',
+                                  tone: err ? 'warning' : 'success',
+                                });
+                                if (!err && !solo && s.key === opponent.id) app.refreshBattle(battle.id);
+                              }, true),
+                          },
+                        ],
+                      });
+                    }}>
+                    <Ionicons name="ellipsis-horizontal" size={18} color="#fff" />
+                  </Pressable>
+                ) : null}
+                {moderation.find((m) => m.user_id === s.key && (m.mic_off || m.cam_off)) ? (
+                  <View style={[styles.modBadge, fullScreen && { top: 130 }]} pointerEvents="none">
+                    {moderation.find((m) => m.user_id === s.key)?.mic_off ? <Ionicons name="mic-off" size={13} color="#fff" /> : null}
+                    {moderation.find((m) => m.user_id === s.key)?.cam_off ? <Ionicons name="videocam-off" size={13} color="#fff" /> : null}
+                  </View>
+                ) : null}
                 {s.key === host.id || (!solo && s.key === opponent.id) ? (
-                  <View style={styles.likeCount}>
+                  <View style={[styles.likeCount, fullScreen && { top: 130 }]}>
                     <Ionicons name="heart" size={12} color="#F43F5E" />
                     <Text style={styles.likeCountText}>{compactNumber(battle.scores[s.key === host.id ? 'host' : 'opponent'])}</Text>
                   </View>
@@ -514,7 +594,7 @@ export function BattleView({ id }: { id: string }) {
             return (
               <>
                 {LVf && live ? (
-                  <LVf.BattleRoom key={`${isParticipant}-${isGuestSpeaker}`} battleId={battle.id} speaker={isParticipant || isGuestSpeaker} style={styles.fullStage}>
+                  <LVf.BattleRoom key={`${isParticipant}-${isGuestSpeaker}`} battleId={battle.id} speaker={isParticipant || isGuestSpeaker} style={styles.fullStage} forced={forced}>
                     {solo1}
                   </LVf.BattleRoom>
                 ) : (
@@ -546,7 +626,7 @@ export function BattleView({ id }: { id: string }) {
           return (
             <>
               {LV && live ? (
-                <LV.BattleRoom key={`${isParticipant}-${isGuestSpeaker}`} battleId={battle.id} speaker={isParticipant || isGuestSpeaker}>
+                <LV.BattleRoom key={`${isParticipant}-${isGuestSpeaker}`} battleId={battle.id} speaker={isParticipant || isGuestSpeaker} forced={forced}>
                   {stage}
                 </LV.BattleRoom>
               ) : (
@@ -725,7 +805,7 @@ function Result({ battle }: { battle: LiveBattle; host: User; opponent: User }) 
 }
 
 const styles = themed(() => StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0B1020' },
+  container: { flex: 1, backgroundColor: '#000' },
   // live sozinho: vídeo atrás de tudo
   fullStage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: -1 },
   fullTop: { position: 'absolute', top: 120, left: 0, right: 0 },
@@ -745,13 +825,16 @@ const styles = themed(() => StyleSheet.create({
   link: { color: '#60A5FA', textDecorationLine: 'underline' },
   topic: { color: '#fff', fontWeight: '700', fontSize: 15 },
   close: { paddingTop: 2 },
-  inviteBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: BRAND_BLUE, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, marginRight: 8, marginTop: 2 },
+  headerRight: { alignItems: 'flex-end', gap: 8 },
+  hostMenu: { position: 'absolute', top: 8, right: 8, width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' },
+  modBadge: { position: 'absolute', top: 44, right: 8, flexDirection: 'row', gap: 4, backgroundColor: '#DC2626', borderRadius: 999, paddingHorizontal: 7, paddingVertical: 3 },
+  inviteBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: BRAND_BLUE, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
   inviteText: { color: '#fff', fontWeight: '700' },
   endText: { color: '#fff', fontWeight: '700', backgroundColor: colors.like, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, overflow: 'hidden' },
   split: { flexDirection: 'row' },
-  half: { flex: 1, backgroundColor: '#0B1020' },
+  half: { flex: 1, backgroundColor: '#000' },
   halfVideo: { flex: 1, overflow: 'hidden', backgroundColor: '#111827' },
-  inviteBox: { alignItems: 'center', justifyContent: 'center', gap: spacing.sm, padding: spacing.lg, minHeight: 280, backgroundColor: '#0B1020' },
+  inviteBox: { alignItems: 'center', justifyContent: 'center', gap: spacing.sm, padding: spacing.lg, minHeight: 280, backgroundColor: '#000' },
   inviteTitle: { color: '#fff', fontSize: 18, fontWeight: '800', textAlign: 'center' },
   inviteTopic: { color: 'rgba(255,255,255,0.85)', fontSize: 15, textAlign: 'center' },
   inviteNote: { color: 'rgba(255,255,255,0.6)', fontSize: 12, textAlign: 'center', marginBottom: spacing.xs },
@@ -773,7 +856,7 @@ const styles = themed(() => StyleSheet.create({
   joinPlus: { color: '#fff', fontSize: 26, fontWeight: '300', lineHeight: 28 },
   joinLabel: { color: '#fff', fontSize: 11, fontWeight: '600', textAlign: 'center', paddingHorizontal: 4 },
   sideName: { color: '#fff', fontWeight: '700', fontSize: 14, paddingHorizontal: 8, paddingTop: 6, paddingBottom: 4 },
-  divider: { width: 2, backgroundColor: '#0B1020' },
+  divider: { width: 2, backgroundColor: '#000' },
   waiting: { color: 'rgba(255,255,255,0.75)', fontSize: 12 },
   placeholder: { alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#1E293B' },
   sideTag: { position: 'absolute', bottom: 8, left: 8, right: 8, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, alignSelf: 'flex-start' },
@@ -796,7 +879,7 @@ const styles = themed(() => StyleSheet.create({
   giftEmoji: { fontSize: 22 },
   giftLabel: { color: '#fff', fontWeight: '700', fontSize: 12 },
   bottom: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md, backgroundColor: 'transparent' },
-  bottomOverKeyboard: { position: 'absolute', left: 0, right: 0, backgroundColor: '#0B1020', zIndex: 10, elevation: 10 },
+  bottomOverKeyboard: { position: 'absolute', left: 0, right: 0, backgroundColor: '#000', zIndex: 10, elevation: 10 },
   input: { flex: 1, minWidth: 0, color: '#fff', backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 9 },
   sideButton: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1.5, borderRadius: 18, paddingHorizontal: 8, paddingVertical: 7, maxWidth: 88, flexShrink: 0 },
   sideButtonText: { fontWeight: '700', fontSize: 12, flexShrink: 1 },

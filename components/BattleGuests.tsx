@@ -16,6 +16,55 @@ export function answerGuestInvite(battleId: string, userId: string, status: 'acc
   return supabase.from('battle_guests').update({ status }).eq('battle_id', battleId).eq('user_id', userId);
 }
 
+/** Aceita/recusa e confere no banco se mudou mesmo (se as regras do banco bloquearem, avisa em vez de fingir que deu certo). */
+export async function answerGuestChecked(battleId: string, userId: string, status: 'accepted' | 'declined') {
+  const { data, error } = await supabase
+    .from('battle_guests')
+    .update({ status })
+    .eq('battle_id', battleId)
+    .eq('user_id', userId)
+    .select('status');
+  if (error) return { error: error.message };
+  if (!data || data.length === 0 || data[0].status !== status) return { error: 'o banco não deixou mudar o pedido (só quem criou a live pode aceitar).' };
+  return { error: null };
+}
+
+// ---------- controle do anfitrião (microfone e câmera dos participantes) ----------
+export type ModerationRow = { user_id: string; mic_off: boolean; cam_off: boolean };
+
+/** Quem o anfitrião silenciou ou teve a câmera desligada nesta live (atualiza em tempo real). */
+export function useBattleModeration(battleId: string): ModerationRow[] {
+  const [rows, setRows] = useState<ModerationRow[]>([]);
+  useEffect(() => {
+    if (!battleId) return;
+    let alive = true;
+    const load = async () => {
+      const { data, error } = await supabase.from('battle_moderation').select('user_id,mic_off,cam_off').eq('battle_id', battleId);
+      if (alive && !error && data) setRows(data as ModerationRow[]);
+    };
+    load();
+    const poll = setInterval(load, 4000);
+    const channel = supabase
+      .channel(`moderacao-${battleId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'battle_moderation', filter: `battle_id=eq.${battleId}` }, () => load())
+      .subscribe();
+    return () => {
+      alive = false;
+      clearInterval(poll);
+      supabase.removeChannel(channel);
+    };
+  }, [battleId]);
+  return rows;
+}
+
+/** Anfitrião liga/desliga o microfone ou a câmera de um participante. */
+export async function setModeration(battleId: string, userId: string, patch: { mic_off?: boolean; cam_off?: boolean }) {
+  const { error } = await supabase
+    .from('battle_moderation')
+    .upsert({ battle_id: battleId, user_id: userId, ...patch, updated_at: new Date().toISOString() }, { onConflict: 'battle_id,user_id' });
+  return error ? (/battle_moderation|schema cache/i.test(error.message) ? 'rode o SQL 0026 no Supabase para usar esse controle.' : error.message) : null;
+}
+
 /** Quem assiste pede para entrar. Devolve a mensagem para mostrar ao usuário. */
 export async function requestToJoin(battleId: string, meId: string, mine?: GuestStatus): Promise<string | null> {
   if (mine === 'pending') return null;
@@ -77,10 +126,10 @@ export function BattleGuestsControls({ battleId, isHost, users, guests, onMessag
 
   const answer = async (userId: string, status: 'accepted' | 'declined') => {
     setAnswered((a) => [...a, userId]);
-    const { error } = await answerGuestInvite(battleId, userId, status);
+    const { error } = await answerGuestChecked(battleId, userId, status);
     if (error) {
       setAnswered((a) => a.filter((u) => u !== userId));
-      onMessage(`Não foi possível responder: ${error.message}`);
+      onMessage(`Não foi possível responder: ${error}`);
     } else if (status === 'accepted') onMessage('Aceito! A câmera da pessoa entra na live em alguns segundos.');
   };
 
